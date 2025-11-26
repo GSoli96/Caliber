@@ -2,17 +2,15 @@ import os
 
 import streamlit as st
 
-from File_prima.GUI.history_tab import history_tab
-from File_prima.GUI.setting_tab import settings_tab
+from GUI.history_tab import history_tab
+from GUI.setting_tab import settings_tab
 from GUI.gen_eval_query import query_gen_eval_tab
-# from File_prima.GUI.green_ai_race_tab import green_ai_race_tab
-# from File_prima.GUI.history_tab import history_tab
-# from File_prima.GUI.setting_tab import settings_tab
 from GUI.dataset_analytics_tab import db_analytics_tab
 from GUI.db_management_tab import db_management_tab
 from GUI.green_ai_race_tab import green_ai_race_tab
 from GUI.load_db_tab import load_db_tab
 from GUI.load_file_tab import load_file_tab
+from GUI.synthetic_data_tab import synthetic_data_tab
 from llm_adapters.lmstudio_adapter import start_server_background, run_server_lmStudio
 from llm_adapters.ollama_adapter import run_server_ollama
 from utils.history_manager import initialize_history_db
@@ -160,7 +158,7 @@ st.markdown(html, unsafe_allow_html=True)
     generate_query_tab,
     green_race_tab,
     benchmarking_tab,
-    synthetic_data_tab,
+    synthetic_tab,
     history_page_tab,
     settings_page_tab,
 ) = st.tabs(tab_list)
@@ -224,10 +222,9 @@ with benchmarking_tab:
 
 
 # --- SYNTHETIC DATA ---
-with synthetic_data_tab:
+with synthetic_tab:
     st.header("🧬 Synthetic Data")
-    # synthetic_data_tab() se/quando la definisci
-    st.info("Synthetic data generation – coming soon.")
+    synthetic_data_tab()
 
 
 # --- HISTORY ---

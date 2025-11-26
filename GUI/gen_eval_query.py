@@ -51,7 +51,6 @@ def _display_results_eval():
     timestamps = results.get('timestamps', {}) 
     monitoring_data = st.session_state.get('monitoring_data', [])
 
-
     # --- ERRORI PRINCIPALI ---
     if info.get('error'):
         st.error(f"{get_text('gen_eval', 'exec_error')}\n\n{info['error']}")

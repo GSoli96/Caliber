@@ -401,95 +401,8 @@ def safe_nunique(s: pd.Series) -> int:
     except TypeError:
         return int(s.astype(str).nunique(dropna=True))
 
-def top_informative_columns(df: pd.DataFrame, k: int) -> list[str]:
-    n_rows = len(df)
-    scores = {}
-    for c in df.columns:
-        u = safe_nunique(df[c])
-        if n_rows <= 1:
-            score = 0.0
-        else:
-            frac = u / max(1, n_rows)
-            score = frac * (1 - abs(frac - 0.5))  # preferisci cardinalità intermedie
-        scores[c] = score
-    return [c for c, _ in sorted(scores.items(), key=lambda x: x[1], reverse=True)[:k]]
 
-def detect_candidate_pk(df: pd.DataFrame, max_k: int = 3, max_combos: int = 50_000) -> list[tuple[tuple[str, ...], float]]:
-    """Ritorna [(combo_colonne, missing_rate)] ordinate per dimensione. Early-stop se trova PK."""
-    n_rows = len(df)
-    results = []
-    cols = list(df.columns)
 
-    # singole
-    for c in cols:
-        nulls = is_null_series(df[c]).sum()
-        if nulls == 0 and safe_nunique(df[c]) == n_rows:
-            results.append(((c,), 0.0))
-    if results:
-        return results
-
-    tried = 0
-    for k_ in range(2, min(max_k, len(cols)) + 1):
-        for combo in itertools.combinations(cols, k_):
-            tried += 1
-            if tried > max_combos:
-                break
-            subset = df[list(combo)]
-            if is_null_series(subset).any(axis=1).any():
-                continue
-            try:
-                unique_pairs = subset.drop_duplicates().shape[0]
-            except TypeError:
-                unique_pairs = subset.astype(str).drop_duplicates().shape[0]
-            if unique_pairs == n_rows:
-                results.append((combo, 0.0))
-        if results:
-            break
-    return results
-
-def candidate_fk_to_related(df_left: pd.DataFrame, related: Dict[str, pd.DataFrame], min_coverage: float = 0.9, progress: Callable[[int], None] | None = None) -> pd.DataFrame:
-    """FK semplici: colonna sinistra ⊆ chiave unica destra (singola o coppia). Usa progress su tabelle destre."""
-    findings = []
-    if not related:
-        return pd.DataFrame(findings)
-    steps_total = len(related)
-    step = 0
-    for name_r, dfr in related.items():
-        step += 1
-        if progress: progress(step)
-        unique_right = []
-        for c in dfr.columns:
-            if dfr[c].notna().all() and safe_nunique(dfr[c]) == len(dfr) and len(dfr) > 0:
-                unique_right.append((c,))
-        for combo in itertools.combinations(dfr.columns, 2):
-            sub = dfr[list(combo)].dropna()
-            try:
-                if sub.drop_duplicates().shape[0] == len(dfr):
-                    unique_right.append(combo)
-            except TypeError:
-                if sub.astype(str).drop_duplicates().shape[0] == len(dfr):
-                    unique_right.append(combo)
-
-        for c_left in df_left.columns:
-            left_vals = set(df_left[c_left].dropna().astype(str).unique())
-            if not left_vals:
-                continue
-            for combo in unique_right:
-                right_vals = set(
-                    dfr[list(combo)].dropna().astype(str).agg("§§".join, axis=1).unique()
-                )
-                inter = left_vals & right_vals
-                coverage = len(inter) / max(1, len(left_vals))
-                cover = left_vals.issubset(right_vals)
-                if coverage >= min_coverage:
-                    findings.append({
-                        "colonna_sinistra": c_left if len(combo) == 1 else f"{c_left} (combinata?)",
-                        "tabella_destra": name_r,
-                        "chiave_destra": " + ".join(combo),
-                        "coverage_fk(%)": round(coverage * 100, 2),
-                        "ipotetica_FK": "✅" if cover else "⚠️ quasi"
-                    })
-    return pd.DataFrame(findings)
 
 def zscore_outlier_rate(series: pd.Series, z: float = 3.0) -> float:
     s = pd.to_numeric(series, errors="coerce")
@@ -502,47 +415,7 @@ def zscore_outlier_rate(series: pd.Series, z: float = 3.0) -> float:
 # ------------------------------------------------------------------------------------
 # Task functions con PROGRESS (chiamate nei thread)
 # ------------------------------------------------------------------------------------
-def task_keys_pk(df: pd.DataFrame, pk_max_combo: int, pk_max_combos: int, ss_key: str, tag: str) -> Dict[str, Any]:
-    # progress: stimiamo step = n_col + 1 (unicità per colonna) + ricerca PK composte
-    reporter = make_progress_reporter(ss_key, tag, total=max(1, len(df.columns) + 1))
-    n_rows = len(df)
-    # step 1: tabella unicità
-    rows = []
-    for i, c in enumerate(df.columns, start=1):
-        rows.append({
-            "Colonna": c,
-            "Unici": safe_nunique(df[c]),
-            "Missing %": round(is_null_series(df[c]).mean() * 100, 2)
-        })
-        reporter(i)
-    uniq = pd.DataFrame(rows)
-    uniq["Unici %"] = (uniq["Unici"] / max(1, n_rows) * 100).round(2)
-    uniq["Candidata_PK_singola"] = (uniq["Unici"] == n_rows) & (uniq["Missing %"] == 0)
 
-    # step 2: PK composte (contiamo come un singolo step per non bloccare)
-    if pk_max_combo > 1:
-        _ = detect_candidate_pk(df, max_k=int(pk_max_combo), max_combos=int(pk_max_combos))
-    reporter(len(df.columns) + 1)
-    return {"uniq": uniq}
-
-def task_card_fk(df: pd.DataFrame, related_tables: dict | None, min_cov: float, ss_key: str, tag: str) -> Dict[str, Any]:
-    reporter = make_progress_reporter(ss_key, tag, total=max(1, len(related_tables) if related_tables else 1))
-    # cardinalità intra-tabella (veloce, conteggiamo metà progresso)
-    n_rows = len(df)
-    card = pd.DataFrame({
-        "Colonna": df.columns,
-        "Unici": [safe_nunique(df[c]) for c in df.columns]
-    })
-    card["Unici %"] = (card["Unici"] / max(1, n_rows) * 100).round(2)
-    # metà progresso
-    reporter( max(1, (len(related_tables) if related_tables else 1)//2) )
-    # FK (se presenti)
-    fk = None
-    if related_tables:
-        fk = candidate_fk_to_related(df, related_tables, min_coverage=min_cov, progress=reporter)
-    else:
-        reporter(1)
-    return {"card": card, "fk": fk}
 
 def task_anomalies(df: pd.DataFrame, z_thresh: float, min_year: int, future_days: int, ss_key: str, tag: str) -> Dict[str, Any]:
     reporter = make_progress_reporter(ss_key, tag, total=max(1, len(df.columns)))
@@ -646,65 +519,7 @@ def task_semantic(df: pd.DataFrame, sem_sample: int, enable_spacy: bool, ss_key:
     sem_df = pd.DataFrame(rows_sem)
     return {"semantic": sem_df}
 
-def task_fds(df: pd.DataFrame, fd_max_cols: int, fd_sample_rows: int, fd_tolerance: float, ss_key: str, tag: str) -> Dict[str, Any]:
-    # progress per colonne considerate
-    cols = top_informative_columns(df, min(fd_max_cols, df.shape[1]))
-    df2 = df[cols].copy()
-    if len(df2) > fd_sample_rows:
-        df2 = df2.sample(fd_sample_rows, random_state=42)
-    reporter = make_progress_reporter(ss_key, tag, total=max(1, len(cols)))
 
-    findings = []
-    for i, a in enumerate(cols, start=1):
-        a_vals = df2[a]
-        if is_null_series(a_vals).mean() > 0.2:
-            reporter(i); continue
-        for b in cols:
-            if a == b: continue
-            g = df2[[a, b]].dropna()
-            if g.empty: continue
-            try:
-                k = g.groupby(a, dropna=False)[b].nunique()
-            except TypeError:
-                k = g.astype({a: str, b: str}).groupby(a, dropna=False)[b].nunique()
-            viol_rate = (k > 1).sum() / max(1, k.shape[0])
-            conf = 1.0 - viol_rate
-            if conf >= (1 - fd_tolerance):
-                findings.append({
-                    "A → B": f"{a} → {b}",
-                    "violations(%)": round(viol_rate * 100, 2),
-                    "confidence(%)": round(conf * 100, 2),
-                    "status": "✅ quasi certa" if viol_rate <= fd_tolerance else "⚠️ debole"
-                })
-        reporter(i)
-    fds = pd.DataFrame(findings).sort_values(["violations(%)", "A → B"], ascending=[True, True]) if findings else pd.DataFrame()
-    return {"fds": fds}
-
-def task_export_zip(df: pd.DataFrame, parts: dict, key: str, ss_key: str, tag: str) -> Dict[str, Any]:
-    reporter = make_progress_reporter(ss_key, tag, total=5)  # 5 file
-    n_rows, n_cols = df.shape
-    miss_pct = float(df.isna().sum().sum()) / max(1, df.size) * 100.0
-    dup_rows = int(df.duplicated().sum())
-    candidate_pks = detect_candidate_pk(df, max_k=3)
-
-    summary = {
-        "rows": int(n_rows),
-        "cols": int(n_cols),
-        "missing_pct": round(miss_pct, 2),
-        "duplicate_rows": int(dup_rows),
-        "candidate_pks": [list(x) for x, _ in candidate_pks] if candidate_pks else [],
-        "created_at_utc": dt.datetime.utcnow().isoformat() + "Z",
-        "schema": {c: str(t) for c, t in df.dtypes.items()},
-    }
-    reporter(1)
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as z:
-        z.writestr("summary.json", json.dumps(summary, ensure_ascii=False, indent=2).encode("utf-8")); reporter(2)
-        z.writestr("uniqueness.csv", (parts.get("uniq") or pd.DataFrame()).to_csv(index=False).encode("utf-8")); reporter(3)
-        z.writestr("anomalies.csv", (parts.get("anomalies") or pd.DataFrame()).to_csv(index=False).encode("utf-8")); reporter(4)
-        z.writestr("fds.csv", (parts.get("fds") or pd.DataFrame()).to_csv(index=False).encode("utf-8"))
-        z.writestr("semantic.csv", (parts.get("semantic") or pd.DataFrame()).to_csv(index=False).encode("utf-8")); reporter(5)
-    return {"zip_bytes": buf.getvalue(), "file_name": f"profilo_dataset_{key}.zip"}
 
 # ------------------------------------------------------------------------------------
 # UI helpers per progress
@@ -819,46 +634,6 @@ def ui_profiling_relazionale(
         get_text("profiling", "heatmap_types"),
     ])
 
-    # --- 🧩 Chiavi & PK (Corretto anche se commentato)
-    # with t1:
-    #     ...
-    #     tag = "keys"
-    #     if st.button("Esegui", key=f"{ss_key}-{tag}-run"):
-    #         start_threaded_job(ss_key, tag, task_keys_pk, df, int(pk_max_combo), int(pk_max_combos), ss_key, tag)
-    #     if job_running(ss_key, tag):
-    #         st.progress(st.session_state[ss_key]["progress"].get(tag, 0.0), text="Calcolo Chiavi & PK...")
-    #         time.sleep(0.1) # Aggiunto
-    #         st.rerun()      # Aggiunto
-    #     res = job_result(ss_key, tag)
-    #     ...
-    #
-    # # --- 🔗 Cardinalità & FK (Corretto anche se commentato)
-    # with t2:
-    #     ...
-    #     tag = "card"
-    #     if st.button("Esegui", key=f"{ss_key}-{tag}-run"):
-    #         start_threaded_job(ss_key, tag, task_card_fk, df, related_tables if enable_fk else None, float(fk_min_coverage), ss_key, tag)
-    #     if job_running(ss_key, tag):
-    #         st.progress(st.session_state[ss_key]["progress"].get(tag, 0.0), text="Cardinalità & FK...")
-    #         time.sleep(0.1) # Aggiunto
-    #         st.rerun()      # Aggiunto
-    #     res = job_result(ss_key, tag)
-    #     ...
-    #
-    # # --- ⚖️ FD (Corretto anche se commentato)
-    # with t3:
-    #     ...
-    #     tag = "fd"
-    #     if st.button("Esegui", key=f"{ss_key}-{tag}-run"):
-    #         start_threaded_job(ss_key, tag, task_fds, df, int(fd_cols_ctl), int(fd_sample_ctl), float(fd_tol_ctl)/100.0, ss_key, tag)
-    #     if job_running(ss_key, tag):
-    #         st.progress(st.session_state[ss_key]["progress"].get(tag, 0.0), text="Analisi FD...")
-    #         time.sleep(0.1) # Aggiunto
-    #         st.rerun()      # Aggiunto
-    #     res = job_result(ss_key, tag)
-    #     ...
-
-    # --- 🧠 Semantico (LA TUA CORREZIONE SPECIFICA)
     with t4:
         c1, c2 = st.columns(2)
         with c1:

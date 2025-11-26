@@ -237,6 +237,10 @@ TRANSLATIONS = {
         "numeric": {"en": "Numeric", "it": "Numerico"},
         "categorical": {"en": "Categorical", "it": "Categorico"},
         "type": {"en": "Type", "it": "Tipo"},
+        "export_header": {"en": "📦 Export Analytics", "it": "📦 Export Analisi"},
+        "export_zip_btn": {"en": "📦 Generate ZIP Export", "it": "📦 Genera Export ZIP"},
+        "exporting_zip": {"en": "Preparing export archive...", "it": "Preparazione archivio export..."},
+        "download_zip": {"en": "📥 Download Analytics ZIP", "it": "📥 Scarica ZIP Analisi"},
     },
     "history": {
         "no_entries": {"en": "No entries in history. Run a query in the 'Generate & Evaluate Query' tab to see results here.", "it": "Nessuna entry nella cronologia. Esegui una query nella scheda 'Generate & Evaluate Query' per vedere i risultati qui."},
