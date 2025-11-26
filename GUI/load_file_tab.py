@@ -4,7 +4,7 @@ import re
 import streamlit as st
 from itertools import count
 import db_adapters
-from GUI.dataset_explore_gui import preview_dataset, info_dataset, detailed_dataset
+from GUI.dataset_explore_gui import info_dataset
 from db_adapters.DBManager import DBManager
 from utils.load_data import load_data_files
 # from GUI.relational_profiling_app import ui_profiling_relazionale, ui_integrita_dataset, ui_export
@@ -58,7 +58,8 @@ def load_file_tab(key):
     st.divider()
     # Display uploaded files in tabs
     if st.session_state.get("uploaded_files") and len(list(st.session_state["uploaded_files"].keys())) > 0:
-        with st.expander(get_text("load_dataset", "expander_files"), expanded=True):
+        with st.expander(get_text("load_dataset", "expander_files"),
+                         expanded=False):
             tabs = st.tabs(list(st.session_state["uploaded_files"].keys()))
             tb_name =  list(st.session_state["uploaded_files"].keys())
             for name, tab in zip(tb_name, tabs):
@@ -394,7 +395,16 @@ def dataset_tab(name):
     if df is not None and df.shape[0] > 0:
         with st.container(border=False):
             st.subheader(get_text("load_dataset", "dataset_details"))
-            preview_dataset(df, name, key_alter=f'preview_{name}')
+            rows_to_show = st.number_input(
+                get_text("load_dataset", "rows_to_show"),
+                min_value=1,
+                max_value=len(df),
+                value=min(5, len(df)),
+                step=1,
+                help=get_text("load_dataset", "rows_to_show_help"),
+                key=f'numberInput_preview_{name}'
+            )
+            st.write(df.head(rows_to_show))
     else:
         st.error(get_text("load_dataset", "dataset_not_found", name=name))
 

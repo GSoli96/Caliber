@@ -211,98 +211,99 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
                                    index=default_idx, key=k(f"model_{backend}"))
                 selected_by_backend[backend] = sel
 
-                # Tab interne per azioni
-                if backend in ["LM Studio", "Ollama"]:
-                    t1, t2, t3 = st.tabs([f"{get_text('conf_model', 'details')}",
-                                          f"🧪 {get_text('conf_model', 'test_generation')}",
-                                          f"{get_text('conf_model', 'server_cli')}"])
-                elif backend in ("Hugging Face"):
-                    t1, t2 = st.tabs([f"{get_text('conf_model', 'details')}", f"🧪 {get_text('conf_model', 'test_generation')}"])
-                else:
-                    t1, = st.tabs([f"{get_text('conf_model', 'details')}"])
+                with st.expander(f"{get_text('conf_model', 'details')}", expanded=False):
+                    # Tab interne per azioni
+                    if backend in ["LM Studio", "Ollama"]:
+                        t1, t2, t3 = st.tabs([f"{get_text('conf_model', 'details')}",
+                                              f"🧪 {get_text('conf_model', 'test_generation')}",
+                                              f"{get_text('conf_model', 'server_cli')}"])
+                    elif backend in ("Hugging Face"):
+                        t1, t2 = st.tabs([f"{get_text('conf_model', 'details')}", f"🧪 {get_text('conf_model', 'test_generation')}"])
+                    else:
+                        t1, = st.tabs([f"{get_text('conf_model', 'details')}"])
 
-                with t1:
-                    details = llm_adapters.get_model_details(backend=backend, model_name=sel, **cfg)
+                    with t1:
+                        details = llm_adapters.get_model_details(backend=backend, model_name=sel, **cfg)
 
-                    if isinstance(details, dict):
-                        nested_keys = [z for z, v in details.items() if isinstance(v, dict)]
-                        flat_part = {z: v for z, v in details.items() if z not in nested_keys}
-                        nested_part = {z: v for z, v in details.items() if z in nested_keys}
+                        if isinstance(details, dict):
+                            nested_keys = [z for z, v in details.items() if isinstance(v, dict)]
+                            flat_part = {z: v for z, v in details.items() if z not in nested_keys}
+                            nested_part = {z: v for z, v in details.items() if z in nested_keys}
 
-                        rows = _dict_to_table_rows(flat_part, section="Overview")
-                        for z, sub in nested_part.items():
-                            rows.extend(_dict_to_table_rows(sub, section=z))
+                            rows = _dict_to_table_rows(flat_part, section="Overview")
+                            for z, sub in nested_part.items():
+                                rows.extend(_dict_to_table_rows(sub, section=z))
 
-                        df = pd.DataFrame(rows, columns=["Sezione", "Campo", "Valore"])
+                            df = pd.DataFrame(rows, columns=["Sezione", "Campo", "Valore"])
 
-                        df = df[
-                            (~df["Valore"].apply(_is_empty_value)) &
-                            (~df["Valore"].apply(_is_complex_value))
-                            ].reset_index(drop=True)
+                            df = df[
+                                (~df["Valore"].apply(_is_empty_value)) &
+                                (~df["Valore"].apply(_is_complex_value))
+                                ].reset_index(drop=True)
 
-                        # pulizia nomi "Campo"
-                        df = _clean_campo_names(df)
+                            # pulizia nomi "Campo"
+                            df = _clean_campo_names(df)
 
-                        # separa overview e spiegazioni
-                        overview_df = df[df["Sezione"] == "Overview"].drop(columns=["Sezione"])
-                        expl_df_full = df[df["Sezione"] != "Overview"]
+                            # separa overview e spiegazioni
+                            overview_df = df[df["Sezione"] == "Overview"].drop(columns=["Sezione"])
+                            expl_df_full = df[df["Sezione"] != "Overview"]
 
-                        # memorizza i nomi delle sezioni PRIMA di droppare la colonna
-                        section_names = sorted(expl_df_full["Sezione"].unique()) if not expl_df_full.empty else []
+                            # memorizza i nomi delle sezioni PRIMA di droppare la colonna
+                            section_names = sorted(expl_df_full["Sezione"].unique()) if not expl_df_full.empty else []
 
-                        # poi elimina la colonna
-                        expl_df = expl_df_full.drop(columns=["Sezione"])
+                            # poi elimina la colonna
+                            expl_df = expl_df_full.drop(columns=["Sezione"])
 
-                        # ---- 1️⃣ TABELLONA OVERVIEW ----
-                        st.markdown(f"### {get_text('conf_model', 'model_overview')}")
-                        st.dataframe(overview_df, hide_index=True, width="stretch")
+                            # ---- 1️⃣ TABELLONA OVERVIEW ----
+                            st.markdown(f"### {get_text('conf_model', 'model_overview')}")
+                            st.dataframe(overview_df, hide_index=True, width="stretch")
 
-                        # ---- 2️⃣ EXPLANATION DETAILS ----
-                        if not expl_df.empty:
-                            st.markdown(f"### {get_text('conf_model', 'explanation_details')}")
-                            with st.expander(get_text("conf_model", "open_explanations"), expanded=False):
-                                tabs = st.tabs(section_names)
-                                for tab_i, sec in zip(tabs, section_names):
-                                    with tab_i:
-                                        sec_df = expl_df_full[expl_df_full["Sezione"] == sec][
-                                            ["Campo", "Valore"]].reset_index(drop=True)
-                                        st.table(sec_df)
+                            # ---- 2️⃣ EXPLANATION DETAILS ----
+                            if not expl_df.empty:
+                                st.markdown(f"### {get_text('conf_model', 'explanation_details')}")
+                                with st.expander(get_text("conf_model", "open_explanations"), expanded=False):
+                                    tabs = st.tabs(section_names)
+                                    for tab_i, sec in zip(tabs, section_names):
+                                        with tab_i:
+                                            sec_df = expl_df_full[expl_df_full["Sezione"] == sec][
+                                                ["Campo", "Valore"]].reset_index(drop=True)
+                                            st.table(sec_df)
 
-                if backend in ("Hugging Face", "LM Studio"):
-                    with (t2 if backend != "LM Studio" else t2):
-                        prompt = st.text_area(get_text("conf_model", "prompt"), get_text("conf_model", "prompt_placeholder"),
-                                              key=k(f"prompt_{backend}"))
-                        cols = st.columns([1, 1])
-                        with cols[0]:
-                            max_tokens = st.number_input(get_text("conf_model", "max_new_tokens"), 1, 512, value=64,
-                                                         key=k(f"max_new_tokens_{backend}"))
-                        out_key = k(f"last_out_{backend}")
-                        if st.button(f"{get_text('conf_model', 'run')}", key=k(f"run_{backend}")):
-                            with st.spinner(get_text("conf_model", "inference")):
-                                out = llm_adapters.generate(
-                                    backend=backend,
-                                    prompt=prompt,
-                                    model_name=sel,
-                                    max_tokens=int(max_tokens),
-                                    **cfg
-                                )
-                            st.session_state[out_key] = out
+                    if backend in ("Hugging Face", "LM Studio"):
+                        with (t2 if backend != "LM Studio" else t2):
+                            prompt = st.text_area(get_text("conf_model", "prompt"), get_text("conf_model", "prompt_placeholder"),
+                                                  key=k(f"prompt_{backend}"))
+                            cols = st.columns([1, 1])
+                            with cols[0]:
+                                max_tokens = st.number_input(get_text("conf_model", "max_new_tokens"), 1, 512, value=64,
+                                                             key=k(f"max_new_tokens_{backend}"))
+                            out_key = k(f"last_out_{backend}")
+                            if st.button(f"{get_text('conf_model', 'run')}", key=k(f"run_{backend}")):
+                                with st.spinner(get_text("conf_model", "inference")):
+                                    out = llm_adapters.generate(
+                                        backend=backend,
+                                        prompt=prompt,
+                                        model_name=sel,
+                                        max_tokens=int(max_tokens),
+                                        **cfg
+                                    )
+                                st.session_state[out_key] = out
 
-                        if st.session_state.get(out_key) is not None:
-                            with st.expander(f"{ICONS['Response']} {get_text('conf_model', 'response')}", expanded=True):
-                                st.write(st.session_state[out_key])
-                                if st.button(f"{ICONS['Clear Output']} {get_text('conf_model', 'clear_output')}",
-                                             key=k(f"clear_out_{backend}")):
-                                    st.session_state[out_key] = None
-                                    st.rerun()
+                            if st.session_state.get(out_key) is not None:
+                                with st.expander(f"{ICONS['Response']} {get_text('conf_model', 'response')}", expanded=True):
+                                    st.write(st.session_state[out_key])
+                                    if st.button(f"{ICONS['Clear Output']} {get_text('conf_model', 'clear_output')}",
+                                                 key=k(f"clear_out_{backend}")):
+                                        st.session_state[out_key] = None
+                                        st.rerun()
 
-                if backend  == "LM Studio":
-                    with t3:
-                        lmstudio_panel(host=cfg.get("host", "http://localhost:1234"), key=f'local_tab3_{backend}')
+                    if backend  == "LM Studio":
+                        with t3:
+                            lmstudio_panel(host=cfg.get("host", "http://localhost:1234"), key=f'local_tab3_{backend}')
 
-                if backend == 'Ollama':
-                    with t3:
-                        ollama_panel(host=cfg.get("host", "http://localhost:11434"), key=f'local_tab3_{backend}')
+                    if backend == 'Ollama':
+                        with t3:
+                            ollama_panel(host=cfg.get("host", "http://localhost:11434"), key=f'local_tab3_{backend}')
 
                 col_set, col_sp = st.columns([3, 5])
                 with col_sp:

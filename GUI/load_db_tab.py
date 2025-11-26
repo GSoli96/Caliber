@@ -4,7 +4,7 @@ import re
 import streamlit as st
 from itertools import count
 import db_adapters
-from GUI.dataset_explore_gui import preview_dataset, info_dataset, detailed_dataset
+from GUI.dataset_explore_gui import info_dataset
 from db_adapters.DBManager import DBManager
 from utils.load_data import load_data_files
 # from GUI.relational_profiling_app import ui_profiling_relazionale, ui_integrita_dataset, ui_export
@@ -63,7 +63,7 @@ def dataset_tab_dbms(key_alter=""):
         st.info(get_text("load_dataset", "no_db_loaded"))
         return
 
-    with st.expander('📁 Dataset Overview', expanded=True):
+    with st.expander('📁 Dataset Overview', expanded=False):
         for db_name, tables_data in loaded_databases.items():
 
             st.header(f"📁 Database: {db_name}")
@@ -100,8 +100,16 @@ def dataset_tab_dbms(key_alter=""):
                         if df is not None and df.shape[0] > 0:
                             with st.container(border=False):
                                 st.subheader(get_text("load_dataset", "dataset_details"))
-
-                                preview_dataset(df, name, f'{db_name}_{name}_{tab}')
+                                rows_to_show = st.number_input(
+                                    get_text("load_dataset", "rows_to_show"),
+                                    min_value=1,
+                                    max_value=len(df),
+                                    value=min(5, len(df)),
+                                    step=1,
+                                    help=get_text("load_dataset", "rows_to_show_help"),
+                                    key=f'numberInput_preview_{db_name}_{name}_{tab}'
+                                )
+                                st.write(df.head(rows_to_show))
                         else:
                             st.error(f'Table {name} in dataset {db_name} non trovato!')
 

@@ -1,6 +1,7 @@
+import numpy as np
 import streamlit as st
 
-from GUI.relational_profiling_tab import ui_profiling_relazionale, ui_integrita_dataset, ui_export
+from GUI.relational_profiling_tab import ui_profiling_relazionale, ui_integrita_dataset, missing_value_tab
 from utils.translations import get_text
 from utils.symbols import symbols
 import sys
@@ -9,7 +10,7 @@ import re
 import streamlit as st
 from itertools import count
 import db_adapters
-from GUI.dataset_explore_gui import preview_dataset, info_dataset, detailed_dataset
+from GUI.dataset_explore_gui import info_dataset
 from db_adapters.DBManager import DBManager
 from utils.load_data import load_data_files
 # from GUI.relational_profiling_app import ui_profiling_relazionale, ui_integrita_dataset, ui_export
@@ -146,41 +147,64 @@ def show_df_details(df, name, key_alter):
     """, unsafe_allow_html=True)
 
     with st.container(border=False):
-        st.subheader(get_text("load_dataset", "dataset_details"))
 
-        tab1_prew, tab2_detalied, tab3_info, tab4_profiling, tab5_integrita, tab6_export = st.tabs([
-            get_text("load_dataset", "tab_preview"),
+        tab2_detalied, tab4_missing_profiling = st.tabs([
             get_text("load_dataset", "tab_detailed"),
-            get_text("load_dataset", "tab_info"),
-            get_text("load_dataset", "tab_profiling"),
-            get_text("load_dataset", "tab_integrity"),
-            get_text("load_dataset", "tab_export")
+            get_text("load_dataset", "tab_missing&profiling"),
         ])
 
-        with tab1_prew:
-            preview_dataset(df, name, key_alter)
         with tab2_detalied:
-            detailed_dataset(df, key=f"{name}_{key_alter}")
-        with tab3_info:
-            info_dataset(df, name)
-        with tab4_profiling:
-            ui_profiling_relazionale(
-                df,
-                key=f"prof_{key_alter}",  # chiave per questa sezione
-                name=name,
-                related_tables=None  # opzionale
-            )
-        with tab5_integrita:
-            ui_integrita_dataset(
-                df,
-                name=name,
-                key=f"intg_{key_alter}",  # chiave per questa sezione
-            )
-        with tab6_export:
-            st.info(get_text("load_dataset", "tab_export"))
-            ui_export(
-                df,
-                name=name,
-                key=f"export_{key_alter}",  # chiave per questa sezione
-                depends_on_key="prof"  # usa i risultati del profiling per l'export
-            )
+            st.subheader(get_text("load_dataset", "dataset_details"))
+
+            # metriche principali (aggiungo % missing e duplicati)
+            total_missing = int(df.isna().sum().sum())
+            pct_missing = float(total_missing / (df.shape[0] * max(1, df.shape[1])) * 100.0) if df.size else 0.0
+            dup_rows = int(df.duplicated().sum())
+            mem_mb = df.memory_usage(deep=True).sum() / (1024 ** 2)
+
+            c1, c2, c3, c4, c5 = st.columns(5)
+            c1.metric(get_text("load_dataset", "num_rows"), f"{df.shape[0]:,}")
+            c2.metric(get_text("load_dataset", "num_cols"), f"{df.shape[1]:,}")
+            c3.metric(get_text("load_dataset", "missing_values"), f"{pct_missing:.0f}%")
+            c4.metric(get_text("load_dataset", "duplicate_rows"), f"{dup_rows:,}")
+            c5.metric(get_text("load_dataset", "mem_usage"), f"~{mem_mb:.2f} MB")
+
+            with st.expander(get_text('gen_eval', 'preview_dataset'), expanded=False):
+                rows_to_show = st.number_input(
+                    get_text("load_dataset", "rows_to_show"),
+                    min_value=1,
+                    max_value=len(df),
+                    value=min(5, len(df)),
+                    step=1,
+                    help=get_text("load_dataset", "rows_to_show_help"),
+                    key=f'numberInput_preview_{key_alter}',
+                )
+                st.write(df.head(rows_to_show))
+
+            st.subheader(get_text("load_dataset", "dataset_specs"))
+            info_dataset(df, key=f'Info_db_{name}')
+
+
+        with tab4_missing_profiling:
+            tab4_profiling, t_missing, tab5_integrita = st.tabs([
+                get_text("load_dataset", "tab_profiling"),
+                get_text("load_dataset", "missing_values"),
+                get_text("load_dataset", "tab_integrity"),])
+
+            with tab4_profiling:
+                ui_profiling_relazionale(
+                    df,
+                    key=f"prof_{key_alter}",  # chiave per questa sezione
+                    name=name,
+                    related_tables=None  # opzionale
+                )
+            # ---------- MISSING ----------
+            with t_missing:
+                missing_value_tab(df, key=f"{name}_{key_alter}")
+
+            with tab5_integrita:
+                ui_integrita_dataset(
+                    df,
+                    name=name,
+                    key=f"intg_{key_alter}",  # chiave per questa sezione
+                )

@@ -2,11 +2,13 @@ import os
 
 import streamlit as st
 
-from File_prima.GUI.green_ai_race_tab import green_ai_race_tab
-from File_prima.GUI.history_tab import history_tab
-from File_prima.GUI.setting_tab import settings_tab
+from GUI.gen_eval_query import query_gen_eval_tab
+# from File_prima.GUI.green_ai_race_tab import green_ai_race_tab
+# from File_prima.GUI.history_tab import history_tab
+# from File_prima.GUI.setting_tab import settings_tab
 from GUI.dataset_analytics_tab import db_analytics_tab
 from GUI.db_management_tab import db_management_tab
+from GUI.green_ai_race_tab import green_ai_race_tab
 from GUI.load_db_tab import load_db_tab
 from GUI.load_file_tab import load_file_tab
 from utils.history_manager import initialize_history_db
@@ -60,6 +62,7 @@ def initialize_session_state():
         st.session_state.setdefault('token_HF', '')
         st.session_state.setdefault('db_dir', "database")
         st.session_state['server_ollama'] = False
+        st.session_state['process_status'] = None
         if not os.path.exists(st.session_state.db_dir):
             os.makedirs(st.session_state.db_dir)
 
@@ -120,10 +123,8 @@ div[data-baseweb="tab-list"] {
 
 tab_list = [
     "📊 Dashboard",
-    "🗄️ Gestione DBMS",
     "📈 Dataset Analytics",
     "🧪 Generate Query",
-    "🌱 Greenefy",
     "🏁 Green AI Race",
     "🎯 benchmarking",
     "🧬 sintetic data",
@@ -144,10 +145,8 @@ html += "</style>"
 st.markdown(html, unsafe_allow_html=True)
 (
     dashboard_tab,
-    db_mgmt_tab,
     dataset_analytic_tab,
     generate_query_tab,
-    greenefy_tab,
     green_race_tab,
     benchmarking_tab,
     synthetic_data_tab,
@@ -156,61 +155,54 @@ st.markdown(html, unsafe_allow_html=True)
 ) = st.tabs(tab_list)
 
 with dashboard_tab:
-    st.header("📊 Dashboard")
+    st.header("📊 Dashboard (NON TOCCARE)")
 
-    with st.container(border=True):
-        st.subheader("📄 Load Dataset")
+    load, managment = st.tabs(['📄Load Dataset', "🗄️ Gestione DBMS"])
 
-        tab1, tab2 = st.tabs([
-            get_text("load_dataset", "tab_file_upload"),
-            get_text("load_dataset", "tab_dbms_connection")])
-
-        with tab1:
-            load_file_tab("tab1")
-
-        with tab2:
-            load_db_tab("tab2")
-
-    if len(list(st.session_state["dataframes"]["DBMS"].keys())) > 0:
+    with load:
         with st.container(border=True):
-            st.subheader("🤖 Load Model")
-            tab1, tab2 = st.tabs([get_text("load_model", "local"), get_text("load_model", "online")])
+            st.subheader("📄 Load Dataset")
+
+            tab1, tab2 = st.tabs([
+                get_text("load_dataset", "tab_file_upload"),
+                get_text("load_dataset", "tab_dbms_connection")])
+
             with tab1:
-                configure_local_model_tab(key_prefix='configure_local_model')
+                load_file_tab("tab1")
+
             with tab2:
-                configure_online_model(key_prefix='configure_online_model')
+                load_db_tab("tab2")
 
-# --- GESTIONE DBMS ---
-with db_mgmt_tab:
-    st.header("🗄️ Gestione DBMS")
-    db_management_tab()
+        if len(list(st.session_state["dataframes"]["DBMS"].keys())) > 0:
+            with st.container(border=True):
+                st.subheader("🤖 Load Model")
+                tab1, tab2 = st.tabs([get_text("load_model", "local"), get_text("load_model", "online")])
+                with tab1:
+                    configure_local_model_tab(key_prefix='configure_local_model')
+                with tab2:
+                    configure_online_model(key_prefix='configure_online_model')
 
+    # --- GESTIONE DBMS ---
+    with managment:
+        with st.container(border=True):
+            st.header("🗄️ Gestione DBMS (NON TOCCARE)")
+            db_management_tab()
 
 # --- DATASET ANALYTICS ---
 with dataset_analytic_tab:
     st.header("📈 Dataset Analytics")
     db_analytics_tab()
 
-#
-# # --- GENERATE QUERY ---
-# with generate_query_tab:
-#     st.header("🧪 Generate Query")
-#     # Riutilizzo della tua funzione esistente
-#     query_gen_eval_tab()
-#
-#
-# # --- GREENEFY ---
-# with greenefy_tab:
-#     st.header("🌱 Greenefy")
-#     # Placeholder finché non hai una funzione
-#     # greenefy_tab() se/quando la definisci
-#     st.info("Greenefy tools – coming soon.")
-#
-#
+# --- GENERATE QUERY ---
+with generate_query_tab:
+    st.header("🧪 Generate Query")
+    # Riutilizzo della tua funzione esistente
+    query_gen_eval_tab()
+
 # --- GREEN AI RACE ---
-# with green_race_tab:
-#     st.header("🏁 Green AI Race")
-#     green_ai_race_tab()
+with green_race_tab:
+    st.header("🏁 Green AI Race")
+    green_ai_race_tab()
 #
 #
 # # --- BENCHMARKING ---

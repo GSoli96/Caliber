@@ -150,7 +150,24 @@ def generate(prompt: str, model_name: str, max_tokens=128):
 
         device_map, torch_dtype, device_legacy = _select_device_map_and_dtype()
 
-        tok = AutoTokenizer.from_pretrained(model_name, local_files_only=True)
+        try:
+            tok = AutoTokenizer.from_pretrained(model_name, local_files_only=True)
+        except Exception as e:
+            msg = str(e)
+
+            if "SentencePiece" in msg or "tokenizer.model" in msg:
+                return (
+                    f"Errore: il tokenizer di '{model_name}' richiede il file "
+                    "'tokenizer.model' (SentencePiece) ma non è presente nella cache locale. "
+                    "Scarica il modello completo oppure disabilita local_files_only."
+                )
+
+            # fallback: prova a scaricare i file mancanti
+            try:
+                tok = AutoTokenizer.from_pretrained(model_name)
+            except Exception as e2:
+                return f"Errore nel caricamento del tokenizer per '{model_name}': {e2}"
+
         if tok.pad_token_id is None and tok.eos_token_id is not None:
             tok.pad_token = tok.eos_token
 

@@ -106,6 +106,7 @@ TRANSLATIONS = {
         "exec_error": {"en": "An error occurred during execution:", "it": "Si è verificato un errore durante l'esecuzione:"},
     },
     "load_dataset": {
+        "tab_discovery": {'en': 'FD Discovery',"it": "FD Discovery"},
         "header": {"en": "Load Dataset", "it": "Carica Dataset"},
         "tab_file_upload": {"en": "📁 File Upload", "it": "📁 Caricamento File"},
         "tab_dbms_connection": {"en": "📂 Connection to DBMS", "it": "📂 Connessione a DBMS"},
@@ -167,6 +168,7 @@ TRANSLATIONS = {
         "tab_preview": {"en": "🔍 Preview", "it": "🔍 Anteprima"},
         "tab_detailed": {"en": "📊 Detailed Statistic", "it": "📊 Statistiche Dettagliate"},
         "tab_info": {"en": "🧾 Info Dataset", "it": "🧾 Info Dataset"},
+        "tab_missing&profiling": {"en": "📚 Missing values & Profiling", "it": "📚 Valori Mancanti e Profiling"},
         "tab_profiling": {"en": "📚 Profiling", "it": "📚 Profiling"},
         "tab_integrity": {"en": "🛡️ Integrity", "it": "🛡️ Integrità"},
         "tab_export": {"en": "📦 Export", "it": "📦 Export"},
@@ -188,12 +190,12 @@ TRANSLATIONS = {
         "datetime": {"en": "Date/Time", "it": "Data/Ora"},
         "boolean": {"en": "Boolean", "it": "Booleano"},
         "other": {"en": "Other", "it": "Altro"},
-        "dataset_specs": {"en": "📐 Dataset Specifications", "it": "📐 Specifiche del Dataset"},
+        "dataset_specs": {"en": "🧭 Dataset Exploration", "it": "🧭 Esplorazione del Dataset"},
         "num_rows": {"en": "📏 Number of rows", "it": "📏 Numero di righe"},
         "num_cols": {"en": "📐 Number of columns", "it": "📐 Numero di colonne"},
-        "missing_values": {"en": "⚠️ Missing values (tot)", "it": "⚠️ Valori mancanti (tot)"},
+        "missing_values": {"en": "⚠️ Missing values (%)", "it": "⚠️ Valori mancanti (%)"},
         "duplicate_rows": {"en": "🔁 Duplicate rows", "it": "🔁 Righe duplicate"},
-        "mem_usage": {"en": "💾 Estimated memory usage: ~{mb:.2f} MB", "it": "💾 Utilizzo memoria stimato: ~{mb:.2f} MB"},
+        "mem_usage": {"en": "💾 Memory usage:", "it": "💾 Utilizzo memoria:"},
 
         "tab_overview": {"en": "📊 Overview", "it": "📊 Panoramica"},
         "tab_cardinality": {"en": "🔢 Cardinality", "it": "🔢 Cardinalità"},
@@ -205,7 +207,7 @@ TRANSLATIONS = {
         "cardinality_col": {"en": "Cardinality by column", "it": "Cardinalità per colonna"},
         "unique_count": {"en": "Unique Count", "it": "Conteggio Unici"},
         "column": {"en": "Column", "it": "Colonna"},
-        "unique_pct": {"en": "Unique Percentage (%)", "it": "Percentuale Unici (%)"},
+        "unique_pct": {"en": "Unique (%)", "it": "Valori Unici (%)"},
         "schema_cols": {"en": "Column Schema", "it": "Schema delle colonne"},
         "schema_caption": {"en": "Name color = type | ⚠️ Missing % | 🔒 Sensitive (PII/Pseudonyms detected via spaCy/heuristic keywords)", "it": "Colore del nome = tipo | ⚠️ Missing % | 🔒 Sensibile (PII/Pseudonimi rilevati via spaCy/keyword euristiche)"},
         "sensitive": {"en": "Sensitive", "it": "Sensibile"},
@@ -341,7 +343,7 @@ TRANSLATIONS = {
     "models_found_hf": {"en": "📦 Found {n} models", "it": "📦 Trovati {n} modelli"},
     "models_found_header": {"en": "📦 Models Found", "it": "📦 Modelli Trovati"},
     "search_invalid_id": {"en": "❗ Search returned items without valid ID.", "it": "❗ La ricerca ha restituito elementi senza id valido."},
-    "select_model": {"en": "Select a model", "it": "Seleziona un modello"},
+    "select_model": {"en": "🎯Select a model", "it": "🎯Seleziona un modello"},
     "language": {"en": "Language: {lang}", "it": "Lingua: {lang}"},
     "full_metadata": {"en": "📘 Full Metadata", "it": "📘 Metadati completi"},
     "load_model_btn": {"en": "📥 Load Model", "it": "📥 Carica Modello"},
@@ -655,7 +657,6 @@ TRANSLATIONS = {
 
     "confirm_apply": {"en": "💾 Apply Accepted Changes to Dataset", "it": "💾 Applica Modifiche Accettate al Dataset"}
 },
-
 }
 
 
