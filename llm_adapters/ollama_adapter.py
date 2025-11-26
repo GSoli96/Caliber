@@ -299,6 +299,21 @@ def generate(prompt: str, model_name: str, max_tokens: int = 1024, host: str = D
     except Exception as e:
         return f"Errore HTTP: {e}"
 
+def run_server_ollama(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
+    res = start_server_background(host=host)
+    if res.get("ok"):
+        st.session_state['server_ollama'] = True
+        st_toast_temp("Avviato in background.", 'success')
+        if res.get("cmd"):
+            st.code(res["cmd"], language="bash")
+
+        get_ollama_status.clear()
+        get_ollama_pid.clear()
+        st.rerun()
+    else:
+        st.session_state['server_ollama'] = False
+        st_toast_temp(res.get("msg", "Errore"), 'error')
+
 def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
     if st is None:
         raise RuntimeError("Streamlit non disponibile")

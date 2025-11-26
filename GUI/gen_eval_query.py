@@ -286,8 +286,36 @@ def query_gen_eval_tab():
         run_spacy = st.button(get_text("gen_eval", "analyze_spacy"))
 
     if run_spacy and user_prompt.strip():
-        st.info('TO DO')
+    # --- SPAcy: lasciata invariata (solo il controllo prompt corretto) ---
+        if user_prompt and user_prompt.strip():
+            sp = st.session_state['spacy_model']['model'] if st.session_state['spacy_model'][
+                'model'] else 'en_core_web_sm'
+            try:
+                nlp = spacy_load(sp)
+                doc = nlp(user_prompt)
 
+                st.markdown("### Analisi spaCy")
+                with st.expander("Riconoscimento Entità (NER)", expanded=True):
+                    from spacy import displacy
+                    html_ent = displacy.render(doc, style="ent")
+                    st.components.v1.html(html_ent, height=220, scrolling=True)
+
+                with st.expander("Token / POS / Lemma", expanded=False):
+                    rows = [{"text": t.text, "lemma": t.lemma_, "pos": t.pos_, "tag": t.tag_, "dep": t.dep_}
+                            for t in doc]
+                    st.dataframe(rows, hide_index=True, width='stretch')
+
+                with st.expander("Frasi e dipendenze", expanded=False):
+                    sents = [s.text for s in doc.sents]
+                    st.write(f"**# frasi:** {len(sents)}")
+                    for i, s in enumerate(sents, 1):
+                        st.write(f"{i}. {s}")
+            except Exception as e:
+                st.warning(f"Impossibile caricare il modello spaCy '{sp}': {e}")
+        else:
+            st.info("Inserisci del testo per analizzarlo con spaCy.")
+
+    # --- LLM: ora identico al flusso di generate_execute_query ---
     output_placeholder = st.empty()
 
     # --- AVVIO PROCESSO PRINCIPALE ---

@@ -95,7 +95,8 @@ def green_ai_race_tab():
     Compare the energy consumption and CO₂ emissions of different LLM models.
     See which model is the **Most Sustainable Choice** for your query!
     """)
-    
+    # models_by_backend = st.session_state["models_by_backend"]
+    # selected_by_backend = st.session_state["selected_by_backend"]
     # Model selection
     col1, col2 = st.columns(2)
     
@@ -109,7 +110,7 @@ def green_ai_race_tab():
                 key="race_backend_a"    
             )
         with col2A:
-            model_a_name = select_model('race_model_a', model_a_backend)    
+            model_a_name = select_model('race_model_a', model_a_backend)
     with col2:
         st.markdown("### 🟢 Challenger B")
         col1B, col2B = st.columns(2)
@@ -244,9 +245,6 @@ def green_ai_race_tab():
 
 
 def select_model(key_model, backend):
-    def k(name: str) -> str:
-        # chiavi stabili per tutti i widget e lo stato
-        return f"{key_model}_{name}_{backend}"
 
     if backend == 'LM Studio':
         flag_server = st.session_state['server_lmStudio']
@@ -259,38 +257,23 @@ def select_model(key_model, backend):
     else:
         flag_server = True
 
-    if flag_server:
-        models_by_backend = st.session_state[k("models_by_backend")]
-        selected_by_backend = st.session_state[k("selected_by_backend")]
+    sel = ''
+
+    if flag_server and sel != "Choose a model":
         models = llm_adapters.list_models(backend)
-        
-        if isinstance(models, dict) and 'error' in models:
-            st.toast(models['error'], 'error')
-            return None
-        elif not isinstance(models, list) or not models:
-            st.toast(get_text("conf_model", "no_models_found"), 'warning')
-            return None
+
+        if models:
+            st.toast(get_text("conf_model", "models_found", n=len(models)), icon='✅')
         else:
-            models_by_backend[backend] = models
-            selected_by_backend[backend] = selected_by_backend.get(backend) or models[0]
-            st.toast(get_text("conf_model", "models_found", n=len(models)), 'success')
+            st.toast(get_text("conf_model", "no_models_found"), '⚠️')
+            return None
     else:
-        st.toast(get_text("conf_model", "server_not_running"), 'warning')
+        st.toast(get_text("conf_model", "server_not_running"), icon='⚠️')
         return None
 
-    models = models_by_backend.get(backend) or []
     if models:
-        def _label(x):
-            if isinstance(x, str): return x
-            if isinstance(x, dict): return x.get("id") or x.get("name") or str(x)
-            return str(x)
 
-        labels = [_label(m) for m in models]
-
-        current = selected_by_backend.get(backend)
-        default_idx = labels.index(_label(current)) if current in models else 0
-
-        sel = st.selectbox(f"🎯 {get_text('conf_model', 'available_model')}", options=labels,
-                                   index=default_idx, key=k(f"{key_model}"))
+        sel = st.selectbox(f"🎯 {get_text('conf_model', 'available_model')}", options=["Choose a model"] + models,
+                                   index=0, key=f"choose_{key_model}_{backend}")
         return sel
     

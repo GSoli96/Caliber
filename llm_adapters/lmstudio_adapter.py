@@ -446,8 +446,17 @@ def _enrich_from_name(name: str) -> dict:
         "Versione (stima)": ver or "—",
     }
 
+def run_server_lmStudio(host: str = "http://localhost:1234", key='lmstudo'):
+    res = start_server_background()
+    if res["ok"]:
+        st.session_state['server_lmStudio'] = True
+        st_toast_temp("Avviato in background.", 'success')
+        get_lmstudio_status.clear()
+        st.rerun()
+    else:
+        st.session_state['server_lmStudio'] = False
+        st_toast_temp(res["msg"], 'error')
 
-# ================= Pannello Streamlit snello (MODIFICATO) =================
 # ================= Pannello Streamlit snello (MODIFICATO) =================
 def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
     if st is None:

@@ -2,6 +2,8 @@ import os
 
 import streamlit as st
 
+from File_prima.GUI.history_tab import history_tab
+from File_prima.GUI.setting_tab import settings_tab
 from GUI.gen_eval_query import query_gen_eval_tab
 # from File_prima.GUI.green_ai_race_tab import green_ai_race_tab
 # from File_prima.GUI.history_tab import history_tab
@@ -11,6 +13,8 @@ from GUI.db_management_tab import db_management_tab
 from GUI.green_ai_race_tab import green_ai_race_tab
 from GUI.load_db_tab import load_db_tab
 from GUI.load_file_tab import load_file_tab
+from llm_adapters.lmstudio_adapter import start_server_background, run_server_lmStudio
+from llm_adapters.ollama_adapter import run_server_ollama
 from utils.history_manager import initialize_history_db
 from utils.translations import get_text
 import streamlit as st
@@ -66,6 +70,10 @@ def initialize_session_state():
         if not os.path.exists(st.session_state.db_dir):
             os.makedirs(st.session_state.db_dir)
 
+        st.session_state["selected_by_backend_a"] = None
+        st.session_state["selected_by_backend_b"] = None
+        st.session_state["selected_by_backend"] = None
+
         st.session_state.setdefault('hf_dl', {
             "running": False,
             "stop": False,
@@ -105,6 +113,9 @@ def initialize_session_state():
         })
 
         st.session_state['widget_idx_counter'] = 0
+
+        run_server_ollama()
+        run_server_lmStudio()
 
 initialize_session_state()
 
@@ -203,29 +214,29 @@ with generate_query_tab:
 with green_race_tab:
     st.header("🏁 Green AI Race")
     green_ai_race_tab()
-#
-#
-# # --- BENCHMARKING ---
-# with benchmarking_tab:
-#     st.header("🎯 Benchmarking")
-#     # benchmarking_tab() se/quando la definisci
-#     st.info("Benchmarking – coming soon.")
-#
-#
-# # --- SYNTHETIC DATA ---
-# with synthetic_data_tab:
-#     st.header("🧬 Synthetic Data")
-#     # synthetic_data_tab() se/quando la definisci
-#     st.info("Synthetic data generation – coming soon.")
-#
-#
+
+
+# --- BENCHMARKING ---
+with benchmarking_tab:
+    st.header("🎯 Benchmarking")
+    # benchmarking_tab() se/quando la definisci
+    st.info("Benchmarking – coming soon.")
+
+
+# --- SYNTHETIC DATA ---
+with synthetic_data_tab:
+    st.header("🧬 Synthetic Data")
+    # synthetic_data_tab() se/quando la definisci
+    st.info("Synthetic data generation – coming soon.")
+
+
 # --- HISTORY ---
-# with history_page_tab:
-#     st.header("📜 History")
-#     history_tab()
-#
-#
-# # --- SETTINGS ---
-# with settings_page_tab:
-#     st.header("⚙️ Settings")
-#     settings_tab()
+with history_page_tab:
+    st.header("📜 History")
+    history_tab()
+
+
+# --- SETTINGS ---
+with settings_page_tab:
+    st.header("⚙️ Settings")
+    settings_tab()
