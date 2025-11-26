@@ -1,0 +1,52 @@
+{
+  // ============================
+  // Mappatura dei colori per dtype
+  // ============================
+  "num_alternative_queries": 3, // Numero di query alternative da generare
+  "dtype_colors": {
+    "int": "#4A90E2",
+    "float": "#F5A623",
+    "object": "#50E3C2",
+    "category": "#50E3C2",
+    "datetime": "#BD10E0",
+    "bool": "#9013FE",
+    "default": "#4A4A4A"
+  },
+  // ============================
+  // DB Adapter Registry
+  // ============================
+  "db_adapters": {
+    "SQLite": "sqlite_adapter",
+    "PostgreSQL": "sqlalchemy_adapter",
+    "MySQL": "sqlalchemy_adapter",
+    "SQL Server": "sqlalchemy_adapter"
+  },
+  // ============================
+  // DB Credential
+  // ============================
+  "MYSQL": {
+    "user": "root",
+    "password": "root",
+    "HOST": "127.0.0.1",
+    "PORT": 3306,
+    "jdbc_url": "jdbc:mysql://127.0.0.1:3306/?user=root&password=root"
+  },
+  // ============================
+  // HuggingFace Credential
+  // ============================
+  "HF_Token": {
+    "token": "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"
+  },
+  "POSTGRES": {
+    "user": "postgres",
+    "password": "root!",
+    "HOST": "localhost",
+    "PORT": 5432
+  },
+  "SQLSERVER": {
+    "user": "sa",
+    "password": "root!",
+    "HOST": "localhost",
+    "PORT": 1433
+  }
+}
