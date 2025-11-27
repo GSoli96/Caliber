@@ -1,0 +1,101 @@
+NLQuery
+List all people with age greater than 25.
+List all people with age greater than 30.
+List all people with age greater than 35.
+List all people with age greater than 40.
+List all people with age greater than 45.
+List all people with age greater than 50.
+List all people with age greater than 55.
+List all people with age greater than 60.
+List all people with age greater than 65.
+List all people with age greater than 70.
+List all records for male individuals.
+List all records for female individuals.
+List all people whose education level is 'Bachelors'.
+List all people whose education level is 'HS-grad'.
+List all people whose education level is '11th'.
+List all people whose education level is 'Masters'.
+List all people whose education level is '9th'.
+List all people whose education level is 'Some-college'.
+List all people whose education level is 'Assoc-acdm'.
+List all people whose education level is 'Assoc-voc'.
+List all people whose education level is '7th-8th'.
+List all people whose education level is 'Doctorate'.
+Retrieve all rows where workclass is 'State-gov'.
+Retrieve all rows where workclass is 'Self-emp-not-inc'.
+Retrieve all rows where workclass is 'Private'.
+Retrieve all rows where workclass is 'Federal-gov'.
+Retrieve all rows where workclass is 'Local-gov'.
+Retrieve all rows where workclass is '?'.
+Retrieve all rows where workclass is 'Self-emp-inc'.
+Retrieve all rows where workclass is 'Without-pay'.
+Show all individuals whose race is 'White'.
+Show all individuals whose race is 'Black'.
+Show all individuals whose race is 'Asian-Pac-Islander'.
+Show all individuals whose race is 'Amer-Indian-Eskimo'.
+Show all individuals whose race is 'Other'.
+List all male individuals older than 30 years.
+List all female individuals older than 30 years.
+List all male individuals older than 40 years.
+List all female individuals older than 40 years.
+List all male individuals older than 50 years.
+List all female individuals older than 50 years.
+List all male individuals older than 60 years.
+List all female individuals older than 60 years.
+List all people who work more than 20 hours per week.
+List all people who work more than 30 hours per week.
+List all people who work more than 40 hours per week.
+List all people who work more than 50 hours per week.
+List all people who work more than 60 hours per week.
+Compute the average age of all individuals.
+Compute the average age of female individuals.
+Compute the average age of male individuals.
+Count how many people there are for each education level.
+Count the number of distinct education levels.
+Compute the average number of hours worked per week.
+Compute the maximum capital gain value.
+Compute the average capital gain by workclass.
+Count how many individuals there are for each combination of race and sex.
+Compute the average age for each race.
+List all individuals whose native country is 'United-States'.
+List all individuals whose native country is 'Cuba'.
+List all individuals whose native country is 'Jamaica'.
+List all individuals whose native country is 'India'.
+List all individuals whose native country is 'Mexico'.
+List all individuals whose native country is 'South'.
+List all individuals whose native country is 'Puerto-Rico'.
+List all individuals whose native country is 'Honduras'.
+List all people with education level 'Bachelors' who work at least 40 hours per week.
+List all people with education level 'HS-grad' who work at least 40 hours per week.
+List all people with education level '11th' who work at least 40 hours per week.
+List all people with education level 'Masters' who work at least 40 hours per week.
+List all people with education level '9th' who work at least 40 hours per week.
+List all records where capital gain is greater than zero.
+Count how many records have a positive capital gain.
+List all individuals whose marital status is 'Never-married'.
+List all individuals whose marital status is 'Married-civ-spouse'.
+List all individuals whose marital status is 'Divorced'.
+List all individuals whose marital status is 'Married-spouse-absent'.
+List all individuals whose marital status is 'Separated'.
+List all individuals whose marital status is 'Married-AF-spouse'.
+Compute the average age for each marital status and sex combination.
+Count how many people there are for each marital status.
+List all individuals whose relationship status is 'Not-in-family'.
+List all individuals whose relationship status is 'Husband'.
+List all individuals whose relationship status is 'Wife'.
+List all individuals whose relationship status is 'Own-child'.
+List all individuals whose relationship status is 'Unmarried'.
+List all individuals whose relationship status is 'Other-relative'.
+Count how many individuals are marked as 'Husband' in the relationship column.
+Group individuals into age buckets of 10 years and count how many people fall into each bucket.
+Compute the average number of hours worked per week for each sex.
+List all records where capital loss is greater than zero.
+Compute the maximum capital loss value.
+Compute the average capital loss grouped by race.
+List all distinct workclass values.
+List all distinct occupations.
+List all distinct native countries (excluding unknown).
+List all male individuals older than 40 with an education-num greater than 10.
+List all female individuals younger than 30 with an education-num of at least 12.
+List all individuals who work between 30 and 50 hours per week.
+Count how many individuals work less than 20 hours per week.

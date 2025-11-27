@@ -26,7 +26,8 @@ def get_all_loaded_dfs() -> Dict[str, pd.DataFrame]:
                 if isinstance(table_info, dict) and 'table_name' in table_info and 'table' in table_info:
                     all_dfs[table_info['table_name']] = table_info['table']
     return all_dfs
-    
+
+
 def _run_full_process_eval(result_holder, monitoring_data, user_question, all_loaded_dfs, db_choice, db_connection_args,
                            llm_backend, llm_model, cpu_tdp, emission_factor):
     db_engine = None

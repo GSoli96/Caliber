@@ -363,7 +363,10 @@ def dataset_tab(name):
         with st.container():
             col1, col2 = st.columns(2)
             with col1:
-                st.write(f"{get_text('load_dataset', 'filename')} {uploaded_file.name}")
+                try:
+                    st.write(f"{get_text('load_dataset', 'filename')} {uploaded_file.name}")
+                except:
+                    st.write(f"{get_text('load_dataset', 'filename')} {uploaded_file}")
             with col2:
                 shown_sep = "\\\\t" if current_sep == "\\t" else current_sep
                 st.write(f"{get_text('load_dataset', 'separator_label')} `{shown_sep}`")

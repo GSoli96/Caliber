@@ -30,6 +30,8 @@ def synthetic_data_tab():
     # Initialize session state for synthetic data
     if 'synthetic_datasets' not in st.session_state:
         st.session_state['synthetic_datasets'] = {}
+    if 'synthetic_gen' not in st.session_state:
+        st.session_state['synthetic_gen'] = True
     if 'synthetic_generation_state' not in st.session_state:
         st.session_state['synthetic_generation_state'] = {
             'strategy': None,
@@ -38,16 +40,19 @@ def synthetic_data_tab():
         }
     
     st.markdown("""
-    Generate synthetic datasets using various strategies and libraries. Each strategy has different strengths:
-    - **Faker**: Simple, realistic tabular data (names, addresses, etc.)
-    - **GaussianCopula**: Statistical modeling for numerical data
-    - **CTGAN/TVAE**: Deep learning for complex, high-dimensional data
-    - **HMA1**: Multi-table relational data with referential integrity
+    Generate synthetic datasets using various strategies and libraries. 
     """)
+
+    strategies_desc = {
+        "Faker": "Simple, realistic tabular data (names, addresses, etc.)",
+        "GaussianCopula": "Statistical modeling for numerical data",
+        "CTGAN": "Deep learning for complex, high-dimensional data",
+        "TVAE": "Deep learning for complex, high-dimensional data",
+    }
+
     
     # Strategy selection
-    with st.container(border=True):
-        st.subheader("📊 Select Generation Strategy")
+    with st.expander("📊 Select Generation Strategy", expanded=st.session_state['synthetic_gen']):
         
         strategy = st.selectbox(
             "Choose a synthetic data generation strategy:",
@@ -56,28 +61,27 @@ def synthetic_data_tab():
                 "SDV GaussianCopula - Statistical Modeling",
                 "SDV CTGAN - Deep Learning (GAN)",
                 "SDV TVAE - Deep Learning (VAE)",
-                "SDV HMA1 - Multi-table Relational"
             ],
             key="synthetic_strategy_select"
         )
         
         st.session_state['synthetic_generation_state']['strategy'] = strategy
+        # trova la chiave del dict che è contenuta nella stringa `strategy`
+        key = next(k for k in strategies_desc if k in strategy)
+        st.caption(strategies_desc[key])
     
     # Strategy-specific UI
-    if "Faker" in strategy:
+    if "Faker" in key:
         _render_faker_ui()
-    elif "GaussianCopula" in strategy:
+    elif "GaussianCopula" in key:
         _render_gaussian_copula_ui()
-    elif "CTGAN" in strategy:
+    elif "CTGAN" in key:
         _render_ctgan_ui()
     elif "TVAE" in strategy:
         _render_tvae_ui()
-    elif "HMA1" in strategy:
-        _render_hma1_ui()
     
     # Display generated datasets
     if st.session_state['synthetic_datasets']:
-        st.divider()
         _render_generated_datasets()
 
 
@@ -88,9 +92,7 @@ def synthetic_data_tab():
 def _render_faker_ui():
     """Render UI for Faker-based generation."""
     
-    with st.container(border=True):
-        st.subheader("🎭 Faker - Simple Tabular Data")
-        
+    with st.expander("🎭 Faker - Simple Tabular Data", expanded=st.session_state['synthetic_gen']):
         st.info("""
         **About Faker**: Generates realistic fake data like names, addresses, emails, etc.
         
@@ -216,12 +218,25 @@ def _render_faker_ui():
             st.session_state['faker_columns'].append(("new_column", "word"))
             st.rerun()
         
-        # Show provider reference
         with st.expander("📚 Available Faker Providers Reference"):
             for category, providers in COMMON_FAKER_PROVIDERS.items():
                 st.markdown(f"**{category}**")
-                for prov_key, prov_label in providers:
-                    st.caption(f"- `{prov_key}`: {prov_label}")
+
+                col1, col2 = st.columns(2)
+
+                # spezza la lista dei provider a metà
+                half = (len(providers) + 1) // 2
+                left_providers = providers[:half]
+                right_providers = providers[half:]
+
+                with col1:
+                    for prov_key, prov_label in left_providers:
+                        st.caption(f"- `{prov_key}`: {prov_label}")
+
+                with col2:
+                    for prov_key, prov_label in right_providers:
+                        st.caption(f"- `{prov_key}`: {prov_label}")
+
         
         # Generate button
         st.divider()
@@ -257,6 +272,7 @@ def _generate_faker_dataset(dataset_name: str, num_rows: int, locale: str, seed:
         )
         
         # Store in session state
+        st.session_state['synthetic_datasets'] = {}
         st.session_state['synthetic_datasets'][dataset_name] = {
             'dataframe': df,
             'strategy': 'Faker',
@@ -267,7 +283,7 @@ def _generate_faker_dataset(dataset_name: str, num_rows: int, locale: str, seed:
                 'columns': st.session_state['faker_columns'].copy()
             }
         }
-        
+        st.session_state['synthetic_gen'] = True
         progress_bar.progress(100, text="✅ Generation complete!")
         st.success(f"Successfully generated dataset '{dataset_name}' with {len(df)} rows and {len(df.columns)} columns")
         st.balloons()
@@ -286,9 +302,7 @@ def _generate_faker_dataset(dataset_name: str, num_rows: int, locale: str, seed:
 def _render_gaussian_copula_ui():
     """Render UI for GaussianCopula generation."""
     
-    with st.container(border=True):
-        st.subheader("📊 SDV GaussianCopula - Statistical Modeling")
-        
+    with st.expander("📊 SDV GaussianCopula - Statistical Modeling", expanded=st.session_state['synthetic_gen']):
         st.info("""
         **About GaussianCopula**: Uses statistical modeling to learn distributions and correlations from real data.
         
@@ -300,18 +314,6 @@ def _render_gaussian_copula_ui():
         - **Sample Data**: Upload a CSV file with real data to learn from
         - **Number of Rows**: How many synthetic rows to generate
         """)
-        
-        # Check library availability
-        available, error = check_library_available("sdv.single_table")
-        if not available:
-            st.error(f"""
-            ❌ **SDV library not installed**
-            
-            Install with: `pip install sdv`
-            
-            Error: {error}
-            """)
-            return
         
         # Configuration
         dataset_name = st.text_input(
@@ -372,6 +374,7 @@ def _generate_gaussian_copula_dataset(dataset_name: str, real_data: pd.DataFrame
         progress_bar.progress(100)
         
         # Store in session state
+        st.session_state['synthetic_datasets'] = {}
         st.session_state['synthetic_datasets'][dataset_name] = {
             'dataframe': df,
             'strategy': 'GaussianCopula',
@@ -380,7 +383,7 @@ def _generate_gaussian_copula_dataset(dataset_name: str, real_data: pd.DataFrame
                 'original_rows': len(real_data)
             }
         }
-        
+        st.session_state['synthetic_gen'] = True
         status_text.text("✅ Generation complete!")
         st.success(f"Successfully generated dataset '{dataset_name}' with {len(df)} rows")
         st.balloons()
@@ -400,8 +403,7 @@ def _generate_gaussian_copula_dataset(dataset_name: str, real_data: pd.DataFrame
 def _render_ctgan_ui():
     """Render UI for CTGAN generation."""
     
-    with st.container(border=True):
-        st.subheader("🧠 SDV CTGAN - Deep Learning (GAN)")
+    with st.expander("🧠 SDV CTGAN - Deep Learning (GAN)", expanded=st.session_state['synthetic_gen']):
         
         st.info("""
         **About CTGAN**: Conditional Tabular GAN uses deep learning to generate high-quality synthetic data.
@@ -486,53 +488,73 @@ def _render_ctgan_ui():
                     )
                 
                 if st.button("🚀 Train and Generate", key="ctgan_generate", type="primary", use_container_width=True):
-                    _generate_ctgan_dataset(dataset_name, real_data, num_rows, epochs, batch_size)
+                    with st.spinner("Training and generating..."):
+                        _generate_ctgan_dataset(
+                            dataset_name=dataset_name,
+                            real_data=real_data,
+                            num_rows=num_rows,
+                            epochs=epochs,
+                            batch_size=batch_size,
+                        )
                     
+                                        
             except Exception as e:
                 st.error(f"Error loading data: {str(e)}")
 
-
-def _generate_ctgan_dataset(dataset_name: str, real_data: pd.DataFrame, num_rows: int, epochs: int, batch_size: int):
+def _generate_ctgan_dataset(
+    dataset_name: str,
+    real_data: pd.DataFrame,
+    num_rows: int,
+    epochs: int,
+    batch_size: int,
+):
     """Generate dataset using CTGAN."""
-    
     status_text = st.empty()
     progress_bar = st.progress(0)
-    
+
     try:
-        def progress_callback(message):
+        def progress_callback(message: str):
             status_text.text(message)
-        
+
         progress_bar.progress(10, text="Initializing CTGAN...")
-        
+
         df = generate_ctgan_data(
             real_data=real_data,
             num_rows=num_rows,
             epochs=epochs,
             batch_size=batch_size,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
         )
-        
+
         progress_bar.progress(100)
-        
+
+        # Ensure key exists in session state
+        if "synthetic_datasets" not in st.session_state:
+            st.session_state["synthetic_datasets"] = {}
+
         # Store in session state
-        st.session_state['synthetic_datasets'][dataset_name] = {
-            'dataframe': df,
-            'strategy': 'CTGAN',
-            'params': {
-                'num_rows': num_rows,
-                'epochs': epochs,
-                'batch_size': batch_size,
-                'original_rows': len(real_data)
-            }
+        st.session_state["synthetic_datasets"][dataset_name] = {
+            "dataframe": df,
+            "strategy": "CTGAN",
+            "params": {
+                "num_rows": num_rows,
+                "epochs": epochs,
+                "batch_size": batch_size,
+                "original_rows": len(real_data),
+            },
         }
-        
+        st.session_state["synthetic_gen"] = True
+
         status_text.text("✅ Generation complete!")
-        st.success(f"Successfully generated dataset '{dataset_name}' with {len(df)} rows")
+        st.success(
+            f"Successfully generated dataset '{dataset_name}' with {len(df)} rows"
+        )
         st.balloons()
-        
+
     except Exception as e:
         st.error(f"Error generating data: {str(e)}")
         st.code(traceback.format_exc())
+
     finally:
         status_text.empty()
         progress_bar.empty()
@@ -545,8 +567,7 @@ def _generate_ctgan_dataset(dataset_name: str, real_data: pd.DataFrame, num_rows
 def _render_tvae_ui():
     """Render UI for TVAE generation."""
     
-    with st.container(border=True):
-        st.subheader("🧠 SDV TVAE - Deep Learning (VAE)")
+    with st.expander("🧠 SDV TVAE - Deep Learning (VAE)", expanded=st.session_state['synthetic_gen']):
         
         st.info("""
         **About TVAE**: Tabular Variational AutoEncoder uses deep learning to generate synthetic data.
@@ -658,6 +679,7 @@ def _generate_tvae_dataset(dataset_name: str, real_data: pd.DataFrame, num_rows:
         progress_bar.progress(100)
         
         # Store in session state
+        st.session_state['synthetic_datasets'] = {}
         st.session_state['synthetic_datasets'][dataset_name] = {
             'dataframe': df,
             'strategy': 'TVAE',
@@ -668,7 +690,7 @@ def _generate_tvae_dataset(dataset_name: str, real_data: pd.DataFrame, num_rows:
                 'original_rows': len(real_data)
             }
         }
-        
+        st.session_state['synthetic_gen'] = True    
         status_text.text("✅ Generation complete!")
         st.success(f"Successfully generated dataset '{dataset_name}' with {len(df)} rows")
         st.balloons()
@@ -679,62 +701,6 @@ def _generate_tvae_dataset(dataset_name: str, real_data: pd.DataFrame, num_rows:
     finally:
         status_text.empty()
         progress_bar.empty()
-
-
-# ============================================================================
-# HMA1 UI
-# ============================================================================
-
-def _render_hma1_ui():
-    """Render UI for HMA1 multi-table generation."""
-    
-    with st.container(border=True):
-        st.subheader("🔗 SDV HMA1 - Multi-table Relational Data")
-        
-        st.info("""
-        **About HMA1**: Hierarchical Modeling Algorithm for generating relational databases.
-        
-        **Best for**: Multi-table datasets with primary/foreign key relationships
-        
-        **Preserves**: Referential integrity, cardinality, table relationships
-        
-        **Requires**: 
-        - Multiple related tables (CSV files)
-        - Metadata defining relationships (primary keys, foreign keys)
-        
-        **Note**: This is an advanced feature. For simple use cases, consider other strategies.
-        """)
-        
-        # Check library availability
-        available, error = check_library_available("sdv.multi_table")
-        if not available:
-            st.error(f"""
-            ❌ **SDV multi-table library not installed**
-            
-            Install with: `pip install sdv`
-            
-            Error: {error}
-            """)
-            return
-        
-        st.warning("""
-        ⚠️ **Advanced Feature**: HMA1 requires careful metadata configuration.
-        
-        For a simpler alternative, use the "Load File" tab to upload multiple CSV files,
-        then use the relational profiling features to analyze relationships.
-        """)
-        
-        st.markdown("""
-        ### Implementation Note
-        
-        Full HMA1 implementation requires:
-        1. Multiple table uploads
-        2. Relationship definition UI
-        3. Metadata configuration
-        
-        This is a complex feature that would benefit from a dedicated workflow.
-        Consider using existing database loading features combined with other synthesis strategies.
-        """)
 
 
 # ============================================================================
@@ -772,12 +738,19 @@ def _render_generated_datasets():
                 st.metric("Columns", len(df.columns))
             
             # Parameters
-            with st.expander("Generation Parameters"):
-                st.json(params)
+            with st.expander("Generation Parameters", expanded=True):
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.metric("Rows to generate", params["num_rows"])
+
+                with col2:
+                    st.metric("Original rows", params["original_rows"])
+
             
             # Analytics (reuse existing component)
-            st.subheader("📊 Dataset Analytics")
-            show_df_details(df, dataset_name, f"synthetic_{dataset_name}")
+            with st.expander("📊 Dataset Analytics", expanded=True):
+                show_df_details(df, dataset_name, f"synthetic_{dataset_name}")
             
             # Download options
             st.divider()
@@ -788,7 +761,7 @@ def _render_generated_datasets():
             with col_d1:
                 # CSV download
                 csv_buffer = io.StringIO()
-                df.to_csv(csv_buffer, index=False)
+                df.to_csv(csv_buffer, index=False, sep=';')
                 st.download_button(
                     label="📄 Download as CSV",
                     data=csv_buffer.getvalue(),
@@ -825,7 +798,6 @@ def _render_generated_datasets():
                 )
             
             # Create database option
-            st.divider()
             st.subheader("🗄️ Create Database from Synthetic Data")
             
             if st.button(f"Create Database from '{dataset_name}'", key=f"create_db_{dataset_name}"):
@@ -837,23 +809,26 @@ def _create_database_from_synthetic(dataset_name: str, df: pd.DataFrame):
     
     # Add to uploaded files (mimicking file upload)
     st.session_state['uploaded_files'][dataset_name] = {
-        'uploaded_file': None,  # No actual file
-        'separator': ','
+        'uploaded_file': f'{dataset_name}.csv',  # No actual file
+        'separator': ';'
     }
     
     # Add to dataframes
     st.session_state['dataframes']['files'][dataset_name] = {
         'df': df,
-        'separator': ','
+        'separator': ';'
     }
     
-    st.success(f"""
-    ✅ Dataset '{dataset_name}' added to available datasets!
+    with st.expander("🗄️ Create Database from Synthetic Data", expanded=True):
+        configure_file_dbms(key_prefix='configure_dbms_syntetic_tab1')
     
-    You can now:
-    1. Go to the "Dashboard" tab
-    2. Scroll to "Database Configuration"
-    3. Create a database from this synthetic data
-    """)
+    # st.success(f"""
+    # ✅ Dataset '{dataset_name}' added to available datasets!
+    
+    # You can now:
+    # 1. Go to the "Dashboard" tab
+    # 2. Scroll to "Database Configuration"
+    # 3. Create a database from this synthetic data
+    # """)
     
     st.info("💡 Tip: The dataset is now available in the file list and can be used to create SQLite, DuckDB, or other database types.")

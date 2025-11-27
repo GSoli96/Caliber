@@ -36,6 +36,7 @@ def create_sql_prompt(
 
     # --- Costruisce la sezione con le info dello schema per OGNI TABELLA ---
     schema_info_parts = []
+    print('Dfs', dfs)
     for table_name, df in dfs.items():
         if df is None:
             continue

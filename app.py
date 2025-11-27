@@ -2,23 +2,25 @@ import os
 
 import streamlit as st
 
-from GUI.history_tab import history_tab
+# from GUI.history_tab import history_tab
 from GUI.setting_tab import settings_tab
 from GUI.gen_eval_query import query_gen_eval_tab
 from GUI.dataset_analytics_tab import db_analytics_tab
 from GUI.db_management_tab import db_management_tab
-from GUI.green_ai_race_tab import green_ai_race_tab
 from GUI.load_db_tab import load_db_tab
 from GUI.load_file_tab import load_file_tab
+from GUI.load_file_tab import load_file_tab
 from GUI.synthetic_data_tab import synthetic_data_tab
+from GUI.benchmarking_tab import benchmark_tab
 from llm_adapters.lmstudio_adapter import start_server_background, run_server_lmStudio
 from llm_adapters.ollama_adapter import run_server_ollama
-from utils.history_manager import initialize_history_db
+# from utils.history_manager import initialize_history_db
 from utils.translations import get_text
 import streamlit as st
 from GUI.conf_model import configure_local_model_tab, configure_online_model
 from utils.translations import get_text
-
+from threading import Thread
+from db_adapters.DBManager import check_service_status
 def initialize_session_state():
     if 'initialized' not in st.session_state:
         st.session_state['dataframes'] = {'files': {}, 'DBMS': {}}
@@ -111,13 +113,34 @@ def initialize_session_state():
         })
 
         st.session_state['widget_idx_counter'] = 0
+        activate_service()
 
-        run_server_ollama()
-        run_server_lmStudio()
+def activate_service():
+    run_server_ollama()
+    run_server_lmStudio()
+    
+    threads = []
+    for dbms in ['MySQL', 'SQL Server', 'PostgreSQL']:
+        thread = Thread(target=check_and_save_status, args=(dbms,))
+        thread.start()
+        threads.append(thread)
+
+    for thread in threads:
+        thread.join()
+
+def check_and_save_status(dbms):
+    status = check_service_status(dbms)
+    if DBMS_Sever not in st.session_state:
+        st.session_state.DBMS_Sever = {
+            "MySQL": {'status': 'not_running',},
+            "SQL Server": {'status': 'not_running',},
+            "PostgreSQL": {'status': 'not_running',},
+        }
+    st.session_state.DBMS_Sever[dbms]['status'] = status
 
 initialize_session_state()
 
-initialize_history_db()
+# initialize_history_db()
 
 st.set_page_config(page_icon="🧭", page_title="Query with LLMs", layout="wide")
 st.title("Generate and Evaluate Query")
@@ -134,10 +157,9 @@ tab_list = [
     "📊 Dashboard",
     "📈 Dataset Analytics",
     "🧪 Generate Query",
-    "🏁 Green AI Race",
-    "🎯 benchmarking",
-    "🧬 sintetic data",
-    "📜 Hystory",
+    "🎯 Benchmarking",
+    "🧬 Synthetic Data",
+    # "📜 History",
     "⚙️ Setting",
 ]
 
@@ -156,15 +178,14 @@ st.markdown(html, unsafe_allow_html=True)
     dashboard_tab,
     dataset_analytic_tab,
     generate_query_tab,
-    green_race_tab,
     benchmarking_tab,
     synthetic_tab,
-    history_page_tab,
+    # history_page_tab,
     settings_page_tab,
 ) = st.tabs(tab_list)
 
 with dashboard_tab:
-    st.header("📊 Dashboard (NON TOCCARE)")
+    st.header("📊 Dashboard")
 
     load, managment = st.tabs(['📄Load Dataset', "🗄️ Gestione DBMS"])
 
@@ -194,7 +215,7 @@ with dashboard_tab:
     # --- GESTIONE DBMS ---
     with managment:
         with st.container(border=True):
-            st.header("🗄️ Gestione DBMS (NON TOCCARE)")
+            st.header("🗄️ Gestione DBMS")
             db_management_tab()
 
 # --- DATASET ANALYTICS ---
@@ -208,17 +229,11 @@ with generate_query_tab:
     # Riutilizzo della tua funzione esistente
     query_gen_eval_tab()
 
-# --- GREEN AI RACE ---
-with green_race_tab:
-    st.header("🏁 Green AI Race")
-    green_ai_race_tab()
-
 
 # --- BENCHMARKING ---
 with benchmarking_tab:
-    st.header("🎯 Benchmarking")
-    # benchmarking_tab() se/quando la definisci
-    st.info("Benchmarking – coming soon.")
+    # st.header("🎯 Benchmarking") # Header is now inside the tab function
+    benchmark_tab()
 
 
 # --- SYNTHETIC DATA ---
@@ -227,10 +242,9 @@ with synthetic_tab:
     synthetic_data_tab()
 
 
-# --- HISTORY ---
-with history_page_tab:
-    st.header("📜 History")
-    history_tab()
+# # --- HISTORY ---
+# with history_page_tab:
+#     history_tab()
 
 
 # --- SETTINGS ---

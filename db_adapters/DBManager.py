@@ -1140,3 +1140,9 @@ class DBManager:
             except Exception as e:
                 return False, str(e)
 
+
+def check_service_status(service_name: str) -> bool:
+
+    db_manager = DBManager(type='status', dict_stato={})
+
+    return 'running' if db_manager._check_service_status(service_name) else 'not_running'

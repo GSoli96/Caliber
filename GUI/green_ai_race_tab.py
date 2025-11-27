@@ -1,9 +1,3 @@
-# GUI/green_ai_race_tab.py
-"""
-Green AI Race Tab - Model Comparison for Sustainability
-Compare energy consumption and performance of different LLM models
-"""
-
 import streamlit as st
 import pandas as pd
 import threading
@@ -20,9 +14,9 @@ from utils.query_cleaner import extract_sql_query
 from utils.system_monitor_utilities import SystemMonitor
 from utils import green_metrics
 from utils.translations import get_text
+from GUI.load_db_tab import load_db_tab, dataset_tab_dbms
 
 # --- Helper Functions for Charts ---
-
 def create_comparison_chart(model_a_data, model_b_data):
     """
     Create side-by-side comparison chart for two models
@@ -128,7 +122,6 @@ def determine_winner(model_a_data, model_b_data):
         return model_b_data['name'], model_b_data, model_a_data
 
 # --- Race Logic ---
-
 def run_race_phase(model_name, backend, user_question, loaded_databases, display_name=None):
     """
     Executes the race for a single model across all databases.
@@ -149,6 +142,15 @@ def run_race_phase(model_name, backend, user_question, loaded_databases, display
     # Start Monitor
     monitor = SystemMonitor(monitor_data, stop_event, st.session_state.get('emission_factor', 250.0), st.session_state.get('cpu_tdp', 65.0))
     monitor.start()
+
+    db_state = st.session_state.get('db', {})
+    db_choice = db_state.get('choice')
+    db_connection_args = db_state.get('connection_args')
+
+    st.session_state.process_status = 'running'
+    st.session_state.process_results = {'timestamps': {}}
+    st.session_state.monitoring_data = []
+    st.session_state.greenefy_status = 'idle'
     
     try:
         for db_name, db_info in loaded_databases.items():
@@ -162,32 +164,19 @@ def run_race_phase(model_name, backend, user_question, loaded_databases, display
             t0_gen = time.time()
             start_gen_ts = datetime.now(timezone.utc)
             
+            prompt = create_sql_prompt(
+                user_question=user_question, 
+                db_connection_args=db_connection_args, 
+                db_name=db_name, 
+                dfs=db_state)
+            
             try:
-                # Construct Prompt
-                # We need schema info. db_info['tables_data'] contains tables and dfs.
-                # We can use create_sql_prompt logic here or similar.
-                # For simplicity, let's build a schema string.
-                schema_str = ""
-                # db_info is the value from loaded_databases dict, which is a list of dicts: [{'table_name':..., 'table': df}, ...]
-                for t_data in db_info:
-                    t_name = t_data['table_name']
-                    df = t_data['table']
-                    cols = ", ".join([f"{c} ({d})" for c, d in zip(df.columns, df.dtypes)])
-                    schema_str += f"Table {t_name}: {cols}\n"
-                
-                prompt = create_sql_prompt(user_question, schema_str, db_name, "Unknown") # DBMS type might be in config
-                
-                # Generate
-                llm_config = st.session_state.get(f"lm_selector__cfg_by_backend", {}).get(backend, {})
                 response = llm_adapters.generate(
                     backend=backend,
                     prompt=prompt,
-                    model_name=model_name,
-                    **llm_config
-                )
+                    model_name=model_name           )
                 sql_query = extract_sql_query(response)
                 db_metrics['sql'] = sql_query
-                
             except Exception as e:
                 db_metrics['error'] = f"Generation Error: {str(e)}"
             
@@ -283,7 +272,6 @@ def calculate_metrics_from_slice(data_slice):
     return total_co2_g, total_energy_j
 
 # --- Main UI ---
-
 def green_ai_race_tab():
     """
     Main function for Green AI Race tab
@@ -303,7 +291,7 @@ def green_ai_race_tab():
             model_a_backend = st.selectbox(
                 "Backend A",
                 ["Choose a model", "Ollama", "LM Studio", "Hugging Face"],
-                key="race_backend_a"    
+                key="race_backend_a", index=0   
             )
         with col2A:
             model_a_name = select_model('race_model_a', model_a_backend)
@@ -314,7 +302,7 @@ def green_ai_race_tab():
             model_b_backend = st.selectbox(
                 "Backend B",
                 ["Choose a model", "Ollama", "LM Studio", "Hugging Face"],
-                key="race_backend_b"
+                key="race_backend_b", index=0
             )
         with col2B:
             model_b_name = select_model('race_model_b', model_b_backend)
@@ -324,29 +312,41 @@ def green_ai_race_tab():
         st.info("Please select a model for both challengers to start the race.")
         return
     else:
+        can_start = False
+        loaded_databases = st.session_state.get("dataframes", {}).get("DBMS", {})
+        
+        if not loaded_databases:
+            with st.expander("📋 Load Databases", expanded=not can_start):
+                load_db_tab(key="race_db")
+            st.warning("Please load at least one database to start the race.")
+            return
+        else:
+            dataset_tab_dbms(key_alter='race_db')
+
+        loaded_databases = st.session_state.get("dataframes", {}).get("DBMS", {})
+        
+        if not loaded_databases:
+            st.warning("Please load at least one database to start the race.")
+            return
+        
         # Query input
         st.markdown("### 📝 Test Query")
         user_question = st.text_area(
             "Enter your question",
             placeholder="e.g., Show me the top 10 customers by revenue",
-            height=100,
+            height=100, value='Count all persons with an age > 10',
             key="race_question"
         )
         
-        loaded_databases = st.session_state.get("dataframes", {}).get("DBMS", {})
-        
-        # Start race button
+        if not user_question:
+            st.warning("Please enter a query to start the race.")
+            return
+                        # Start race button
         can_start = (model_a_name and model_b_name and user_question and loaded_databases)
-        
-        if not loaded_databases:
-             st.warning("Please load at least one database to start the race.")
-             # Debug info
-             # st.write(f"Debug: loaded_databases keys: {list(loaded_databases.keys())}")
 
         if st.button("🏁 Start Race!", type="primary", disabled=not can_start):
             st.session_state.race_status = 'running'
             st.session_state.race_results = {}
-            st.rerun()
         
         # Display results
         if st.session_state.get('race_status') == 'running':
@@ -448,7 +448,6 @@ def green_ai_race_tab():
                 st.session_state.race_results = {}
                 st.rerun()
 
-
 def select_model(key_model, backend):
 
     if backend == 'LM Studio':
@@ -463,6 +462,9 @@ def select_model(key_model, backend):
         flag_server = True
 
     sel = ''
+
+    if backend == 'Choose a model':
+        return 
 
     if flag_server and sel != "Choose a model":
         models = llm_adapters.list_models(backend)
