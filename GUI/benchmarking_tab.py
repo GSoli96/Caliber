@@ -353,6 +353,26 @@ def render_llm_nl_sql_tab():
         st.info("Please upload a CSV and select the Natural Language Query column.")
 
 def run_nl_sql_benchmark():
+    # Check for demo mode
+    from utils.demo_data import DEMO_MODE_ENABLED, get_demo_benchmarking_results
+    
+    if DEMO_MODE_ENABLED:
+        # Demo mode: simulate execution with progress bar
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        total_queries = 5
+        for i in range(total_queries):
+            status_text.text(f"Generating query {i+1}/{total_queries}...")
+            progress_bar.progress((i + 1) / total_queries)
+            time.sleep(0.8)  # Simulate processing time
+        
+        status_text.text("Generation Complete!")
+        st.session_state['nl_sql_results'] = get_demo_benchmarking_results()
+        st.rerun()
+        return
+    
+    # Real mode: original implementation
     state = st.session_state['benchmarking_state']
     df = state['active_csv_df']
     nl_col = state['csv_mapping']['nl_query']

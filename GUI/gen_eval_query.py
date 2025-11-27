@@ -271,7 +271,12 @@ def query_gen_eval_tab():
                 with st.container(border=True):
                     st.markdown(f"<div style='text-align:center;'><strong>{status_icon} {get_text('gen_eval', 'status')}</strong><br>{llm_state['status'].capitalize()}</div>", unsafe_allow_html=True)
 
-    user_prompt = st.text_area(get_text("gen_eval", "describe_request"), key="gen_prompt", height=120)
+    user_prompt = st.text_area(
+        get_text("gen_eval", "describe_request"), 
+        key="gen_prompt", 
+        height=120,
+        placeholder="e.g., Show me the occupation and education distribution for people over 30 years old, including average age and hours worked per week"
+    )
     submit = (user_prompt != '' and st.session_state['create_db_done'] and llm_state['status'] != 'notLoad')
 
     c1, c2, c3 = st.columns(3)
@@ -324,8 +329,29 @@ def query_gen_eval_tab():
     # --- GESTIONE STATO RUNNING ---
     if st.session_state.get('process_status') == 'running':
         with output_placeholder.container():
-            st.info(get_text("gen_eval", "running_msg"))
-            # Visualizzazione live (opzionale, per ora semplificata)
+            # Check if demo mode to show progress bar
+            from utils.demo_data import DEMO_MODE_ENABLED
+            if DEMO_MODE_ENABLED:
+                st.info("🤖 " + get_text("gen_eval", "running_msg"))
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                # Simulate progress
+                import time
+                total_time = 4.7  # 3.5s LLM + 1.2s DB
+                steps = 47
+                for i in range(steps + 1):
+                    progress = i / steps
+                    progress_bar.progress(progress)
+                    
+                    if progress < 0.75:
+                        status_text.text("🧠 Generating SQL query with LLM...")
+                    else:
+                        status_text.text("💾 Executing query on database...")
+                    
+                    time.sleep(total_time / steps)
+            else:
+                st.info(get_text("gen_eval", "running_msg"))
             
         worker_thread = st.session_state.get('process_thread')
         if worker_thread and not worker_thread.is_alive():
@@ -344,9 +370,32 @@ def query_gen_eval_tab():
     # --- GESTIONE STATO GREENEFY RUNNING ---
     if st.session_state.get('greenefy_status') == 'running':
         with output_placeholder.container():
-            st.info("🌱 Greenefy optimization in progress...")
-            # Mostra risultati parziali
-            _display_results_eval()
+            # Check if demo mode to show progress bar
+            from utils.demo_data import DEMO_MODE_ENABLED
+            if DEMO_MODE_ENABLED:
+                st.info("🌱 Greenefy optimization in progress...")
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                # Simulate progress
+                import time
+                total_time = 6.4  # 4.0s generation + 2.4s execution
+                steps = 64
+                for i in range(steps + 1):
+                    progress = i / steps
+                    progress_bar.progress(progress)
+                    
+                    if progress < 0.625:  # 4.0 / 6.4
+                        status_text.text("🧠 Generating optimized queries with LLM...")
+                    else:
+                        status_text.text("💾 Executing optimized queries...")
+                    
+                    time.sleep(total_time / steps)
+            else:
+                st.info("🌱 Greenefy optimization in progress...")
+                # Mostra risultati parziali
+                _display_results_eval()
+
 
         green_thread = st.session_state.get('greenefy_thread')
         if green_thread and not green_thread.is_alive():

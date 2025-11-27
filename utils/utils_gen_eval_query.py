@@ -12,6 +12,11 @@ from utils.prompt_builder import create_sql_prompt, create_sql_optimization_prom
 from utils.query_cleaner import extract_sql_query
 from utils.system_monitor_utilities import SystemMonitor
 from utils.translations import get_text
+from utils.demo_data import (
+    DEMO_MODE_ENABLED,
+    get_demo_full_process_results,
+    get_demo_greenefy_results
+)
 
 def get_all_loaded_dfs() -> Dict[str, pd.DataFrame]:
     all_dfs = {}
@@ -30,6 +35,36 @@ def get_all_loaded_dfs() -> Dict[str, pd.DataFrame]:
 
 def _run_full_process_eval(result_holder, monitoring_data, user_question, all_loaded_dfs, db_choice, db_connection_args,
                            llm_backend, llm_model, cpu_tdp, emission_factor):
+    """
+    Main process for query generation and execution.
+    In DEMO_MODE, this simulates the execution with preset data.
+    """
+    # ============================================================================
+    # DEMO MODE: Simulate execution with preset data
+    # ============================================================================
+    if DEMO_MODE_ENABLED:
+        # Get demo results
+        demo_results, demo_monitoring = get_demo_full_process_results(user_question)
+        
+        # Simulate progress with realistic timing
+        # Phase 1: LLM Generation (simulated)
+        time.sleep(3.5)  # Simulate LLM thinking time
+        
+        # Phase 2: DB Execution (simulated)
+        time.sleep(1.2)  # Simulate DB execution time
+        
+        # Update result holder with demo data
+        result_holder.update(demo_results)
+        
+        # Update monitoring data with demo data
+        monitoring_data.clear()
+        monitoring_data.extend(demo_monitoring)
+        
+        return
+    
+    # ============================================================================
+    # REAL MODE: Original implementation
+    # ============================================================================
     db_engine = None
     try:
         if not all_loaded_dfs:
@@ -94,6 +129,7 @@ def _run_full_process_eval(result_holder, monitoring_data, user_question, all_lo
         if db_engine:
             db_engine.dispose()
 
+
 def run_full_process_eval(user_question):
     
     llm_state = st.session_state.get('llm', {})
@@ -133,6 +169,39 @@ def run_full_process_eval(user_question):
 
 def _run_greenefy_process(result_holder, monitoring_data, user_question, all_loaded_dfs, db_choice, db_connection_args,
                           llm_backend, llm_model, original_query, original_query_co2):
+    """
+    Greenefy optimization process.
+    In DEMO_MODE, this simulates the optimization with preset queries.
+    """
+    # ============================================================================
+    # DEMO MODE: Simulate optimization with preset data
+    # ============================================================================
+    if DEMO_MODE_ENABLED:
+        # Get demo greenefy results
+        greenefy_data, greenefy_monitoring, greenefy_timestamps = get_demo_greenefy_results(
+            original_query, 
+            original_query_co2
+        )
+        
+        # Simulate progress with realistic timing
+        # Phase 1: Generate optimized queries (simulated)
+        time.sleep(4.0)  # Simulate LLM optimization time
+        
+        # Phase 2: Execute each optimized query (simulated)
+        time.sleep(2.4)  # Simulate execution of 3 queries (0.8s each)
+        
+        # Update result holder with demo data
+        result_holder.update(greenefy_data)
+        result_holder['timestamps'].update(greenefy_timestamps)
+        
+        # Update monitoring data with demo data
+        monitoring_data.extend(greenefy_monitoring)
+        
+        return
+    
+    # ============================================================================
+    # REAL MODE: Original implementation
+    # ============================================================================
     db_engine = None
     try:
         t_start_greenefy = datetime.now(timezone.utc)
@@ -210,23 +279,50 @@ def _run_greenefy_process(result_holder, monitoring_data, user_question, all_loa
         if db_engine:
             db_engine.dispose()
 
+
+
 def run_greenefy_process():
     st.session_state.greenefy_status = 'running'
     
-    # Se il monitor era stato fermato, riavvialo
-    if not st.session_state.get('monitor_thread') or not st.session_state.monitor_thread.is_alive():
-            st.session_state.stop_monitor_event = threading.Event()
-            monitor = SystemMonitor(st.session_state.monitoring_data, st.session_state.stop_monitor_event,
-                                st.session_state.get('emission_factor', 250.0), st.session_state.get('cpu_tdp', 65.0))
-            st.session_state.monitor_thread = monitor
-            monitor.start()
+    # Extract original query and CO2 from process results
+    process_results = st.session_state.get('process_results', {})
+    generated_sql = process_results.get('info', {}).get('generated_sql', '')
+    
+    # Calculate original CO2 (simplified estimation)
+    orig_co2 = 0.0
+    monitoring_data = st.session_state.get('monitoring_data', [])
+    if monitoring_data:
+        try:
+            mon_df = pd.json_normalize(monitoring_data)
+            mon_df['timestamp'] = pd.to_datetime(mon_df['timestamp'])
+            mon_df['time_diff_s'] = mon_df['timestamp'].diff().dt.total_seconds().fillna(0)
+            mon_df['total_co2_gs'] = mon_df.get('cpu.co2_gs_cpu', 0).fillna(0)
+            if 'gpu.co2_gs_gpu' in mon_df.columns:
+                mon_df['total_co2_gs'] += mon_df['gpu.co2_gs_gpu'].fillna(0)
+            orig_co2 = (mon_df['total_co2_gs'] * mon_df['time_diff_s']).sum()
+        except Exception:
+            orig_co2 = 0.0
+    
+    # Se il monitor era stato fermato, riavvialo (only in non-demo mode)
+    if not DEMO_MODE_ENABLED:
+        if not st.session_state.get('monitor_thread') or not st.session_state.monitor_thread.is_alive():
+                st.session_state.stop_monitor_event = threading.Event()
+                monitor = SystemMonitor(st.session_state.monitoring_data, st.session_state.stop_monitor_event,
+                                    st.session_state.get('emission_factor', 250.0), st.session_state.get('cpu_tdp', 65.0))
+                st.session_state.monitor_thread = monitor
+                monitor.start()
+    
+    # Get DB state
+    db_state = st.session_state.get('db', {})
+    db_choice = db_state.get('choice')
+    db_connection_args = db_state.get('connection_args')
 
     worker_thread = threading.Thread(
         target=_run_greenefy_process,
         args=(
             st.session_state.process_results, st.session_state.monitoring_data,
-            st.session_state.gen_prompt, get_all_loaded_dfs(), st.session_state.db_choice,
-            st.session_state.db_connection_args, st.session_state.llm.get('backend'),
+            st.session_state.gen_prompt, get_all_loaded_dfs(), db_choice,
+            db_connection_args, st.session_state.llm.get('backend'),
             st.session_state.llm.get('model'), generated_sql, orig_co2
         ),
         daemon=True
@@ -234,6 +330,7 @@ def run_greenefy_process():
     st.session_state.greenefy_thread = worker_thread
     worker_thread.start()
     st.rerun()
+
 
 
 def dataset_tab_geneval(key_alter=""):
