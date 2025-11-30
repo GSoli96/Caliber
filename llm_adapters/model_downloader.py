@@ -9,6 +9,8 @@ import streamlit as st
 from huggingface_hub import snapshot_download, login
 from transformers import pipeline
 
+from utils.translations import get_text
+
 # Tweak utili
 os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")  # downloader Rust
 os.environ.setdefault("HF_HUB_TIMEOUT", "60")  # timeout singola richiesta (s)
@@ -30,7 +32,7 @@ def download_model_HF(
     """
     # Ottieni lo stato. Assicurati che sia inizializzato in app.py!
     if "hf_dl" not in st.session_state:
-        st.error("Errore: lo stato hf_dl non è inizializzato. Controlla app.py.")
+        st.error(get_text("llm_adapters", "dl_state_error"))
         return None
 
     state = st.session_state.hf_dl
@@ -104,10 +106,7 @@ def download_model_HF(
                 pass
 
         if not _dns_ok():
-            s["error"] = (
-                "DNS non risolve 'huggingface.co'. Controlla rete/DNS o proxy.\n"
-                "Suggerimenti: DNS 8.8.8.8 / 1.1.1.1, variabili HTTP(S)_PROXY."
-            )
+            s["error"] = get_text("llm_adapters", "dl_dns_error")
             s["running"] = False
             return
 
@@ -123,12 +122,12 @@ def download_model_HF(
                 if s["stop"]:
                     raise KeyboardInterrupt("Annullato prima dell’avvio del tentativo")
                 try:
-                    s["note"] = f"Tentativo {attempt + 1}/{s['max_retries'] + 1}…"
+                    s["note"] = get_text("llm_adapters", "dl_attempt", attempt=attempt + 1, total=s['max_retries'] + 1)
                     local_dir = snapshot_download(**kwargs)
                     if s["stop"]:
                         raise KeyboardInterrupt("Annullato")
                     s["local_dir"] = local_dir
-                    s["note"] = "Download completato. In attesa creazione pipeline..."
+                    s["note"] = get_text("llm_adapters", "dl_complete_waiting")
                     break
                 except KeyboardInterrupt:
                     raise
@@ -143,37 +142,34 @@ def download_model_HF(
 
                     if net_like and attempt < s["max_retries"]:
                         s["retries"] = attempt + 1
-                        s[
-                            "note"] = f"Problema rete ({type(e).__name__}): {str(e)[:120]}… ritento ({s['retries']}/{s['max_retries']})"
+                        s["note"] = get_text("llm_adapters", "dl_network_retry", error_type=type(e).__name__, error_msg=str(e)[:120], retry=s['retries'], max_retries=s['max_retries'])
                         _sleep_backoff(attempt)
                         continue
                     else:
-                        s["note"] = "Verifico cache locale (offline)…"
+                        s["note"] = get_text("llm_adapters", "dl_check_cache")
                         try:
                             local_dir_off = snapshot_download(
                                 local_files_only=True,
                                 **{k: v for k, v in kwargs.items() if k != "progress_callback"}
                             )
                             s["local_dir"] = local_dir_off
-                            s["note"] = "Caricato dalla cache locale."
+                            s["note"] = get_text("llm_adapters", "dl_cached")
                             break
                         except Exception as e_off:
-                            s["error"] = (
-                                f"Download fallito: {type(e).__name__}: {e}\n"
-                                f"Offline fallback assente: {type(e_off).__name__}: {e_off}"
-                            )
+                            s["error"] = get_text("llm_adapters", "dl_failed", error_type=type(e).__name__, error=e) + "\n" + \
+                                         f"Offline fallback assente: {type(e_off).__name__}: {e_off}"
                             s["running"] = False
                             return
 
             if not s.get("local_dir"):
-                s["error"] = "Nessuna directory locale ottenuta per il modello."
+                s["error"] = get_text("llm_adapters", "dl_no_directory")
                 s["running"] = False
                 return
 
         except KeyboardInterrupt:
-            s["error"] = "Download annullato dall’utente."
+            s["error"] = get_text("llm_adapters", "dl_cancelled")
         except Exception as e:
-            s["error"] = f"Errore imprevisto nel worker: {type(e).__name__}: {e}"
+            s["error"] = get_text("llm_adapters", "dl_unexpected_error", error_type=type(e).__name__, error=e)
         finally:
             s["running"] = False
 
@@ -188,7 +184,7 @@ def download_model_HF(
         # Questo blocco ora viene eseguito solo se l'utente ha cliccato "Load"
         # e conf_model.py ha resettato lo stato.
 
-        st.success("Download avviato in background...")
+        st.success(get_text("llm_adapters", "dl_started"))
 
         # --- MODIFICA CHIAVE 2: Salva il model_id nello stato ---
         state["model_id"] = model_id
@@ -200,7 +196,7 @@ def download_model_HF(
 
     # --- MODIFICA CHIAVE 3: Spostato st.info qui ---
     # Mostra l'info solo se il download è effettivamente per questo modello
-    st.info(f"🔽 Model: `{model_id}` — task: `{task}`")
+    st.info(get_text("llm_adapters", "dl_model_info", model_id=model_id, task=task))
 
     # UI in corso (DOWNLOAD)
     if state["running"]:
@@ -210,15 +206,15 @@ def download_model_HF(
             text = f"{_mb(state['bytes'])}/{_mb(state['total'])}  ({pct}%)"
         else:
             frac = 0.0
-            text = state["note"] or "Scaricamento in corso…"
+            text = state["note"] or get_text("llm_adapters", "dl_downloading")
 
         st.progress(frac, text=text)
         if state["note"]:
             st.caption(state["note"])
 
-        if st.button("⏹️ Annulla download"):
+        if st.button(get_text("llm_adapters", "dl_btn_cancel")):
             state["stop"] = True
-            st.warning("Richiesta di annullamento inviata…")
+            st.warning(get_text("llm_adapters", "dl_cancel_sent"))
 
         time.sleep(refresh_sec)
         st.rerun()
@@ -229,7 +225,7 @@ def download_model_HF(
         st.error(f"❌ {state['error']}")
         if state["note"]:
             st.caption(state["note"])
-        if st.button("Riprova download"):
+        if st.button(get_text("llm_adapters", "dl_btn_retry")):
             # Reset COMPLETO dello stato
             state.update({
                 "running": False, "stop": False, "progress": 0, "bytes": 0,
@@ -248,21 +244,21 @@ def download_model_HF(
     # UI: esito (DOWNLOAD COMPLETATO, ORA CREO LA PIPELINE)
     if state["local_dir"] and state["pipe"] is None:
         try:
-            with st.spinner(f"Creo la pipeline dal percorso: {state['local_dir']}…"):
+            with st.spinner(get_text("llm_adapters", "dl_creating_pipeline", path=state['local_dir'])):
                 state["pipe"] = pipeline(task, model=state["local_dir"], token=token or None)
             st.rerun()
         except Exception as e:
-            st.error(f"Errore creando la pipeline: {e}")
-            state["error"] = f"Errore fatale creando la pipeline: {e}"
+            st.error(get_text("llm_adapters", "dl_pipeline_error", error=e))
+            state["error"] = get_text("llm_adapters", "dl_pipeline_fatal", error=e)
             return None
 
     # UI: esito (PIPELINE PRONTA)
     if state["pipe"] is not None:
-        st.success(f"✅ Modello pronto. Directory: {state['local_dir']}")
+        st.success(get_text("llm_adapters", "dl_model_ready", path=state['local_dir']))
         if state["started_at"] and state["bytes"]:
             dt = max(1e-6, time.time() - state["started_at"])
             speed = state["bytes"] / dt / 1e6  # MB/s
-            st.caption(f"Download completato in {dt:.1f}s. Velocità media: {speed:.2f} MB/s")
+            st.caption(get_text("llm_adapters", "dl_complete_stats", time=dt, speed=speed))
         return state["pipe"]
 
     return None

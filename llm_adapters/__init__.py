@@ -2,6 +2,7 @@
 import inspect
 
 import streamlit as st
+from utils.translations import get_text
 
 from . import huggingface_adapter
 from . import lmstudio_adapter
@@ -17,7 +18,7 @@ LLM_ADAPTERS = {
 
 def _adapter_for(backend: str):
     if backend not in LLM_ADAPTERS:
-        raise KeyError(f"Backend '{backend}' non supportato.")
+        raise KeyError(get_text("llm_adapters", "backend_not_supported", backend=backend))
     return LLM_ADAPTERS[backend]
 
 def _filter_kwargs(fn, kwargs: dict):
@@ -51,12 +52,12 @@ def list_models(backend: str, **kwargs):
     fp = _fingerprint_kwargs(fn, kwargs)
     return _cached_list_models(backend, fp)
 
-@st.cache_data(show_spinner="Caricamento dettagli…")
+@st.cache_data(show_spinner=get_text("llm_adapters", "loading_details"))
 def _cached_get_details(backend: str, model_name: str, kwargs_fp: tuple):
     adapter = _adapter_for(backend)
     fn = getattr(adapter, "get_model_details", None)
     if not fn:
-        return {'error': f"Adapter {backend} non espone get_model_details."}
+        return {'error': get_text("llm_adapters", "adapter_no_get_details", backend=backend)}
     kwargs = dict(kwargs_fp)
     return fn(model_name=model_name, **kwargs)
 
@@ -64,7 +65,7 @@ def get_model_details(backend: str, model_name: str, **kwargs):
     adapter = _adapter_for(backend)
     fn = getattr(adapter, "get_model_details", None)
     if not fn:
-        return {'error': f"Adapter {backend} non espone get_model_details."}
+        return {'error': get_text("llm_adapters", "adapter_no_get_details", backend=backend)}
     fp = _fingerprint_kwargs(fn, kwargs)
     return _cached_get_details(backend, model_name, fp)
 
@@ -73,7 +74,7 @@ def generate(backend: str, prompt: str, **kwargs):
     print("Adapter:", adapter)
     fn = getattr(adapter, "generate", None)
     if not fn:
-        return {'error': f"Adapter {backend} non espone generate."}
+        return {'error': get_text("llm_adapters", "adapter_no_generate", backend=backend)}
     # niente cache qui; filtra kwargs e chiama
     call_kwargs = _filter_kwargs(fn, kwargs)
     return fn(prompt=prompt, **call_kwargs)

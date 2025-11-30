@@ -97,8 +97,7 @@ def benchmark_tab():
             'active_csv_df': None
         }
 
-    st.markdown("## 🎯 Benchmarking & Green AI Evaluation")
-    
+
     render_global_kpi()
 
     tab_names = [

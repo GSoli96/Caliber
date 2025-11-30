@@ -241,6 +241,17 @@ TRANSLATIONS = {
         "export_zip_btn": {"en": "📦 Generate ZIP Export", "it": "📦 Genera Export ZIP"},
         "exporting_zip": {"en": "Preparing export archive...", "it": "Preparazione archivio export..."},
         "download_zip": {"en": "📥 Download Analytics ZIP", "it": "📥 Scarica ZIP Analisi"},
+    "overview": {"en": "📁 Dataset Overview", "it": "📁 Panoramica Dataset"},
+    "db_title": {"en": "📁 Database: {db_name}", "it": "📁 Database: {db_name}"},
+    "table_not_found": {"en": "Table {name} in dataset {db_name} not found!", "it": "Table {name} in dataset {db_name} non trovato!"},
+    "path_to_file": {"en": "Path to file", "it": "Percorso file"},
+    "path_to_file_help": {"en": "es. database_name.db (Relative paths are saved in {DB_DIR})", "it": "es. database_name.db (Percorsi relativi vengono salvati in {DB_DIR})"},
+    "path_to_file_placeholder": {"en": "database_name.db", "it": "nome_database.db"},
+    "insert_name": {"en": "Insert a name for the database", "it": "Inserisci un nome per il database"},
+    "info_placeholder": {"en": "ℹ️ No {db_choice} databases found. Try creating one in the **{tab_file_upload}** tab.", "it": "ℹ️ Nessun database {db_choice} trovato. Provo a crearne uno in tab **{tab_file_upload}**."},
+    "Save_db_ext": {"en": "Extension {ext} will be added automatically. Saved in {DB_DIR}", "it": "L'estensione {ext} sarà aggiunta automaticamente. Salvato in {DB_DIR}"},
+    "create_db": {"en": "Creating database...", "it": "Creazione database..."},
+    "reset_name": {"en": "Reset Name", "it": "Reset Nome"},
     },
     "history": {
         "no_entries": {"en": "No entries in history. Run a query in the 'Generate & Evaluate Query' tab to see results here.", "it": "Nessuna entry nella cronologia. Esegui una query nella scheda 'Generate & Evaluate Query' per vedere i risultati qui."},
@@ -306,11 +317,12 @@ TRANSLATIONS = {
     "filter_contains": {"en": "🔎 Filter (contains)", "it": "🔎 Filtro (contiene)"},
     "host_ollama": {"en": "🌐 Ollama Host", "it": "🌐 Host Ollama"},
     "hf_token_opt": {"en": "🔑 HF Token (opt.)", "it": "🔑 HF token (opz.)"},
+"spacy_warning": {
+  "en": "⚠️ Note:**spaCy models are _not_ generative models.** They are used only for **linguistic analysis** (e.g., tokenization, part-of-speech tagging, named entity recognition) and for **detecting potentially sensitive information (PII)** in your data or natural-language prompts.\n\nAll processing runs **locally on your machine**; however, **you remain responsible** for ensuring that any personal or confidential data is handled in compliance with your own policies and applicable regulations.\n\nDetected entities may be **incomplete or contain errors** and should always be **manually reviewed** before use.",
+  "it": "⚠️ Nota:I modelli **spaCy non sono modelli generativi.** Vengono utilizzati esclusivamente per **l’analisi linguistica** (ad es. tokenizzazione, part-of-speech tagging, named entity recognition) e per **individuare potenziali informazioni sensibili (PII)** nei dati o nei prompt in linguaggio naturale.\n\nL’elaborazione avviene **localmente sulla tua macchina**; tuttavia, **resta tua responsabilità** garantire che eventuali dati personali o confidenziali siano gestiti in conformità alle tue policy e alle normative vigenti.\n\nLe entità rilevate possono essere **incomplete o contenere errori** e dovrebbero sempre essere **verificate manualmente** prima dell’uso."
+},
 
-    "spacy_warning": {
-        "en": "⚠️ Note: **spaCy** models are *not* generative models...",
-        "it": "⚠️ Nota: i modelli **spaCy** *non* sono modelli generativi..."
-    },
+
 
     "load_list": {"en": "📥 Load List", "it": "📥 Carica elenco"},
     "clear_list": {"en": "🗑️ Clear", "it": "🗑️ Svuota"},
@@ -431,8 +443,8 @@ TRANSLATIONS = {
 "sort_by": {"en": "Sort by", "it": "Ordina per"},
 "search_placeholder": {"en": "🔎 Search in name or description", "it": "🔎 Cerca nel nome o nella descrizione"},
 "max_results": {"en": "Max results", "it": "Numero massimo di risultati"},
-"hf_token_help": {"en": "🔑 HF token (optional, for private models)", "it": "🔑 HF token (opzionale, per modelli privati)"},
-"search_btn": {"en": "🔍 Search models", "it": "🔍 Cerca modelli"},
+"hf_token_help": {"en": "HF token (optional, for private models)", "it": "HF token (opzionale, per modelli privati)"},
+"search_btn": {"en": "Search models", "it": "Cerca modelli"},
 "insert_author": {"en": "✏️ Please insert the author.", "it": "✏️ Please insert the author."},
 "insert_author_token": {"en": "🔑 Please insert the author and your HF token.", "it": "🔑 Please insert the author and your HF token."},
 "no_models_found_retry": {"en": "❌ No models found, change filters and retry!", "it": "❌ Nessun modello trovato, cambia i filtri e riprova!"},
@@ -483,9 +495,9 @@ TRANSLATIONS = {
 "repo_filter": {"en": "Repository filter", "it": "Filtro repository"},
 
 "registry_browse": {"en": "🌐 Online Registry (browse & pull)", "it": "🌐 Registry online (browse & pull)"},
-"search_registry": {"en": "🔍 Search in registry", "it": "🔍 Cerca nel registry"},
-"search_repo_contains": {"en": "🔎 Search repository (contains)", "it": "🔎 Cerca repository (contiene)"},
-"refresh_registry": {"en": "🔄 Refresh registry list", "it": "🔄 Aggiorna elenco registry"},
+"search_registry": {"en": "Search in registry", "it": "Cerca nel registry"},
+"search_repo_contains": {"en": "Search repository (contains)", "it": "Cerca repository (contiene)"},
+"refresh_registry": {"en": "Refresh registry list", "it": "Aggiorna elenco registry"},
 
 "manual_pull_info": {
     "en": "You can still manually enter `model:tag` below to pull.",
@@ -535,7 +547,7 @@ TRANSLATIONS = {
 
 "details_no_download": {"en": "📘 Model details (without downloading)", "it": "📘 Dettagli modello (senza scaricare)"},
 
-"download_update": {"en": "⬇️ Download / Update", "it": "⬇️ Scarica / Aggiorna"},
+"download_update": {"en": "Download / Update", "it": "Scarica / Aggiorna"},
 "show_details_after": {"en": "Show full details after download", "it": "Mostra dettagli completi dopo il download"},
 
 "downloading_candidate": {"en": "⬇️ Downloading `{candidate}`…", "it": "⬇️ Download di `{candidate}` in corso…"},
@@ -592,7 +604,58 @@ TRANSLATIONS = {
 "ollama_registry_error": {"en": "❌ Unable to query Ollama registry: {e}", "it": "❌ Impossibile interrogare il registry Ollama: {e}"},
 
 "fetching_tags": {"en": "📦 Fetching tags…", "it": "📦 Recupero tag…"},
-"tags_error": {"en": "❌ Unable to fetch tags for '{model}': {e}", "it": "❌ Impossibile recuperare i tag per '{model}': {e}"}
+"tags_error": {"en": "❌ Unable to fetch tags for '{model}': {e}", "it": "❌ Impossibile recuperare i tag per '{model}': {e}"},
+"unable_to_clean": {"en": "Unable to clean cache: {e}", "it": "Impossibile pulire cache: {e}"},
+"dataframe_section": {"en": "Section", "it": "Sezione"},
+"dataframe_field": {"en": "Field", "it": "Campo"},
+"dataframe_value": {"en": "Value", "it": "Valore"},
+"dataframe_overview": {"en": "Overview", "it": "Panoramica"},
+    "hugging_task": {"en": "Task", "it": "Task"},
+    "hugging_download": {"en": "Download", "it": "Scarica"},
+    "hugging_likes": {"en": "Likes", "it": "Mi piace"},
+    "hugging_authors": {"en": "Authors", "it": "Autori"},
+    "other_unknown": {"en": "Other/Unknown", "it": "Altro/Sconosciuto"},
+    "archivio":{'it': "Archivio {name} non estratto ({e}), salvo il file come è.", "en": "Archive {name} not extracted ({e}), saving the file as is."},
+    "searching_hugging": {"en": "🔍 Contatto Hugging Face…", "it": "🔍 Contatto Hugging Face…"},
+    "model":{"en": "Model", "it": "Modello"},
+    "language":{"en": "Language", "it": "Lingua"},
+    "version":{"en": "Version", "it": "Versione"},
+    "pipeline":{"en": "Pipeline", "it": "Pipeline"},
+    "tasks":{"en": "Tasks", "it": "Tasks"},
+    "vectors_dim":{"en": "Vectors (dim)", "it": "Vettori (dim)"},
+    "vectors_keys":{"en": "Vectors (keys)", "it": "Vettori (keys)"},
+    "installed":{"en": "Installed", "it": "Installato"},
+    "size_hint":{"en": "Size hint", "it": "Size hint"},
+    "si":{"en": "Yes", "it": "Si"},
+    "description": {"en": "Description", "it": "Descrizione"},
+    "spaCy_compatible": {"en": "spaCy compatible", "it": "spaCy compatibile"},
+    "ner_label_person": {"en": "Person (name)", "it": "Persona (nome proprio)"},
+    "ner_label_norp": {"en": "Group (country, religion, politics)", "it": "Gruppi (naz., relig., politici)"},
+    "ner_label_fac": {"en": "Facility (building, bridge, etc.)", "it": "Facility (building, bridge, etc.)"},
+    "ner_label_org": {"en": "Organization (company, institution, team)", "it": "Organizzazione (azienda, ente, squadra)"},
+    "ner_label_gpe": {"en": "Country/Region/City", "it": "Paese/Regione/Città"},
+    "ner_label_location": {"en": "Location (mountain, river, etc.)", "it": "Località non politica (montagne, fiumi…)"},
+    "ner_label_product": {"en": "Product/Item", "it": "Prodotto/oggetto"},
+    "ner_label_event": {"en": "Named Event", "it": "Evento nominato"},
+    "ner_label_work_of_art": {"en": "Work of art", "it": "Opera (libro, film, quadro…)"},
+    "ner_label_law": {"en": "Law/Act", "it": "Legge o atto normativo"},
+    "ner_label_language": {"en": "Language", "it": "Lingua"},
+    "ner_label_date": {"en": "Date/Period", "it": "Data/periodo"},
+    "ner_label_time": {"en": "Time", "it": "Orario"},
+    "ner_label_money": {"en": "Money", "it": "Denaro"},
+    "ner_label_percent": {"en": "Percentage", "it": "Percentuale"},
+    "ner_label_quantity": {"en": "Quantity/Measure", "it": "Quantità/misura"},
+    "ner_label_ordinal": {"en": "Ordinal (1st, 2nd…)", "it": "Ordinale (1º, 2º…)"},
+    "ner_label_cardinal": {"en": "Cardinal", "it": "Cardinale"},
+    "sensitive": {"en": "Sensitive", "it": "Sensibile"},
+    "non_sensitive": {"en": "Non Sensitive", "it": "Non Sensibile"},
+    "section": {"it": "Sezione", "en": "Section"},
+    "field": {"it": "Campo", "en": "Field"},
+    "value": {"it": "Valore", "en": "Value"},
+    "overview": {"it": "Panoramica", "en": "Overview"},
+    "campo_base": {"it": "Campo_base", "en": "Base_field"},
+    "by_name": {"it": "dal nome", "en": "by name"},
+    
     },
 "imputation": {
     "header": {"en": "🧩 Missing Value Imputation", "it": "🧩 Imputazione Valori Mancanti"},
@@ -661,6 +724,404 @@ TRANSLATIONS = {
 
     "confirm_apply": {"en": "💾 Apply Accepted Changes to Dataset", "it": "💾 Applica Modifiche Accettate al Dataset"}
 },
+"welcome": {
+    "title": {"en": "🌳 Welcome to CALIBER", "it": "🌳 Benvenuto in CALIBER"},
+    "subtitle": {"en": "### 🌍 Green AI-Powered SQL Query Generation & Optimization", "it": "### 🌍 Green AI-Powered SQL Query Generation & Optimization"},
+    "intro": {
+        "en": "**CALIBER** (Carbon-Aware LLM-Integrated Benchmarking and Eco-friendly Rewriting) is a comprehensive tool for SQL query generation via artificial intelligence, with real-time CO₂ emissions monitoring and green query optimization.",
+        "it": "**CALIBER** (Carbon-Aware LLM-Integrated Benchmarking and Eco-friendly Rewriting) è uno strumento completo per la generazione di query SQL tramite intelligenza artificiale, con monitoraggio in tempo reale delle emissioni di CO₂ e ottimizzazione green delle query."
+    },
+    "features_header": {"en": "### 📋 Features Overview", "it": "### 📋 Panoramica delle Funzionalità"},
+    
+    "data_hub_title": {"en": "#### 📊 Data Hub", "it": "#### 📊 Data Hub"},
+    "data_hub_desc": {
+        "en": "Load data from local files (CSV, Parquet, HDF5) or connect to existing databases (MySQL, PostgreSQL, SQLite, DuckDB). Configure LLM models for query generation.",
+        "it": "Carica dati da file locali (CSV, Parquet, HDF5) o connettiti a database esistenti (MySQL, PostgreSQL, SQLite, DuckDB). Configura i modelli LLM per la generazione di query."
+    },
+    
+    "data_insights_title": {"en": "#### 📈 Data Insights", "it": "#### 📈 Data Insights"},
+    "data_insights_desc": {
+        "en": "In-depth dataset analysis with detailed statistics, sensitive data (PII) detection, relational profiling, primary key identification, and interactive visualizations.",
+        "it": "Analisi approfondita dei dataset con statistiche dettagliate, rilevamento di dati sensibili (PII), profilazione relazionale, identificazione di chiavi primarie e visualizzazioni interattive."
+    },
+    
+    "green_query_title": {"en": "#### 🧪 Green Query Builder", "it": "#### 🧪 Green Query Builder"},
+    "green_query_desc": {
+        "en": "Generate SQL queries from natural language using LLMs. Includes real-time CO₂ monitoring, alternative query execution, and the **Greenify** function to optimize queries by reducing carbon emissions.",
+        "it": "Genera query SQL da linguaggio naturale utilizzando LLM. Include monitoraggio CO₂ in tempo reale, esecuzione di query alternative e la funzione **Greenify** per ottimizzare le query riducendo le emissioni di carbonio."
+    },
+    
+    "eco_benchmark_title": {"en": "#### 🎯 Eco Benchmark", "it": "#### 🎯 Eco Benchmark"},
+    "eco_benchmark_desc": {
+        "en": "Compare different LLMs based on energy efficiency, accuracy, and carbon footprint. Includes NL→SQL benchmarks, DBMS execution, quality evaluation, and Green AI Race.",
+        "it": "Confronta diversi LLM in base a efficienza energetica, accuratezza e impronta di carbonio. Include benchmark NL→SQL, esecuzione DBMS, valutazione qualità e Green AI Race."
+    },
+    
+    "synthetic_lab_title": {"en": "#### 🧬 Synthetic Lab", "it": "#### 🧬 Synthetic Lab"},
+    "synthetic_lab_desc": {
+        "en": "Generate synthetic datasets with various strategies (Faker, GaussianCopula, CTGAN, TVAE) while monitoring the environmental impact of each approach.",
+        "it": "Genera dataset sintetici con diverse strategie (Faker, GaussianCopula, CTGAN, TVAE) monitorando l'impatto ambientale di ogni approccio."
+    },
+    
+    "settings_title": {"en": "#### ⚙️ Settings", "it": "#### ⚙️ Settings"},
+    "settings_desc": {
+        "en": "Customize key parameters such as CO₂ emission factor and CPU TDP for more accurate estimates based on your hardware and geographic location.",
+        "it": "Personalizza i parametri chiave come il fattore di emissione CO₂ e il TDP della CPU per stime più accurate basate sul tuo hardware e posizione geografica."
+    },
+    
+    "key_features_header": {"en": "### 🌱 Key Features", "it": "### 🌱 Caratteristiche Principali"},
+    "feature_monitoring": {
+        "en": "**Real-time CO₂ Monitoring**: Complete tracking of energy consumption and emissions",
+        "it": "**Monitoraggio CO₂ in tempo reale**: Tracciamento completo del consumo energetico e delle emissioni"
+    },
+    "feature_greenify": {
+        "en": "**Green Optimization (Greenify)**: Automatic query rewriting to reduce environmental impact",
+        "it": "**Ottimizzazione Green (Greenify)**: Riscrittura automatica delle query per ridurre l'impatto ambientale"
+    },
+    "feature_multi_llm": {
+        "en": "**Multi-LLM Support**: Integration with Hugging Face, Ollama, LM Studio, and custom models",
+        "it": "**Multi-LLM Support**: Integrazione con Hugging Face, Ollama, LM Studio e modelli personalizzati"
+    },
+    "feature_benchmarking": {
+        "en": "**Comprehensive Benchmarking**: Systematic comparison of LLMs and DBMS based on sustainability metrics",
+        "it": "**Benchmarking Completo**: Confronto sistematico di LLM e DBMS basato su metriche di sostenibilità"
+    },
+    "feature_synthetic": {
+        "en": "**Synthetic Data Generation**: Dataset creation with energy impact tracking",
+        "it": "**Generazione Dati Sintetici**: Creazione di dataset con tracciamento dell'impatto energetico"
+    },
+    "feature_analytics": {
+        "en": "**Advanced Analytics**: Relational profiling, PII detection, and integrity analysis",
+        "it": "**Analisi Avanzata**: Profilazione relazionale, rilevamento PII e analisi di integrità"
+    },
+
+    "lmstudio_adapter": {
+        "checking_status": {"en": "Checking LM Studio server status...", "it": "Verifico stato server LM Studio..."},
+        "started_background": {"en": "Started in background.", "it": "Avviato in background."},
+        "cli_not_found": {"en": "CLI 'lms' not found in PATH", "it": "CLI 'lms' non trovata nel PATH"},
+        "terminated_pid": {"en": "Terminated PID {pid}", "it": "Terminato PID {pid}"},
+        "error_stop_pid": {"en": "Error stopping PID {pid}: {e}", "it": "Errore stop PID {pid}: {e}"},
+        "http_error": {"en": "HTTP Error: {e}", "it": "Errore HTTP: {e}"},
+        "panel_title": {"en": "🧪 LM Studio — CLI Control", "it": "🧪 LM Studio — controllo CLI"},
+        "connection_error": {"en": "❌ LM Studio connection error: {e}", "it": "❌ Errore connessione LM Studio: {e}"},
+        "start_btn": {"en": "🚀 Start (background)", "it": "🚀 Start (background)"},
+        "stop_btn": {"en": "🛑 Stop Server", "it": "🛑 Stop Server"},
+        "stop_toast": {"en": "🛑 Server Stop!", "it": "🛑 Server Stop!"},
+        "list_models_btn": {"en": "📚 Model List", "it": "📚 Lista modelli"},
+        "start_server_warning": {"en": "🚨 Start the server!", "it": "🚨 Avviare il server!"},
+        "http_server_label": {"en": "🌐 HTTP Server", "it": "🌐 HTTP Server"},
+        "online": {"en": "🟢 ONLINE", "it": "🟢 ONLINE"},
+        "offline": {"en": "🔴 OFFLINE", "it": "🔴 OFFLINE"},
+        "num_models": {"en": "📦 # Models", "it": "📦 # Modelli"},
+        "endpoint": {"en": "🔗 Endpoint: {url}", "it": "🔗 Endpoint: {url}"},
+        "stdout": {"en": "📤 STDOUT", "it": "📤 STDOUT"},
+        "stderr_fallback": {"en": "⚠️ STDERR (fallback)", "it": "⚠️ STDERR (fallback)"},
+        "stderr": {"en": "⚠️ STDERR", "it": "⚠️ STDERR"},
+        "cmd_success": {"en": "✅ Command executed successfully.", "it": "✅ Comando eseguito con successo."},
+        "total_models": {"en": "🤖 Total Models", "it": "🤖 Modelli totali"},
+        "disk_space": {"en": "💾 Disk Space", "it": "💾 Spazio su disco"},
+        "llm_header": {"en": "### 🧠 LLM", "it": "### 🧠 LLM"},
+        "embedding_header": {"en": "### 🪐 Embedding", "it": "### 🪐 Embedding"},
+        "cmd_failed": {"en": "❌ Command failed.", "it": "❌ Comando fallito."},
+        "server_not_running": {"en": "⚠️ Server is not Running", "it": "⚠️ Server is not Running"},
+        "no_details": {"en": "No details available for this model. LM Studio did not provide useful metadata or parsing failed.", "it": "Nessun dettaglio disponibile per questo modello. LM Studio non ha fornito metadati utili o il parsing non ha trovato nulla."},
+        "type_llm": {"en": "LLM: generative language model, capable of understanding and producing text.", "it": "LLM: modello generativo di linguaggio, capace di comprendere e produrre testo."},
+        "type_embedding": {"en": "Embedding: transforms text into numerical vectors for semantic search, clustering, and RAG.", "it": "Embedding: trasforma testi in vettori numerici per ricerca semantica, clustering e RAG."},
+        "type_unknown": {"en": "Type not directly recognized by `lms ls`.", "it": "Tipo non riconosciuto direttamente da `lms ls`."},
+        "params_approx": {"en": "Parameters ≈ {params}: model weights. More parameters ⇒ more capacity, but requires more memory and compute.", "it": "Parametri ≈ {params}: i pesi del modello. Più parametri ⇒ più capacità, ma servono più memoria e calcoli."},
+        "params_unknown": {"en": "Parameters not detected: depends on the model (e.g. 7B=7 billion weights).", "it": "Parametri non rilevati: dipendono dal modello (es. 7B=7 miliardi di pesi)."},
+        "arch_fam": {"en": "Architecture {arch}: the 'family' (Llama, Mistral, Gemma…). Changes structure and abilities of the model.", "it": "Architettura {arch}: la 'famiglia' (Llama, Mistral, Gemma…). Cambia struttura e abilità del modello."},
+        "arch_unknown": {"en": "Architecture not specified.", "it": "Architettura non specificata."},
+        "size_disk": {"en": "Occupies ~{size} on disk: depends on quantization and format (GGUF/FP16…).", "it": "Occupa ~{size} su disco: dipende da quantizzazione e formato (GGUF/FP16…)."},
+        "size_unknown": {"en": "Disk size not available.", "it": "Dimensione su disco non disponibile."},
+        "train_instruct": {"en": "Instruct/Chat: fine-tuned to follow natural language instructions.", "it": "Instruct/Chat: fine-tuning per seguire istruzioni in linguaggio naturale."},
+        "train_base": {"en": "Base: 'foundation' model not specialized for dialogue; useful for fine-tuning or generic tasks.", "it": "Base: modello 'fundation' non specializzato per dialogo; utile per finetuning o compiti generici."},
+        "quant_desc": {"en": "Quantization {quant}: reduces precision to decrease memory and increase speed, with some quality loss.", "it": "Quantizzazione {quant}: riduce precisione per diminuire memoria e aumentare velocità, con un po' di perdita qualitativa."},
+        "quant_unknown": {"en": "Quantization not detected in name (examples: Q4_K_M, Q5_0, INT8, BF16).", "it": "Quantizzazione non rilevata nel nome (esempi: Q4_K_M, Q5_0, INT8, BF16)."},
+        "ctx_window": {"en": "Context window ≈ {ctx}: maximum number of tokens considered in input/output.", "it": "Finestra di contesto ≈ {ctx}: numero massimo di token considerati in input/output."},
+        "ctx_unknown": {"en": "Context window not deducible from name (typical 4k–128k tokens).", "it": "Finestra di contesto non deducibile dal nome (tipico 4k–128k token)."},
+        "lms_ls_error": {"en": "Error: Unable to run `lms ls`: {e}", "it": "Errore: Impossibile eseguire `lms ls`: {e}"},
+        "cli_error_path": {"en": "[error] CLI 'lms' not found in PATH. Open LM Studio and use 'Install CLI'.", "it": "[errore] CLI 'lms' non trovata nel PATH. Apri LM Studio e usa 'Install CLI'."},
+        "cli_exec_error": {"en": "[error] Unable to execute CLI 'lms'.", "it": "[errore] Impossibile eseguire la CLI 'lms'."},
+        "start_fail": {"en": "[error] Start failed: {e}", "it": "[errore] Avvio fallito: {e}"},
+        "unknown_type": {"en": "Unknown", "it": "Sconosciuto"},
+        "file_not_found": {"en": "file not found", "it": "file non trovato"},
+        "timeout": {"en": "timeout", "it": "timeout"},
+        "error_generic": {"en": "error: {e}", "it": "errore: {e}"},
+        "model_col": {"en": "Model", "it": "Modello"},
+        "params_col": {"en": "Parameters", "it": "Parametri"},
+        "arch_col": {"en": "Architecture", "it": "Architettura"},
+        "size_col": {"en": "Size", "it": "Dimensione"},
+        "embedding_col": {"en": "Embedding", "it": "Embedding"},
+        "name_col": {"en": "Name", "it": "Nome"},
+        "type_col": {"en": "Type", "it": "Tipo"},
+        "training_col": {"en": "Training", "it": "Addestramento"},
+        "quant_col": {"en": "Quantization", "it": "Quantizzazione"},
+        "format_col": {"en": "File Format", "it": "Formato file"},
+        "ctx_col": {"en": "Context Window", "it": "Context window"},
+        "version_col": {"en": "Version", "it": "Versione"},
+        "param_col": {"en": "Parameter", "it": "Parametro"},
+        "desc_col": {"en": "Description", "it": "Descrizione"},
+        "training_from_name": {"en": "Training (from name)", "it": "Addestramento (dal nome)"},
+        "ctx_est_col": {"en": "Context Window (est.)", "it": "Context window (stima)"},
+        "ver_est_col": {"en": "Version (est.)", "it": "Versione (stima)"},
+        "explanations_col": {"en": "Explanations", "it": "Spiegazioni"},
+    },
+    
+    "getting_started_header": {"en": "### 🚀 Getting Started", "it": "### 🚀 Per Iniziare"},
+    "step1": {"en": "**Load your data** in the *Data Hub* tab", "it": "**Carica i tuoi dati** nel tab *Data Hub*"},
+    "step2": {"en": "**Configure an LLM model** (local or online)", "it": "**Configura un modello LLM** (locale o online)"},
+    "step3": {"en": "**Generate queries** from natural language in the *Green Query Builder* tab", "it": "**Genera query** dal linguaggio naturale nel tab *Green Query Builder*"},
+    "step4": {"en": "**Optimize** your queries with the Greenify function", "it": "**Ottimizza** le tue query con la funzione Greenify"},
+    "step5": {"en": "**Compare** different LLMs in the *Eco Benchmark* tab", "it": "**Confronta** diversi LLM nel tab *Eco Benchmark*"},
+    
+    "dont_show_again": {"en": "✅ Don't show this message again", "it": "✅ Non mostrare più questo messaggio"},
+    "dont_show_help": {
+        "en": "Check to hide this message on future launches",
+        "it": "Seleziona per non visualizzare più questo messaggio all'avvio"
+    },
+    "start_button": {"en": "🚀 Get Started", "it": "🚀 Inizia"},
+
+"load_file_tab": {
+    "Choose_option": {"en": "Choose one option", "it": "Seleziona un'opzione"}},
+    "separator": {"en": "Select separator", "it": "Seleziona il separatore dei CSV"},
+    "custom": {"en": "Custom", "it": "Personalizzato"},
+    "insert": {"it":"Inserisci un singolo carattere (es. :)", "en": "Insert a single character (e.g. :)"},
+    "extension_db": {"en": "Extension {ext} will be added automatically. Saved in {DB_DIR}", "it": "L'estensione {ext} sarà aggiunta automaticamente. Salvato in {DB_DIR}"},
+    "db_name": {"en": "Database name", "it": "Nome del database"},
+    "insert_db_name" : {"it":"Inserisci un nome per il database", "en": "Insert a name for the database"},
+    "error1": {"en": "Please select a valid {db_choice} database file ({ext})", "it": "Seleziona un file database valido ({ext}) per {db_choice}"},
+    "overwrite": {"en": "Overwrite", "it": " Sovrascrivi"},
+    "db_overwritten": {"en": "✅ Database **{db_name}** successfully overwritten and recreated!", "it": "✅ Database **{db_name}** riscritto e ricreato con successo!"},
+    "failed_to_create": {"en": "❌ Failed to create database after deletion.", "it": "❌ Fallito la creazione del database dopo la cancellazione."},
+    "failed_to_delete": {"en": "❌ Failed to delete database.", "it": "❌ Fallito la cancellazione del database."},
+    "failed_create": {"en": "❌ Failed to create database.", "it": "❌ Fallito la creazione del database."},
+    "success_create": {"en": "✅ Successfully created database **{db_name}**.", "it": "✅ Database **{db_name}** creato con successo!"},
+    "reload_failed": {"en": "⚠️ Database **{db_name}** created but reload failed. Using created data.", "it": "⚠️ Database **{db_name}** creato ma il reload ha fallito. Utilizzo i dati creati."},
+},
+"app_home":{
+    "data_hub": {"en": "📊 Data Hub", "it": "📊 Hub Dati"},
+    "data_insight": {"en": "📈 Data Insight", "it": "📈 Panoramica Dati"},
+    "green_query_builder": {"en": "🧪 Green Query Builder", "it": "🧪 Generatore di Query Sostenibile"},
+    "eco_benchmark": {"en": "🎯 Eco Benchmark", "it": "🎯 Eco Benchmark"},
+    "eco_benchmark2": {"en": "🎯 Benchmarking & Green AI Evaluation", "it": "🎯 Benchmarking & Valutazione AI Green"},
+    "synthetic_data": {"en": "🧬 Synthetic Data", "it": "🧬 Dati Sintetici"},
+    "settings": {"en": "⚙️ Settings", "it": "⚙️ Impostazioni"},
+    "load_dataset": {"en": "📄 Load Dataset", "it": "📄 Carica Dataset"},
+    "db_management": {"en": "🗄️ DBMS Management", "it": "🗄️ Gestione DBMS"},
+    "load_model": {"en": "🤖 Load Model", "it": "🤖 Carica Modello"},
+},
+"db_management": {
+    # Server Section
+    "server_title": {"en": "🖥️ Server: {dbms_type}", "it": "🖥️ Server: {dbms_type}"},
+    "status_running": {"en": "✅ Running", "it": "✅ In esecuzione"},
+    "status_stopped": {"en": "🔴 Stopped", "it": "🔴 Arrestato"},
+    "status_label": {"en": "Status:", "it": "Stato:"},
+    "btn_start": {"en": "▶️ Start {dbms_type}", "it": "▶️ Avvia {dbms_type}"},
+    "serverless_label": {"en": "📂 DBMS: {dbms_type}", "it": "📂 DBMS: {dbms_type}"},
+    "serverless_info": {"en": "Serverless (File-based)", "it": "Serverless (Basato su file)"},
+    
+    # Database Section
+    "db_list_header": {"en": "📂 Database List", "it": "📂 Elenco Database"},
+    "no_databases": {"en": "ℹ️ No databases found.", "it": "ℹ️ Nessun database trovato."},
+    "select_database": {"en": "📂 Select Database", "it": "📂 Seleziona Database"},
+    "size_label": {"en": "📏 Size:", "it": "📏 Dimensione:"},
+    "tables_label": {"en": "📊 Tables:", "it": "📊 Tabelle:"},
+    "btn_rename_db": {"en": "✏️ Rename DB", "it": "✏️ Rinomina DB"},
+    "new_name_label": {"en": "✏️ New Name", "it": "✏️ Nuovo Nome"},
+    "btn_delete_db": {"en": "🗑️ Delete Dataset", "it": "🗑️ Elimina Dataset"},
+    "error_loading": {"en": "❌ Error loading details: {error}", "it": "❌ Errore nel caricamento dei dettagli: {error}"},
+    
+    # Tables Section
+    "tables_header": {"en": "📋 Tables", "it": "📋 Tabelle"},
+    "table_expander": {"en": "📄 Table: {name} ({rows} rows)", "it": "📄 Tabella: {name} ({rows} righe)"},
+    "columns_label": {"en": "📊 Columns:", "it": "📊 Colonne:"},
+    "preview_label": {"en": "👁️ Preview:", "it": "👁️ Anteprima:"},
+    "rename_table_label": {"en": "✏️ Rename {name} to:", "it": "✏️ Rinomina {name} in:"},
+    "btn_rename_table": {"en": "✏️ Rename Table", "it": "✏️ Rinomina Tabella"},
+},
+"dataset_analytics": {
+    "please_load_dbms": {"en": "Please load a dataset from a DBMS.", "it": "Per favore carica un dataset da un DBMS."},
+    "table_not_found_error": {"en": "Table {name} in dataset {db_name} not found!", "it": "Tabella {name} nel dataset {db_name} non trovata!"},
+},
+"dataset_explore": {
+    "schema_insights": {"en": "🧩 Schema & Column Insights", "it": "🧩 Schema e Dettagli Colonne"},
+    "descriptive_stats": {"en": "🧮 Descriptive Statistics", "it": "🧮 Statistiche Descrittive"},
+    "numeric_features": {"en": "🔢 Numeric Features", "it": "🔢 Caratteristiche Numeriche"},
+    "textual_features": {"en": "📝 Textual Features", "it": "📝 Caratteristiche Testuali"},
+    "column_a": {"en": "Column A", "it": "Colonna A"},
+    "column_b": {"en": "Column B", "it": "Colonna B"},
+    "abs_corr": {"en": "|corr|", "it": "|corr|"},
+    "help_sensitive": {"en": "🔒 = potentially sensitive column", "it": "🔒 = colonna potenzialmente sensibile"},
+    "help_mean": {"en": "Mean", "it": "Media"},
+    "help_std": {"en": "Standard Deviation", "it": "Deviazione Standard"},
+    "help_min": {"en": "Minimum", "it": "Minimo"},
+    "help_max": {"en": "Maximum", "it": "Massimo"},
+    "help_count": {"en": "Count", "it": "Conteggio"},
+    "help_first_quartile": {"en": "First Quartile", "it": "Primo Quartile"},
+    "help_second_quartile": {"en": "Second Quartile", "it": "Secondo Quartile"},
+    "help_third_quartile": {"en": "Third Quartile", "it": "Terzo Quartile"},
+    "help_unique": {"en": "Unique values", "it": "Valori unici"},
+    "help_top": {"en": "Most frequent value", "it": "Valore più frequente"},
+    "help_freq": {"en": "Frequency of top value", "it": "Frequenza del valore più frequente"},
+    "help_avg_len": {"en": "Average text length", "it": "Lunghezza media del testo"},
+},
+"llm_adapters": {
+    # Common messages
+    "backend_not_supported": {"en": "Backend '{backend}' not supported.", "it": "Backend '{backend}' non supportato."},
+    "loading_details": {"en": "Loading details…", "it": "Caricamento dettagli…"},
+    "adapter_no_get_details": {"en": "Adapter {backend} does not expose get_model_details.", "it": "Adapter {backend} non espone get_model_details."},
+    "adapter_no_generate": {"en": "Adapter {backend} does not expose generate.", "it": "Adapter {backend} non espone generate."},
+    "cli_not_found": {"en": "CLI '{cli}' not found in PATH", "it": "CLI '{cli}' non trovata nel PATH"},
+    "http_error": {"en": "HTTP Error: {error}", "it": "Errore HTTP: {error}"},
+    "started_background": {"en": "Started in background.", "it": "Avviato in background."},
+    "error_generic": {"en": "Error", "it": "Errore"},
+    
+    # LM Studio specific
+    "lms_title": {"en": "🧪 LM Studio — CLI Control", "it": "🧪 LM Studio — controllo CLI"},
+    "lms_verify_status": {"en": "Verifying LM Studio server status...", "it": "Verifico stato server LM Studio..."},
+    "lms_start_server": {"en": "🚀 Start (background)", "it": "🚀 Start (background)"},
+    "lms_stop_server": {"en": "🛑 Stop Server", "it": "🛑 Stop Server"},
+    "lms_list_models": {"en": "📚 List models", "it": "📚 Lista modelli"},
+    "lms_start_warning": {"en": "🚨 Start the server!", "it": "🚨 Avviare il server!"},
+    "lms_cmd_success": {"en": "✅ Command executed successfully.", "it": "✅ Comando eseguito con successo."},
+    "lms_cmd_failed": {"en": "❌ Command failed.", "it": "❌ Comando fallito."},
+    "lms_llm_section": {"en": "### 🧠 LLM", "it": "### 🧠 LLM"},
+    "lms_embedding_section": {"en": "### 🪐 Embedding", "it": "### 🪐 Embedding"},
+    "lms_no_details": {"en": "No details available for this model. LM Studio did not provide useful metadata or parsing found nothing.", "it": "Nessun dettaglio disponibile per questo modello. LM Studio non ha fornito metadati utili o il parsing non ha trovato nulla."},
+    "lms_error_execute": {"en": "Unable to execute `lms ls`: {error}", "it": "Impossibile eseguire `lms ls`: {error}"},
+    "lms_error_stop_pid": {"en": "Error stopping PID {pid}: {error}", "it": "Errore stop PID {pid}: {error}"},
+    
+    # Ollama specific
+    "ollama_title": {"en": "🦙 Ollama — CLI Control", "it": "🦙 Ollama — controllo CLI"},
+    "ollama_verify_status": {"en": "Verifying Ollama server status...", "it": "Verifico stato server Ollama..."},
+    "ollama_server_online": {"en": "Server already ONLINE", "it": "Server già ONLINE"},
+    "ollama_no_models": {"en": "ℹ️ No models found in output.", "it": "ℹ️ Nessun modello trovato nell'output."},
+    "ollama_cli_fallback_failed": {"en": "{stderr}; HTTP fallback failed: {error}", "it": "{stderr}; fallback HTTP fallito: {error}"},
+    "ollama_start_btn": {"en": "🚀 Start server (background)", "it": "🚀 Avvia server (background)"},
+    "ollama_stop_btn": {"en": "🛑 Stop server", "it": "🛑 Ferma server"},
+    "ollama_stop_toast": {"en": "🛑 Server Stop!", "it": "🛑 Server Fermato!"},
+    "ollama_list_btn": {"en": "📚 List models", "it": "📚 Lista modelli"},
+    "ollama_ps_btn": {"en": "🦙 Running models", "it": "🦙 Modelli in esecuzione"},
+    "ollama_models_count": {"en": "🤖 Models (ollama list)", "it": "🤖 Modelli (ollama list)"},
+    "ollama_total_size": {"en": "💾 Total size", "it": "💾 Spazio totale"},
+    "ollama_no_output": {"en": "ℹ️ No models found in output.", "it": "ℹ️ Nessun modello trovato nell'output."},
+    "ollama_server_not_running": {"en": "⚠️ Server is not Running", "it": "⚠️ Il server non è in esecuzione"},
+    "ollama_ps_title": {"en": "🚀 ollama ps", "it": "🚀 ollama ps"},
+    "ollama_col_name": {"en": "Name", "it": "Nome"},
+    "ollama_col_id": {"en": "ID", "it": "ID"},
+    "ollama_col_size": {"en": "Size", "it": "Dimensione"},
+    "ollama_col_modified": {"en": "Modified", "it": "Modificato"},
+    "ollama_connection_error": {"en": "❌ Ollama connection error: {e}", "it": "❌ Errore connessione Ollama: {e}"},
+    "ollama_server_started": {"en": "Server started in background.", "it": "Server avviato in background."},
+    "ollama_server_error": {"en": "Error starting server", "it": "Errore avvio server"},
+    "ollama_pid_not_found": {"en": "Server PID not found", "it": "PID del server non trovato"},
+    "ollama_pid_terminated": {"en": "Terminated PID {pid}", "it": "Terminato PID {pid}"},
+    "ollama_stop_error": {"en": "Error stopping PID {pid}: {e}", "it": "Errore stop PID {pid}: {e}"},
+    "ollama_cli_not_found": {"en": "CLI 'ollama' not found", "it": "CLI 'ollama' non trovata"},
+    "ollama_cli_not_found_path": {"en": "CLI 'ollama' not found in PATH", "it": "CLI 'ollama' non trovata nel PATH"},
+    "ollama_file_not_found": {"en": "file not found", "it": "file non trovato"},
+    "ollama_timeout": {"en": "timeout", "it": "timeout"},
+    "ollama_error_generic": {"en": "error: {e}", "it": "errore: {e}"},
+    "ollama_cmd_executed": {"en": "✅ Command executed.", "it": "✅ Comando eseguito."},
+    "ollama_cmd_failed": {"en": "❌ Command failed.", "it": "❌ Comando fallito."},
+    "ollama_details_fail": {"en": "Failed to get details: {e}", "it": "Impossibile ottenere i dettagli: {e}"},
+    "ollama_http_error": {"en": "HTTP error: {e}", "it": "Errore HTTP: {e}"},
+    "streamlit_not_avail": {"en": "Streamlit is not available", "it": "Streamlit non è disponibile"},
+    "ollama_det_name": {"en": "Name", "it": "Nome"},
+    "ollama_det_family": {"en": "Family", "it": "Famiglia"},
+    "ollama_det_disk": {"en": "Disk size", "it": "Dimensione su disco"},
+    "ollama_det_params": {"en": "Parameters", "it": "Parametri"},
+    "ollama_det_arch": {"en": "Architecture", "it": "Architettura"},
+    "ollama_det_quant": {"en": "Quantization", "it": "Quantizzazione"},
+    "ollama_det_modelfile": {"en": "Modelfile", "it": "Modelfile"},
+    
+    # HuggingFace specific
+    "hf_no_models": {"en": "No models found in Hugging Face cache.", "it": "Nessun modello trovato nella cache di Hugging Face."},
+    "hf_scan_error": {"en": "Error scanning Hugging Face cache: {error}", "it": "Errore durante la scansione della cache di Hugging Face: {error}"},
+    "hf_details_error": {"en": "Error retrieving model '{model}' details: {error}", "it": "Errore nel recuperare i dettagli del modello '{model}': {error}"},
+    "hf_tokenizer_error": {"en": "Error: tokenizer for '{model}' requires file", "it": "Errore: il tokenizer di '{model}' richiede il file"},
+    "hf_tokenizer_load_error": {"en": "Error loading tokenizer for '{model}': {error}", "it": "Errore nel caricamento del tokenizer per '{model}': {error}"},
+    "hf_empty_output": {"en": "Error: Model output was empty or malformed.", "it": "Errore: L'output del modello era vuoto o malformato."},
+    "hf_gpu_memory": {"en": "Error: GPU memory exhausted during generation.", "it": "Errore: memoria GPU esaurita durante la generazione."},
+    "hf_runtime_error": {"en": "Runtime error during generation with '{model}': {error}", "it": "Errore runtime durante la generazione con '{model}': {error}"},
+    "hf_generation_error": {"en": "Error during generation with model '{model}': {error}", "it": "Errore durante la generazione con il modello '{model}': {error}"},
+    
+    # HuggingFace detail keys
+    "hf_detail_name": {"en": "Name (Repo ID)", "it": "Nome (Repo ID)"},
+    "hf_detail_size": {"en": "Disk Size", "it": "Dimensione su Disco"},
+    "hf_detail_cache_path": {"en": "Cache Path", "it": "Percorso Cache"},
+    "hf_detail_last_modified": {"en": "Last Modified", "it": "Ultima Modifica"},
+    "hf_detail_architecture": {"en": "Architecture", "it": "Architettura"},
+    "hf_detail_model_type": {"en": "Model Type", "it": "Tipo Modello"},
+    
+    # HuggingFace additional error details
+    "hf_tokenizer_sentencepiece_missing": {"en": "'tokenizer.model' (SentencePiece) but it is not present in local cache. Download the complete model or disable local_files_only.", "it": "'tokenizer.model' (SentencePiece) ma non è presente nella cache locale. Scarica il modello completo oppure disabilita local_files_only."},
+    "hf_gpu_memory_advice": {"en": "Reduce max_new_tokens/batch or use a smaller model. Alternatively, force CPU usage.", "it": "Riduci max_new_tokens/batch o usa un modello più piccolo. In alternativa forza l'uso della CPU."},
+    
+    # Spacy specific
+    "spacy_no_models": {"en": "No spaCy models found. Install, e.g.: python -m spacy download it_core_news_sm", "it": "Nessun modello spaCy trovato. Installa, ad es.: python -m spacy download it_core_news_sm"},
+    "spacy_scan_error": {"en": "Error scanning spaCy models: {error}", "it": "Errore durante la scansione dei modelli spaCy: {error}"},
+    "spacy_details_error": {"en": "Error retrieving spaCy model '{model}' details: {error}", "it": "Errore nel recuperare i dettagli del modello spaCy '{model}': {error}"},
+    "spacy_processing_error": {"en": "Error processing with spaCy '{model}': {error}", "it": "Errore durante l'elaborazione con spaCy '{model}': {error}"},
+    "spacy_model_not_found": {"en": "Model {model} not found. Downloading...", "it": "Modello {model} non trovato. Download in corso..."},
+    
+    # Model Downloader specific
+    "dl_state_error": {"en": "Error: hf_dl state not initialized. Check app.py.", "it": "Errore: lo stato hf_dl non è inizializzato. Controlla app.py."},
+    "dl_started": {"en": "Download started in background...", "it": "Download avviato in background..."},
+    "dl_cancel_sent": {"en": "Cancellation request sent…", "it": "Richiesta di annullamento inviata…"},
+    "dl_complete_waiting": {"en": "Download complete. Waiting for pipeline creation...", "it": "Download completato. In attesa creazione pipeline..."},
+    "dl_cached": {"en": "Loaded from local cache.", "it": "Caricato dalla cache locale."},
+    "dl_failed": {"en": "Download failed: {error_type}: {error}", "it": "Download fallito: {error_type}: {error}"},
+    "dl_no_directory": {"en": "No local directory obtained for the model.", "it": "Nessuna directory locale ottenuta per il modello."},
+    "dl_cancelled": {"en": "Download cancelled by user.", "it": "Download annullato dall'utente."},
+    "dl_unexpected_error": {"en": "Unexpected error in worker: {error_type}: {error}", "it": "Errore imprevisto nel worker: {error_type}: {error}"},
+    "dl_pipeline_error": {"en": "Error creating pipeline: {error}", "it": "Errore creando la pipeline: {error}"},
+    "dl_pipeline_fatal": {"en": "Fatal error creating pipeline: {error}", "it": "Errore fatale creando la pipeline: {error}"},
+    "dl_complete_stats": {"en": "Download completed in {time:.1f}s. Average speed: {speed:.2f} MB/s", "it": "Download completato in {time:.1f}s. Velocità media: {speed:.2f} MB/s"},
+    "dl_dns_error": {
+        "en": "DNS cannot resolve 'huggingface.co'. Check network/DNS or proxy.\nSuggestions: DNS 8.8.8.8 / 1.1.1.1, HTTP(S)_PROXY variables.",
+        "it": "DNS non risolve 'huggingface.co'. Controlla rete/DNS o proxy.\nSuggerimenti: DNS 8.8.8.8 / 1.1.1.1, variabili HTTP(S)_PROXY."
+    },
+    "dl_attempt": {
+        "en": "Attempt {attempt}/{total}…",
+        "it": "Tentativo {attempt}/{total}…"
+    },
+    "dl_network_retry": {
+        "en": "Network problem ({error_type}): {error_msg}… retrying ({retry}/{max_retries})",
+        "it": "Problema rete ({error_type}): {error_msg}… ritento ({retry}/{max_retries})"
+    },
+    "dl_check_cache": {
+        "en": "Checking local cache (offline)…",
+        "it": "Verifico cache locale (offline)…"
+    },
+    "dl_model_info": {
+        "en": "🔽 Model: `{model_id}` — task: `{task}`",
+        "it": "🔽 Modello: `{model_id}` — task: `{task}`"
+    },
+    "dl_downloading": {
+        "en": "Downloading…",
+        "it": "Scaricamento in corso…"
+    },
+    "dl_btn_cancel": {
+        "en": "⏹️ Cancel download",
+        "it": "⏹️ Annulla download"
+    },
+    "dl_btn_retry": {
+        "en": "Retry download",
+        "it": "Riprova download"
+    },
+    "dl_creating_pipeline": {
+        "en": "Creating pipeline from path: {path}…",
+        "it": "Creo la pipeline dal percorso: {path}…"
+    },
+    "dl_model_ready": {
+        "en": "✅ Model ready. Directory: {path}",
+        "it": "✅ Modello pronto. Directory: {path}"
+    },
+},
+
+
 }
 
 

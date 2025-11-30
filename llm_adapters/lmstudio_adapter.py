@@ -1,12 +1,15 @@
 # lmstudio_adapter.py
 # -*- coding: utf-8 -*-
 import os, sys, shutil, subprocess, json, time
-import requests  # <-- SPOSTATO QUI
-from typing import Tuple, Optional  # <-- AGGIUNTO
+import requests
+from typing import Tuple, Optional
+import re
+import pandas as pd
 
-import streamlit as st  # opzionale
+import streamlit as st
 
 from GUI.message_gui import st_toast_temp
+from utils.translations import get_text
 
 if 'server_lmStudio' not in st.session_state:
     st.session_state['server_lmStudio'] = False
@@ -14,7 +17,7 @@ if 'server_lmStudio' not in st.session_state:
 
 # ================= NUOVA FUNZIONE CACHATA =================
 
-@st.cache_data(ttl=5, show_spinner="Verifico stato server LM Studio...")
+@st.cache_data(ttl=5, show_spinner=get_text("lmstudio_adapter", "checking_status"))
 def get_lmstudio_status(host: str) -> Tuple[bool, int]:
     """
     Controlla lo stato del server LM Studio e conta i modelli.
@@ -25,28 +28,25 @@ def get_lmstudio_status(host: str) -> Tuple[bool, int]:
         r = requests.get(url, timeout=2)
         if r.status_code == 200:
             count = len((r.json() or {}).get("data", []))
-            return True, count  # (online, model_count)
+            return True, count
     except Exception:
-        pass  # La connessione fallisce, ecc.
-    return False, 0  # (offline, model_count)
+        pass
+    return False, 0
 
 
 # ================= helpers base =================
 
 def _which_lms() -> str | None:
-    # 1) PATH standard
     for name in ("lms", "lms.exe", "lms.cmd"):
         p = shutil.which(name)
         if p:
             return p
 
-    # 2) macOS install path (App bundle)
     mac_candidates = [
         "/Applications/LM Studio.app/Contents/Resources/bin/lms",
         os.path.expanduser("~/Applications/LM Studio.app/Contents/Resources/bin/lms"),
     ]
 
-    # 3) Linux common installs / symlinks
     linux_candidates = [
         "/usr/local/bin/lms",
         "/usr/bin/lms",
@@ -58,7 +58,6 @@ def _which_lms() -> str | None:
         if os.path.isfile(p) and os.access(p, os.X_OK):
             return p
 
-    # 4) Windows fallback già presente (mantieni il tuo blocco attuale se vuoi)
     for p in (
             os.path.expandvars(r"%LOCALAPPDATA%\Programs\LM Studio\resources\bin\lms.exe"),
             os.path.expandvars(r"%LOCALAPPDATA%\Programs\LM Studio\resources\bin\lms.cmd"),
@@ -86,13 +85,13 @@ def _run(cmd: list[str], timeout: int | None = 15):
             "cmd_str": _cmd_str(cmd), "dur_s": round(time.time() - t0, 3),
         }
     except FileNotFoundError:
-        return {"ok": False, "code": 127, "stdout": "", "stderr": "file non trovato",
+        return {"ok": False, "code": 127, "stdout": "", "stderr": get_text("lmstudio_adapter", "file_not_found"),
                 "cmd_str": _cmd_str(cmd), "dur_s": round(time.time() - t0, 3)}
     except subprocess.TimeoutExpired:
-        return {"ok": False, "code": 124, "stdout": "", "stderr": "timeout",
+        return {"ok": False, "code": 124, "stdout": "", "stderr": get_text("lmstudio_adapter", "timeout"),
                 "cmd_str": _cmd_str(cmd), "dur_s": round(time.time() - t0, 3)}
     except Exception as e:
-        return {"ok": False, "code": 1, "stdout": "", "stderr": f"errore: {e}",
+        return {"ok": False, "code": 1, "stdout": "", "stderr": get_text("lmstudio_adapter", "error_generic", e=e),
                 "cmd_str": _cmd_str(cmd), "dur_s": round(time.time() - t0, 3)}
 
 
@@ -100,7 +99,7 @@ def _run(cmd: list[str], timeout: int | None = 15):
 def lms_ls_raw():
     lms = _which_lms()
     if not lms:
-        return {"ok": False, "code": 127, "stdout": "", "stderr": "CLI 'lms' non trovata nel PATH", "cmd_str": "lms ls"}
+        return {"ok": False, "code": 127, "stdout": "", "stderr": get_text("lmstudio_adapter", "cli_not_found"), "cmd_str": "lms ls"}
     cmd = (["cmd", "/c", lms, "ls"] if os.name == "nt" and lms.lower().endswith((".cmd", ".bat")) else [lms, "ls"])
     return _run(cmd, timeout=20)
 
@@ -132,7 +131,6 @@ def list_models(host: str | None = None, filter: str | None = None):
 
 # ================= Server: start/stop non-bloccanti =================
 
-# Fallback storage PID se Streamlit non c'è
 _BG_STATE = {}
 
 
@@ -156,15 +154,12 @@ def start_server_background():
     """
     lms = _which_lms()
     if not lms:
-        return {"ok": False, "msg": "CLI 'lms' non trovata nel PATH"}
-    # Comando
+        return {"ok": False, "msg": get_text("lmstudio_adapter", "cli_not_found")}
     args = ["server", "start"]
     cmd = ([lms, *args] if not (os.name == "nt" and lms.lower().endswith((".cmd", ".bat")))
            else ["cmd", "/c", lms, *args])
 
-    # Opzioni di detach cross-platform
     if os.name == "nt":
-        # CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS
         creationflags = 0x00000200 | 0x00000008
         p = subprocess.Popen(cmd, creationflags=creationflags, close_fds=True)
     else:
@@ -187,14 +182,13 @@ def stop_server_background():
             else:
                 os.kill(pid, 15)  # SIGTERM
             _set_pid(None)
-            return {"ok": True, "msg": f"Terminato PID {pid}"}
+            return {"ok": True, "msg": get_text("lmstudio_adapter", "terminated_pid", pid=pid)}
         except Exception as e:
-            return {"ok": False, "msg": f"Errore stop PID {pid}: {e}"}
+            return {"ok": False, "msg": get_text("lmstudio_adapter", "error_stop_pid", pid=pid, e=e)}
 
-    # fallback: CLI stop (sincrono ma veloce)
     lms = _which_lms()
     if not lms:
-        return {"ok": False, "msg": "CLI 'lms' non trovata nel PATH"}
+        return {"ok": False, "msg": get_text("lmstudio_adapter", "cli_not_found")}
     cmd = ([lms, "server", "stop"] if not (os.name == "nt" and lms.lower().endswith((".cmd", ".bat")))
            else ["cmd", "/c", lms, "server", "stop"])
     info = _run(cmd, timeout=10)
@@ -204,7 +198,6 @@ def stop_server_background():
 # ================= HTTP (facoltativo) =================
 def generate(prompt: str, model_name: str, max_tokens: int = 128, host: str = "http://localhost:1234"):
     try:
-        # 'requests' è ora importato all'inizio del file
         url = f"{host.rstrip('/')}/v1/chat/completions"
         payload = {"model": model_name, "messages": [{"role": "user", "content": prompt}],
                    "temperature": 0.7, "max_tokens": int(max_tokens)}
@@ -213,18 +206,13 @@ def generate(prompt: str, model_name: str, max_tokens: int = 128, host: str = "h
         j = r.json()
         return j["choices"][0]["message"]["content"]
     except Exception as e:
-        return f"Errore HTTP: {e}"
+        return get_text("lmstudio_adapter", "http_error", e=e)
 
 
-# --- lmstudio_adapter.py ---
-
-# def _badge(text: str):
-#     return f"<span style='padding:2px 8px;border:1px solid rgba(255,255,255,.15);border-radius:999px;font-size:0.85rem'>{text}</span>"
-
-# -- Helper: parsing robusto di `lms ls` in due tabelle (LLM / EMBEDDING) --
 def _parse_lms_ls(stdout: str) -> dict:
     lines = stdout.splitlines()
-    # rimuovi la riga iniziale tipo "You have 3 models..."
+    if lines and lines[0].lower().startswith("you have"):
+        lines = lines[1:]
     if lines and lines[0].lower().startswith("you have"):
         lines = lines[1:]
     cur = None
@@ -240,13 +228,10 @@ def _parse_lms_ls(stdout: str) -> dict:
         if s.startswith("EMBEDDING"):
             cur = "emb";
             continue
-        # salta header delle colonne
         if re.match(r"^(PARAMS|ARCH|SIZE)\b", s):
             continue
         if cur in ("llm", "emb"):
-            # split su 2+ spazi: [name, params, arch, size]
             parts = re.split(r"\s{2,}", s)
-            # fai padding per sicurezza
             while len(parts) < 4:
                 parts.append("")
             row = {
@@ -259,9 +244,7 @@ def _parse_lms_ls(stdout: str) -> dict:
     return {"llm": llm_rows, "embedding": emb_rows}
 
 
-# -- Helper: normalizza dimensioni per mostrarle belle --
 def _pretty_size(s: str) -> str:
-    # accetta "8.54 GB", "84.11 MB", "7.7 GB" ecc. -> restituisce lo stesso in formato pulito
     s = s.strip()
     m = re.match(r"^\s*([\d\.]+)\s*([GMK]B)\s*$", s, flags=re.I)
     if not m:
@@ -273,16 +256,11 @@ def _pretty_size(s: str) -> str:
     return f"{num} {unit}"
 
 
-# ---- Core vero (quello che avevi già, refactor in funzione privata) ----
 def _get_model_details_core(model_name: str) -> dict:
     """
     Tutta la logica: esegue `lms ls`, estrae i metadati, arricchisce dal nome
     e aggiunge spiegazioni. Non fa rendering.
     """
-
-    # -------------- COPIA qui la tua versione “bella” --------------
-    # Usa gli helper già presenti: _parse_lms_ls, _enrich_from_name, _short_explanations
-    # Esempio minimo (riassunto dalla versione che ti ho dato prima):
 
     def _which_lms():
         for nm in ("lms", "lms.exe", "lms.cmd"):
@@ -293,18 +271,18 @@ def _get_model_details_core(model_name: str) -> dict:
     lms = _which_lms()
     if not lms:
         info = {
-            "Nome": model_name, "Tipo": "Sconosciuto",
-            "Parametri": "—", "Architettura": "—", "Dimensione su disco": "—",
+            "name": model_name, "type": get_text("lmstudio_adapter", "unknown_type"),
+            "params": "—", "arch": "—", "size": "—",
         }
         info.update(_enrich_from_name(model_name))
-        info["Spiegazioni"] = _short_explanations(info)
+        info["explanations"] = _short_explanations(info)
         return info
 
     try:
         p = subprocess.run([lms, "ls"], capture_output=True, text=True, timeout=10)
         stdout = p.stdout or ""
     except Exception as e:
-        return {"Errore": f"Impossibile eseguire `lms ls`: {e}"}
+        return {"Errore": get_text("lmstudio_adapter", "lms_ls_error", e=e)}
 
     parsed = _parse_lms_ls(stdout)
 
@@ -326,21 +304,21 @@ def _get_model_details_core(model_name: str) -> dict:
 
     if row:
         info = {
-            "Nome": row["name"],
-            "Tipo": tipo,
-            "Parametri": row["params"] or "—",
-            "Architettura": row["arch"] or "—",
-            "Dimensione su disco": row["size"] or "—",
+            "name": row["name"],
+            "type": tipo,
+            "params": row["params"] or "—",
+            "arch": row["arch"] or "—",
+            "size": row["size"] or "—",
         }
     else:
         info = {
-            "Nome": model_name, "Tipo": "Sconosciuto",
-            "Parametri": "—", "Architettura": "—", "Dimensione su disco": "—",
+            "name": model_name, "type": get_text("lmstudio_adapter", "unknown_type"),
+            "params": "—", "arch": "—", "size": "—",
         }
 
-    info.update(_enrich_from_name(info["Nome"]))
-    info["Addestramento"] = "Instruct/Chat" if "instruct" in info["Nome"].lower() else "Base"
-    info["Spiegazioni"] = _short_explanations(info)
+    info.update(_enrich_from_name(info["name"]))
+    info["training"] = "Instruct/Chat" if "instruct" in info["name"].lower() else "Base"
+    info["explanations"] = _short_explanations(info)
     return info
 
 
@@ -348,70 +326,64 @@ def _short_explanations(info: dict) -> dict:
     """
     Piccole spiegazioni didattiche, pensate per essere lette velocemente in UI.
     """
-    tipo = info.get("Tipo", "—")
+    tipo = info.get("type", "—")
     spieg_tipo = (
-        "LLM: modello generativo di linguaggio, capace di comprendere e produrre testo."
+        get_text("lmstudio_adapter", "type_llm")
         if tipo == "LLM"
-        else "Embedding: trasforma testi in vettori numerici per ricerca semantica, clustering e RAG."
+        else get_text("lmstudio_adapter", "type_embedding")
         if tipo == "Embedding"
-        else "Tipo non riconosciuto direttamente da `lms ls`."
+        else get_text("lmstudio_adapter", "type_unknown")
     )
-    params = info.get("Parametri", "—")
+    params = info.get("params", "—")
     spieg_params = (
-        f"Parametri ≈ {params}: i pesi del modello. Più parametri ⇒ più capacità, ma servono più memoria e calcoli."
+        get_text("lmstudio_adapter", "params_approx", params=params)
         if params != "—" else
-        "Parametri non rilevati: dipendono dal modello (es. 7B=7 miliardi di pesi)."
+        get_text("lmstudio_adapter", "params_unknown")
     )
-    arch = info.get("Architettura", "—")
+    arch = info.get("arch", "—")
     spieg_arch = (
-        f"Architettura {arch}: la 'famiglia' (Llama, Mistral, Gemma…). Cambia struttura e abilità del modello."
+        get_text("lmstudio_adapter", "arch_fam", arch=arch)
         if arch != "—" else
-        "Architettura non specificata."
+        get_text("lmstudio_adapter", "arch_unknown")
     )
-    size = info.get("Dimensione su disco", "—")
+    size = info.get("size", "—")
     spieg_size = (
-        f"Occupa ~{size} su disco: dipende da quantizzazione e formato (GGUF/FP16…)."
+        get_text("lmstudio_adapter", "size_disk", size=size)
         if size != "—" else
-        "Dimensione su disco non disponibile."
+        get_text("lmstudio_adapter", "size_unknown")
     )
-    addestr = info.get("Addestramento", "—")
+    addestr = info.get("training", "—")
     spieg_add = (
-        "Instruct/Chat: fine-tuning per seguire istruzioni in linguaggio naturale."
+        get_text("lmstudio_adapter", "train_instruct")
         if addestr.startswith("Instruct") else
-        "Base: modello 'fundation' non specializzato per dialogo; utile per finetuning o compiti generici."
+        get_text("lmstudio_adapter", "train_base")
     )
-    quant = info.get("Quantizzazione", "—")
+    quant = info.get("quantization", "—")
     spieg_quant = (
-        f"Quantizzazione {quant}: riduce precisione per diminuire memoria e aumentare velocità, con un po' di perdita qualitativa."
+        get_text("lmstudio_adapter", "quant_desc", quant=quant)
         if quant != "—" else
-        "Quantizzazione non rilevata nel nome (esempi: Q4_K_M, Q5_0, INT8, BF16)."
+        get_text("lmstudio_adapter", "quant_unknown")
     )
-    ctx = info.get("Context window (stima)", "—")
+    ctx = info.get("ctx_est", "—")
     spieg_ctx = (
-        f"Finestra di contesto ≈ {ctx}: numero massimo di token considerati in input/output."
+        get_text("lmstudio_adapter", "ctx_window", ctx=ctx)
         if ctx != "—" else
-        "Finestra di contesto non deducibile dal nome (tipico 4k–128k token)."
+        get_text("lmstudio_adapter", "ctx_unknown")
     )
     return {
-        "Tipo": spieg_tipo,
-        "Parametri": spieg_params,
-        "Architettura": spieg_arch,
-        "Dimensione su disco": spieg_size,
-        "Addestramento": spieg_add,
-        "Quantizzazione": spieg_quant,
-        "Context window": spieg_ctx,
+        get_text("lmstudio_adapter", "type_col"): spieg_tipo,
+        get_text("lmstudio_adapter", "params_col"): spieg_params,
+        get_text("lmstudio_adapter", "arch_col"): spieg_arch,
+        get_text("lmstudio_adapter", "size_disk"): spieg_size,
+        get_text("lmstudio_adapter", "training_col"): spieg_add,
+        get_text("lmstudio_adapter", "quant_col"): spieg_quant,
+        get_text("lmstudio_adapter", "ctx_col"): spieg_ctx,
     }
 
 
-import re, subprocess, shutil
-
-
-# -- Helper: arricchisce i metadati con info dedotte dal nome file --
 def _enrich_from_name(name: str) -> dict:
     lower = name.lower()
-    # Instruct/Base
     addestr = "Instruct/Chat" if re.search(r"\b(instruct|chat|sft|it)\b", lower) else "Base"
-    # Parametri se non già dati (7b, 8b, 70b…)
     params = None
     m = re.search(r"(\d+(?:\.\d+)?)\s*(?:b|bn)\b", lower)
     if m: params = f"{m.group(1)}B"
@@ -439,18 +411,18 @@ def _enrich_from_name(name: str) -> dict:
     v = re.search(r"\bv(\d+(?:\.\d+)*)\b", lower)
     if v: ver = v.group(1)
     return {
-        "Addestramento (dal nome)": addestr,
-        "Quantizzazione": quant or "—",
-        "Formato file": fmt or "—",
-        "Context window (stima)": ctx or "—",
-        "Versione (stima)": ver or "—",
+        "training_from_name": addestr,
+        "quantization": quant or "—",
+        "format": fmt or "—",
+        "ctx_est": ctx or "—",
+        "ver_est": ver or "—",
     }
 
 def run_server_lmStudio(host: str = "http://localhost:1234", key='lmstudo'):
     res = start_server_background()
     if res["ok"]:
         st.session_state['server_lmStudio'] = True
-        st_toast_temp("Avviato in background.", 'success')
+        st_toast_temp(get_text("lmstudio_adapter", "started_background"), 'success')
         get_lmstudio_status.clear()
         st.rerun()
     else:
@@ -462,36 +434,30 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
     if st is None:
         raise RuntimeError("Streamlit non disponibile")
 
-    st.subheader("🧪 LM Studio — controllo CLI")
+    st.subheader(get_text("lmstudio_adapter", "panel_title"))
 
-    # --- NUOVA LOGICA "DEFERRED LOAD" ---
     init_key = f"{key}_initialized"
 
     if init_key not in st.session_state:
-        # PRIMO AVVIO: caricamento istantaneo, nessuno spinner.
         online = False
         count = 0
         st.session_state[init_key] = True
     else:
-        # RERUN (dopo prima interazione): usa la cache.
         try:
             online, count = get_lmstudio_status(host)
         except Exception as e:
-            st.error(f"❌ Errore connessione LM Studio: {e}")
+            st.error(get_text("lmstudio_adapter", "connection_error", e=e))
             online, count = False, 0
 
-    # Aggiorna lo stato globale (usato dal resto dell'app)
     st.session_state['server_lmStudio'] = online
-    # --- FINE NUOVA LOGICA ---
 
-    # --- bottoni start/stop/ls ---
     c1, c2, c3 = st.columns([2, 2, 2])
     with c1:
-        if st.button("🚀 Start (background)", key=key + '_Start'):
+        if st.button(get_text("lmstudio_adapter", "start_btn"), key=key + '_Start'):
             res = start_server_background()
             if res["ok"]:
                 st.session_state['server_lmStudio'] = True
-                st_toast_temp("Avviato in background.", 'success')
+                st_toast_temp(get_text("lmstudio_adapter", "started_background"), 'success')
                 get_lmstudio_status.clear()
                 st.rerun()
             else:
@@ -499,11 +465,11 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
                 st_toast_temp(res["msg"], 'error')
 
     with c2:
-        if st.button("🛑 Stop Server", key=key + '_Stop'):
+        if st.button(get_text("lmstudio_adapter", "stop_btn"), key=key + '_Stop'):
             res = stop_server_background()
             if res["ok"]:
                 st.session_state['server_lmStudio'] = False
-                st_toast_temp("🛑 Server Stop!", 'warning')
+                st_toast_temp(get_text("lmstudio_adapter", "stop_toast"), 'warning')
                 get_lmstudio_status.clear()
                 st.rerun()
             else:
@@ -516,22 +482,21 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
     list_model = False
     with c3:
         if online:
-            list_model = st.button("📚 Lista modelli", key=key + '_lms')
+            list_model = st.button(get_text("lmstudio_adapter", "list_models_btn"), key=key + '_lms')
         elif st.session_state.get(init_key, False):
-            st.warning("🚨 Avviare il server!")
+            st.warning(get_text("lmstudio_adapter", "start_server_warning"))
 
     cols_status = st.columns([2, 2, 3])
     with cols_status[0]:
         st.metric(
-            label="🌐 HTTP Server",
-            value="🟢 ONLINE" if online else "🔴 OFFLINE"
+            label=get_text("lmstudio_adapter", "http_server_label"),
+            value=get_text("lmstudio_adapter", "online") if online else get_text("lmstudio_adapter", "offline")
         )
     with cols_status[1]:
-        st.metric("📦 # Modelli", count)
+        st.metric(get_text("lmstudio_adapter", "num_models"), count)
     with cols_status[2]:
-        st.caption(f"🔗 Endpoint: {host.rstrip('/')}/v1/models")
+        st.caption(get_text("lmstudio_adapter", "endpoint", url=f"{host.rstrip('/')}/v1/models"))
 
-    # STATUS PROCESSO CLI
     pid = _get_pid()
 
     if list_model and online:
@@ -541,17 +506,17 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
         stderr = (info.get("stderr") or "").strip()
 
         primary = stdout or stderr
-        primary_label = "📤 STDOUT" if stdout else "⚠️ STDERR (fallback)"
+        primary_label = get_text("lmstudio_adapter", "stdout") if stdout else get_text("lmstudio_adapter", "stderr_fallback")
 
         with st.expander(primary_label):
             st.code(primary or "<vuoto>", language="bash")
 
         if stdout and stderr:
-            with st.expander("⚠️ STDERR" if primary_label == "📤 STDOUT" else "📤 STDOUT"):
-                st.code(stderr if primary_label == "📤 STDOUT" else stdout, language="bash")
+            with st.expander(get_text("lmstudio_adapter", "stderr") if primary_label == get_text("lmstudio_adapter", "stdout") else get_text("lmstudio_adapter", "stdout")):
+                st.code(stderr if primary_label == get_text("lmstudio_adapter", "stdout") else stdout, language="bash")
 
         if info.get("ok"):
-            st.success("✅ Comando eseguito con successo.")
+            st.success(get_text("lmstudio_adapter", "cmd_success"))
 
             parsed = parse_lmstudio_ls(primary)
 
@@ -560,28 +525,22 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
             siz = parsed.get("summary", {}).get("total_size", "—")
             c1, c2 = st.columns(2)
             with c1:
-                st.metric("🤖 Modelli totali", tot)
+                st.metric(get_text("lmstudio_adapter", "total_models"), tot)
             with c2:
-                st.metric("💾 Spazio su disco", siz)
+                st.metric(get_text("lmstudio_adapter", "disk_space"), siz)
 
-            # tabella LLM
             if parsed["llms"]:
-                st.markdown("### 🧠 LLM")
+                st.markdown(get_text("lmstudio_adapter", "llm_header"))
                 st.table(pd.DataFrame(parsed["llms"]))
 
-            # tabella EMBEDDING
             if parsed["embeddings"]:
-                st.markdown("### 🪐 Embedding")
+                st.markdown(get_text("lmstudio_adapter", "embedding_header"))
                 st.table(pd.DataFrame(parsed["embeddings"]))
 
         else:
-            st.error("❌ Comando fallito.")
+            st.error(get_text("lmstudio_adapter", "cmd_failed"))
     elif list_model and not online:
-        st_toast_temp("⚠️ Server is not Running", 'warning')
-
-
-import re
-import pandas as pd
+        st_toast_temp(get_text("lmstudio_adapter", "server_not_running"), 'warning')
 
 
 def parse_lmstudio_ls(text: str):
@@ -628,7 +587,10 @@ def parse_lmstudio_ls(text: str):
             else:
                 continue
             res["llms"].append({
-                "Modello": name, "Parametri": params, "Architettura": arch, "Dimensione": size
+                get_text("lmstudio_adapter", "model_col"): name, 
+                get_text("lmstudio_adapter", "params_col"): params, 
+                get_text("lmstudio_adapter", "arch_col"): arch, 
+                get_text("lmstudio_adapter", "size_col"): size
             })
         elif section == "emb":
             if len(parts) >= 4:
@@ -638,12 +600,12 @@ def parse_lmstudio_ls(text: str):
             else:
                 continue
             res["embeddings"].append({
-                "Embedding": name, "Parametri": params, "Architettura": arch, "Dimensione": size
+                get_text("lmstudio_adapter", "embedding_col"): name, 
+                get_text("lmstudio_adapter", "params_col"): params, 
+                get_text("lmstudio_adapter", "arch_col"): arch, 
+                get_text("lmstudio_adapter", "size_col"): size
             })
     return res
-
-
-import pandas as pd
 
 
 def get_model_details(model_name: str):
@@ -655,16 +617,16 @@ def get_model_details(model_name: str):
 
     # prepara i campi principali
     fields = [
-        ("Nome", details.get("Nome")),
-        ("Tipo", details.get("Tipo")),
-        ("Parametri", details.get("Parametri")),
-        ("Architettura", details.get("Architettura")),
-        ("Dimensione su disco", details.get("Dimensione su disco")),
-        ("Addestramento", details.get("Addestramento")),
-        ("Quantizzazione", details.get("Quantizzazione")),
-        ("Formato file", details.get("Formato file")),
-        ("Context window", details.get("Context window (stima)")),
-        ("Versione", details.get("Versione (stima)")),
+        (get_text("lmstudio_adapter", "name_col"), details.get("name")),
+        (get_text("lmstudio_adapter", "type_col"), details.get("type")),
+        (get_text("lmstudio_adapter", "params_col"), details.get("params")),
+        (get_text("lmstudio_adapter", "arch_col"), details.get("arch")),
+        (get_text("lmstudio_adapter", "size_disk"), details.get("size")),
+        (get_text("lmstudio_adapter", "training_col"), details.get("training")),
+        (get_text("lmstudio_adapter", "quant_col"), details.get("quantization")),
+        (get_text("lmstudio_adapter", "format_col"), details.get("format")),
+        (get_text("lmstudio_adapter", "ctx_col"), details.get("ctx_est")),
+        (get_text("lmstudio_adapter", "version_col"), details.get("ver_est")),
     ]
 
     # filtra solo i valori significativi
@@ -672,10 +634,7 @@ def get_model_details(model_name: str):
 
     # se non c'è nulla, ritorna solo l'avviso nel dict
     if not data:
-        details["warning"] = (
-            "Nessun dettaglio disponibile per questo modello. "
-            "LM Studio non ha fornito metadati utili o il parsing non ha trovato nulla."
-        )
+        details["warning"] = get_text("lmstudio_adapter", "no_details")
         return details
 
     # costruisce un DataFrame e lo aggiunge al dict
@@ -683,10 +642,10 @@ def get_model_details(model_name: str):
     details["dataframe"] = df
 
     # aggiungi anche eventuale DataFrame con spiegazioni
-    exp = details.get("Spiegazioni", {})
+    exp = details.get("explanations", {})
     if exp:
         exp_df = pd.DataFrame(
-            [{"Parametro": k, "Descrizione": v} for k, v in exp.items() if v and v.strip()]
+            [{get_text("lmstudio_adapter", "param_col"): k, get_text("lmstudio_adapter", "desc_col"): v} for k, v in exp.items() if v and v.strip()]
         )
         details["explanations_df"] = exp_df
 
@@ -694,9 +653,6 @@ def get_model_details(model_name: str):
 
 
 # === LM Studio: helper "lms get" (CLI) ===
-import shutil, subprocess, os, time
-
-
 def _which_lms_cli() -> str | None:
     # prova PATH standard
     for nm in ("lms", "lms.exe", "lms.cmd"):
@@ -720,7 +676,7 @@ def lms_get_stream(model_or_query: str, extra_args: list[str] | None = None):
     """
     lms = _which_lms_cli()
     if not lms:
-        yield "[errore] CLI 'lms' non trovata nel PATH. Apri LM Studio e usa 'Install CLI'."
+        yield get_text("lmstudio_adapter", "cli_error_path")
         return 127
 
     # Costruisci comando cross-platform, supportando .cmd su Windows
@@ -739,10 +695,10 @@ def lms_get_stream(model_or_query: str, extra_args: list[str] | None = None):
             bufsize=1, universal_newlines=True
         )
     except FileNotFoundError:
-        yield "[errore] Impossibile eseguire la CLI 'lms'."
+        yield get_text("lmstudio_adapter", "cli_exec_error")
         return 127
     except Exception as e:
-        yield f"[errore] Avvio fallito: {e}"
+        yield get_text("lmstudio_adapter", "start_fail", e=e)
         return 1
 
     # stream delle righe

@@ -107,8 +107,8 @@ def info_dataset(df, key):
     e un expander con statistiche dettagliate.
     """
     tab1, tab2, tab3  = st.tabs([
-        '🧩 Schema & Column Insights',
-        '🧮 Descriptive Statistics',
+        get_text("dataset_explore", "schema_insights"),
+        get_text("dataset_explore", "descriptive_stats"),
         get_text("load_dataset", "tab_correlations")
     ])
 
@@ -218,7 +218,7 @@ def info_dataset(df, key):
                 ),
                 get_text("load_dataset", "sensitive"): st.column_config.TextColumn(
                     get_text("load_dataset", "sensitive"),
-                    help="🔒 = colonna potenzialmente sensibile",
+                    help=get_text("dataset_explore", "help_sensitive"),
                     width="small",
                 ),
                 get_text("load_dataset", "column"): st.column_config.TextColumn(
@@ -248,31 +248,70 @@ def info_dataset(df, key):
         # ====================
         #     NUMERICHE
         # ====================
-        st.markdown("### 🔢 Colonne numeriche")
         if numeric_cols:
+            st.markdown(f"### {get_text('dataset_explore', 'numeric_features')}")
             stats = df[numeric_cols].describe()
 
             # Arrotondamenti
             stats.loc["mean"] = stats.loc["mean"].round(2)
             stats.loc["std"] = stats.loc["std"].round(2)
-
+            stats = stats.T
             # Stile tabella
             st.dataframe(
                 stats.style.format("{:.2f}")
                 .set_table_styles([
                     {"selector": "th", "props": [("background-color", "#f0f2f6"), ("font-weight", "bold")]},
                     {"selector": "tbody tr:hover", "props": [("background-color", "#f5f5f5")]}
-                ])
+                ]),  
+                column_config={
+                    "mean": st.column_config.TextColumn(
+                        "mean",
+                        help=get_text("dataset_explore", "help_mean"),
+                        width="small",
+                    ),
+                    "std": st.column_config.TextColumn(
+                        "std",
+                        help=get_text("dataset_explore", "help_std"),
+                        width="small",
+                    ),
+                    "min": st.column_config.TextColumn(
+                        "min",
+                        help=get_text("dataset_explore", "help_min"),
+                        width="small",
+                    ),
+                    "max": st.column_config.TextColumn(
+                        "max",
+                        help=get_text("dataset_explore", "help_max"),
+                        width="small",
+                    ),
+                    "count": st.column_config.TextColumn(
+                        "count",
+                        help=get_text("dataset_explore", "help_count"),
+                        width="small",
+                    ),
+                    "25%": st.column_config.TextColumn(
+                        "25%",
+                        help=get_text("dataset_explore", "help_first_quartile"),
+                        width="small",
+                    ),
+                    "50%": st.column_config.TextColumn(
+                        "50%",
+                        help=get_text("dataset_explore", "help_second_quartile"),
+                        width="small",
+                    ),
+                    "75%": st.column_config.TextColumn(
+                        "75%",
+                        help=get_text("dataset_explore", "help_third_quartile"),
+                        width="small",
+                    ),
+                },
             )
-        else:
-            st.info("Nessuna colonna numerica trovata.")
 
         # ====================
         #     TESTUALI
         # ====================
-        st.markdown("### 📝 Colonne testuali")
-
         if text_cols:
+            st.markdown(f"### {get_text('dataset_explore', 'textual_features')}")
             df_text = df[text_cols].copy()
 
             # Tabella delle statistiche testuali
@@ -287,14 +326,39 @@ def info_dataset(df, key):
                 .set_table_styles([
                     {"selector": "th", "props": [("background-color", "#f0f2f6"), ("font-weight", "bold")]},
                     {"selector": "tbody tr:hover", "props": [("background-color", "#f9f9f9")]}
-                ])
+                ]), column_config={
+                    "count": st.column_config.TextColumn(
+                        "count",
+                        help=get_text("dataset_explore", "help_count"),
+                        width="small",
+                    ),
+                    "unique": st.column_config.TextColumn(
+                        "unique",
+                        help=get_text("dataset_explore", "help_unique"),
+                        width="small",
+                    ),
+                    "top": st.column_config.TextColumn(
+                        "top",
+                        help=get_text("dataset_explore", "help_top"),
+                        width="small",
+                    ),
+                    "freq": st.column_config.TextColumn(
+                        "freq",
+                        help=get_text("dataset_explore", "help_freq"),
+                        width="small",
+                    ),
+                    "avg_len": st.column_config.TextColumn(
+                        "avg_len",
+                        help=get_text("dataset_explore", "help_avg_len"),
+                        width="small",
+                    ),
+                },
             )
-        else:
-            st.info("Nessuna colonna testuale trovata.")
+
 
     # ---------- CORRELAZIONI ----------
     with tab3:
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns([2, 1])
 
 
 
@@ -319,12 +383,28 @@ def info_dataset(df, key):
                 .sort_values(ascending=False)
                 .reset_index()
             )
-            corr_pairs.columns = ["Colonna A", "Colonna B", "|corr|"]
+            corr_pairs.columns = [get_text("dataset_explore", "column_a"), get_text("dataset_explore", "column_b"), get_text("dataset_explore", "abs_corr")]
             corr_pairs["|corr|"] = corr_pairs["|corr|"].apply(lambda x: round(x, 2))
 
             with col2:
                 st.markdown(f"#### {get_text('load_dataset', 'top_corr_pairs')}")
-                st.dataframe(corr_pairs.head(10), hide_index=True, width='stretch')
+                st.dataframe(corr_pairs.head(10), hide_index=True, width='stretch', column_config={
+                    get_text("dataset_explore", "column_a"): st.column_config.TextColumn(
+                        get_text("dataset_explore", "column_a"),
+                        help=get_text("dataset_explore", "column_a"),
+                        width="small",
+                    ),
+                    get_text("dataset_explore", "column_b"): st.column_config.TextColumn(
+                        get_text("dataset_explore", "column_b"),
+                        help=get_text("dataset_explore", "column_b"),
+                        width="small",
+                    ),
+                    get_text("dataset_explore", "abs_corr"): st.column_config.TextColumn(
+                        get_text("dataset_explore", "abs_corr"),
+                        help=get_text("dataset_explore", "abs_corr"),
+                        width="small",
+                    ),
+                })
         else:
             st.info(get_text("load_dataset", "no_num_cols"))
 

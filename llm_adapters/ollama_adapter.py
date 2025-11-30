@@ -6,6 +6,7 @@ import re
 import pandas as pd
 
 from GUI.message_gui import st_toast_temp
+from utils.translations import get_text
 
 try:
     import streamlit as st
@@ -21,7 +22,7 @@ API = lambda host: f"{host.rstrip('/')}/api"
 
 from typing import Tuple
 
-@st.cache_data(ttl=5, show_spinner="Verifico stato server Ollama...")
+@st.cache_data(ttl=5, show_spinner=get_text("llm_adapters", "ollama_verify_status"))
 def get_ollama_status(host: str) -> Tuple[bool, int]:
     """
     Controlla lo stato del server Ollama e conta i modelli.
@@ -80,13 +81,13 @@ def _run(cmd: list[str], timeout: int | None = 15):
             "cmd_str": _cmd_str(cmd), "dur_s": round(time.time()-t0,3),
         }
     except FileNotFoundError:
-        return {"ok": False, "code": 127, "stdout": "", "stderr": "file non trovato",
+        return {"ok": False, "code": 127, "stdout": "", "stderr": get_text("llm_adapters", "ollama_file_not_found"),
                 "cmd_str": _cmd_str(cmd), "dur_s": round(time.time()-t0,3)}
     except subprocess.TimeoutExpired:
-        return {"ok": False, "code": 124, "stdout": "", "stderr": "timeout",
+        return {"ok": False, "code": 124, "stdout": "", "stderr": get_text("llm_adapters", "ollama_timeout"),
                 "cmd_str": _cmd_str(cmd), "dur_s": round(time.time()-t0,3)}
     except Exception as e:
-        return {"ok": False, "code": 1, "stdout": "", "stderr": f"errore: {e}",
+        return {"ok": False, "code": 1, "stdout": "", "stderr": get_text("llm_adapters", "ollama_error_generic", e=e),
                 "cmd_str": _cmd_str(cmd), "dur_s": round(time.time()-t0,3)}
 
 # ====== CLI wrappers ======
@@ -94,7 +95,7 @@ def _run(cmd: list[str], timeout: int | None = 15):
 def _cli(args: list[str]):
     ollama = _which_ollama()
     if not ollama:
-        return {"ok": False, "code": 127, "stdout": "", "stderr": "CLI 'ollama' non trovata nel PATH",
+        return {"ok": False, "code": 127, "stdout": "", "stderr": get_text("llm_adapters", "ollama_cli_not_found_path"),
                 "cmd_str": "ollama list"}
     cmd = (["cmd", "/c", ollama, "list"] if os.name == "nt" and ollama.lower().endswith((".cmd", ".bat")) else [ollama,"list"])
     return _run(cmd, timeout=20)
@@ -166,14 +167,14 @@ def start_server_background(host: str = DEFAULT_HOST):
     Se il server risponde già su HTTP, non fa nulla.
     """
     if is_online(host):
-        return {"ok": True, "msg": "Server già ONLINE", "pid": _discover_pid_on_port(11434)}
+        return {"ok": True, "msg": get_text("llm_adapters", "ollama_server_online"), "pid": _discover_pid_on_port(11434)}
 
     info = _cli(["serve"])
     # `ollama serve` è un processo long-running → dobbiamo staccarlo.
     # Rilanciamo *detached* perché _cli usa run() bloccante:
     oll = _which_ollama()
     if not oll:
-        return {"ok": False, "msg": "CLI 'ollama' non trovata"}
+        return {"ok": False, "msg": get_text("llm_adapters", "ollama_cli_not_found")}
     cmd = [oll, "serve"]
     if os.name == "nt":
         creationflags = 0x00000200 | 0x00000008  # CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS
@@ -191,16 +192,16 @@ def stop_server_background(host: str = DEFAULT_HOST):
     """
     pid = _get_pid() or _discover_pid_on_port(11434)
     if not pid:
-        return {"ok": False, "msg": "PID del server non trovato"}
+        return {"ok": False, "msg": get_text("llm_adapters", "ollama_pid_not_found")}
     try:
         if os.name == "nt":
             subprocess.run(["taskkill","/PID",str(pid),"/T","/F"], capture_output=True, text=True, timeout=10)
         else:
             os.kill(pid, 15)  # SIGTERM
         _set_pid(None)
-        return {"ok": True, "msg": f"Terminato PID {pid}"}
+        return {"ok": True, "msg": get_text("llm_adapters", "ollama_pid_terminated", pid=pid)}
     except Exception as e:
-        return {"ok": False, "msg": f"Errore stop PID {pid}: {e}"}
+        return {"ok": False, "msg": get_text("llm_adapters", "ollama_stop_error", pid=pid, e=e)}
 
 # ====== Funzioni richieste dall’infrastruttura ======
 
@@ -232,7 +233,7 @@ def list_models(host: str | None = None, filter: str | None = None):
             js = r.json()
             models = [m.get("name","").strip() for m in js.get("models", []) if m.get("name")]
         except Exception as e:
-            return {"error": f"{info.get('stderr') or 'CLI fallita'}; fallback HTTP fallito: {e}"}
+            return {"error": get_text("llm_adapters", "ollama_cli_fallback_failed", stderr=info.get('stderr') or 'CLI failed', error=e)}
 
     if filter:
         f = filter.lower().strip()
@@ -257,7 +258,7 @@ def get_model_details(model_name: str, host: str | None = None):
             r.raise_for_status()
             data = r.json()
         except Exception as e:
-            return {"error": f"Impossibile ottenere dettagli: {e}"}
+            return {"error": get_text("llm_adapters", "ollama_details_fail", e=e)}
 
     # Normalizzazione campi (robusta su versioni diverse)
     det = data.get("details", {}) if isinstance(data, dict) else {}
@@ -270,13 +271,13 @@ def get_model_details(model_name: str, host: str | None = None):
     arch  = det.get("arch") or det.get("architecture") or "—"
 
     out = {
-        "Nome": str(data.get("name", model_name)),
-        "Famiglia": ", ".join(families) if families else "—",  # Già str
-        "Dimensione su disco": humanize.naturalsize(size_bytes) if size_bytes else "—",  # Già str
-        "Parametri": str(params),  # Cast a str
-        "Architettura": str(arch),  # Cast a str
-        "Quantizzazione": str(quant),  # Cast a str
-        "Modelfile": str(data.get("modelfile") or "—"),  # Cast a str
+        get_text("llm_adapters", "ollama_det_name"): str(data.get("name", model_name)),
+        get_text("llm_adapters", "ollama_det_family"): ", ".join(families) if families else "—",  # Già str
+        get_text("llm_adapters", "ollama_det_disk"): humanize.naturalsize(size_bytes) if size_bytes else "—",  # Già str
+        get_text("llm_adapters", "ollama_det_params"): str(params),  # Cast a str
+        get_text("llm_adapters", "ollama_det_arch"): str(arch),  # Cast a str
+        get_text("llm_adapters", "ollama_det_quant"): str(quant),  # Cast a str
+        get_text("llm_adapters", "ollama_det_modelfile"): str(data.get("modelfile") or "—"),  # Cast a str
         "Raw": data,  # Questo rimane un dict, gestito correttamente da conf_model.py
     }
     return out
@@ -297,13 +298,13 @@ def generate(prompt: str, model_name: str, max_tokens: int = 1024, host: str = D
         j = r.json()
         return j.get("response", "")
     except Exception as e:
-        return f"Errore HTTP: {e}"
+        return get_text("llm_adapters", "ollama_http_error", e=e)
 
 def run_server_ollama(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
     res = start_server_background(host=host)
     if res.get("ok"):
         st.session_state['server_ollama'] = True
-        st_toast_temp("Avviato in background.", 'success')
+        st_toast_temp(get_text("llm_adapters", "ollama_server_started"), 'success')
         if res.get("cmd"):
             st.code(res["cmd"], language="bash")
 
@@ -312,13 +313,13 @@ def run_server_ollama(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
         st.rerun()
     else:
         st.session_state['server_ollama'] = False
-        st_toast_temp(res.get("msg", "Errore"), 'error')
+        st_toast_temp(res.get("msg", get_text("llm_adapters", "ollama_server_error")), 'error')
 
 def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
     if st is None:
-        raise RuntimeError("Streamlit non disponibile")
+        raise RuntimeError(get_text("llm_adapters", "streamlit_not_avail"))
 
-    st.subheader("🦙 Ollama — controllo CLI")
+    st.subheader(get_text("llm_adapters", "ollama_title"))
     init_key = f"{key}_initialized"
 
     if init_key not in st.session_state:
@@ -331,7 +332,7 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
             online, count = get_ollama_status(host)
             pid = get_ollama_pid(11434)
         except Exception as e:
-            st.error(f"❌ Errore connessione Ollama: {e}")
+            st.error(get_text("llm_adapters", "ollama_connection_error", e=e))
             online, count, pid = False, 0, None
 
     st.session_state['server_ollama'] = online
@@ -340,11 +341,11 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
     b1, b2, b3 = st.columns([3, 2, 3])
 
     with b1:
-        if st.button("🚀 Start server (background)", key=key + "_start"):
+        if st.button(get_text("llm_adapters", "ollama_start_btn"), key=key + "_start"):
             res = start_server_background(host=host)
             if res.get("ok"):
                 st.session_state['server_ollama'] = True
-                st_toast_temp("Avviato in background.", 'success')
+                st_toast_temp(get_text("llm_adapters", "ollama_server_started"), 'success')
                 if res.get("cmd"):
                     st.code(res["cmd"], language="bash")
 
@@ -353,16 +354,16 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
                 st.rerun()
             else:
                 st.session_state['server_ollama'] = False
-                st_toast_temp(res.get("msg", "Errore"), 'error')
+                st_toast_temp(res.get("msg", get_text("llm_adapters", "ollama_server_error")), 'error')
 
     with b3:
-        if st.button("🛑 Stop server", key=key + "_stop"):
+        if st.button(get_text("llm_adapters", "ollama_stop_btn"), key=key + "_stop"):
             res = stop_server_background(host=host)
             st.toast(res.get("msg", "—"))
 
             if res.get("ok"):
                 st.session_state['server_ollama'] = False
-                st_toast_temp("🛑 Server Stop!", 'warning')
+                st_toast_temp(get_text("llm_adapters", "ollama_stop_toast"), 'warning')
                 get_ollama_status.clear()
                 get_ollama_pid.clear()
                 st.rerun()
@@ -377,22 +378,22 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
     c1, c2, c3 = st.columns([2, 2, 3])
     with c1:
         st.metric(
-            label="🌐 HTTP Server",
-            value="🟢 ONLINE" if online else "🔴 OFFLINE"
+            label=get_text("llm_adapters", "http_server_label"),
+            value=get_text("llm_adapters", "online") if online else get_text("llm_adapters", "offline")
         )
     with c2:
-        st.metric("📦 # Modelli", count)
+        st.metric(get_text("llm_adapters", "ollama_models_count"), count)
     with c3:
-        st.caption(f"🔗 Endpoint: {API(host)}/tags")
+        st.caption(get_text("llm_adapters", "endpoint", url=f"{API(host)}/tags"))
 
     # Pulsanti elenco modelli & processi
     col1, col2, col3 = st.columns([3, 2, 3])
 
     with col1:
-        ollama_list = st.button("📚 List models", key=key + "_list")
+        ollama_list = st.button(get_text("llm_adapters", "ollama_list_btn"), key=key + "_list")
 
     with col3:
-        button_Ps = st.button("🦙 Running models", key=key + "_ps")
+        button_Ps = st.button(get_text("llm_adapters", "ollama_ps_btn"), key=key + "_ps")
 
     # --- LIST MODELS ---
     if ollama_list:
@@ -403,46 +404,46 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
             stderr = (info.get("stderr") or "").strip()
 
             primary, primary_label = (
-                (stdout, "📤 STDOUT") if stdout else (stderr, "⚠️ STDERR (fallback)")
+                (stdout, get_text("llm_adapters", "stdout")) if stdout else (stderr, get_text("llm_adapters", "stderr_fallback"))
             )
 
             with st.expander(primary_label):
                 st.code(primary or "<vuoto>", language="bash")
 
             if stdout and stderr:
-                with st.expander("⚠️ STDERR" if primary_label == "📤 STDOUT" else "📤 STDOUT"):
-                    st.code(stderr if primary_label == "📤 STDOUT" else stdout, language="bash")
+                with st.expander(get_text("llm_adapters", "stderr") if primary_label == get_text("llm_adapters", "stdout") else get_text("llm_adapters", "stdout")):
+                    st.code(stderr if primary_label == get_text("llm_adapters", "stdout") else stdout, language="bash")
 
-            st.success("✅ Comando eseguito." if info.get("ok") else "❌ Comando fallito.")
+            st.success(get_text("llm_adapters", "ollama_cmd_executed") if info.get("ok") else get_text("llm_adapters", "ollama_cmd_failed"))
 
             if info.get("ok") and primary:
                 parsed = parse_ollama_list(primary)
 
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.metric("🤖 Modelli (ollama list)", parsed["count"])
+                    st.metric(get_text("llm_adapters", "ollama_models_count"), parsed["count"])
                 with c2:
-                    st.metric("💾 Spazio totale", parsed["total_size"])
+                    st.metric(get_text("llm_adapters", "ollama_total_size"), parsed["total_size"])
 
                 if parsed["rows"]:
                     df = pd.DataFrame(
                         parsed["rows"],
-                        columns=["Nome", "ID", "Dimensione", "Modificato"]
+                        columns=[get_text("llm_adapters", "ollama_col_name"), get_text("llm_adapters", "ollama_col_id"), get_text("llm_adapters", "ollama_col_size"), get_text("llm_adapters", "ollama_col_modified")]
                     )
                     st.dataframe(df, width='stretch', hide_index=True)
                 else:
-                    st.info("ℹ️ Nessun modello trovato nell'output.")
+                    st.info(get_text("llm_adapters", "ollama_no_output"))
         else:
-            st_toast_temp("⚠️ Server is not Running", 'warning')
+            st_toast_temp(get_text("llm_adapters", "ollama_server_not_running"), 'warning')
 
     # --- RUNNING MODELS ---
     if button_Ps:
         if online:
             info = cli_ps_raw()
-            with st.expander("🚀 ollama ps"):
+            with st.expander(get_text("llm_adapters", "ollama_ps_title")):
                 st.code(info.get("stdout") or "<vuoto>", language="bash")
         else:
-            st_toast_temp("⚠️ Server is not Running", 'warning')
+            st_toast_temp(get_text("llm_adapters", "ollama_server_not_running"), 'warning')
 
 def _parse_size_bytes(s: str) -> int:
     if not s: return 0
@@ -490,10 +491,10 @@ def parse_ollama_list(text: str):
         name, mid, size_s, modified = parts[0], parts[1], parts[2], parts[3]
         size_b = _parse_size_bytes(size_s)
         res["rows"].append({
-            "Nome": name,
-            "ID": mid,
-            "Dimensione": size_s,
-            "Modificato": modified
+            get_text("llm_adapters", "ollama_col_name"): name,
+            get_text("llm_adapters", "ollama_col_id"): mid,
+            get_text("llm_adapters", "ollama_col_size"): size_s,
+            get_text("llm_adapters", "ollama_col_modified"): modified
         })
         res["total_bytes"] += size_b
 

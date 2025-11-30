@@ -1,26 +1,23 @@
 import os
+from threading import Thread
 
 import streamlit as st
 
-# from GUI.history_tab import history_tab
-from GUI.setting_tab import settings_tab
-from GUI.gen_eval_query import query_gen_eval_tab
+from GUI.benchmarking_tab import benchmark_tab
+from GUI.conf_model import configure_local_model_tab, configure_online_model
 from GUI.dataset_analytics_tab import db_analytics_tab
 from GUI.db_management_tab import db_management_tab
+from GUI.gen_eval_query import query_gen_eval_tab
 from GUI.load_db_tab import load_db_tab
 from GUI.load_file_tab import load_file_tab
-from GUI.load_file_tab import load_file_tab
+from GUI.setting_tab import settings_tab
 from GUI.synthetic_data_tab import synthetic_data_tab
-from GUI.benchmarking_tab import benchmark_tab
-from llm_adapters.lmstudio_adapter import start_server_background, run_server_lmStudio
-from llm_adapters.ollama_adapter import run_server_ollama
-# from utils.history_manager import initialize_history_db
-from utils.translations import get_text
-import streamlit as st
-from GUI.conf_model import configure_local_model_tab, configure_online_model
-from utils.translations import get_text
-from threading import Thread
 from db_adapters.DBManager import check_service_status
+from llm_adapters.lmstudio_adapter import run_server_lmStudio
+from llm_adapters.ollama_adapter import run_server_ollama
+from utils.translations import get_text
+
+
 def initialize_session_state():
     if 'initialized' not in st.session_state:
         st.session_state['dataframes'] = {'files': {}, 'DBMS': {}}
@@ -113,6 +110,7 @@ def initialize_session_state():
         })
 
         st.session_state['widget_idx_counter'] = 0
+        st.session_state.setdefault('show_welcome', True)  # Flag per mostrare il messaggio di benvenuto
         activate_service()
 
 def activate_service():
@@ -130,7 +128,7 @@ def activate_service():
 
 def check_and_save_status(dbms):
     status = check_service_status(dbms)
-    if DBMS_Sever not in st.session_state:
+    if 'DBMS_Sever' not in st.session_state:
         st.session_state.DBMS_Sever = {
             "MySQL": {'status': 'not_running',},
             "SQL Server": {'status': 'not_running',},
@@ -140,10 +138,43 @@ def check_and_save_status(dbms):
 
 initialize_session_state()
 
-# initialize_history_db()
+st.set_page_config(
+    page_icon="🌱",
+    page_title="CALIBER",
+    layout="wide"
+)
+st.set_page_config(layout="wide")  # opzionale, solo per usare tutta la larghezza
 
-st.set_page_config(page_icon="🧭", page_title="Query with LLMs", layout="wide")
-st.title("Generate and Evaluate Query")
+st.markdown("""
+    <style>
+    .block-container {
+        padding-top: 1.5rem;      
+        padding-bottom: 0.5rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+st.markdown("""
+<style>
+.block-container h1 {
+    margin-bottom: 0rem;   
+    padding-top: 0rem;      
+    padding-bottom: 1rem;
+}
+
+.stTabs {
+    margin-top: 0rem;           
+    padding-top: 0rem;      
+    padding-bottom: 1rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+
+st.title("🌳 CALIBER")
+
 
 html = """
 <style>
@@ -153,14 +184,12 @@ div[data-baseweb="tab-list"] {
 }
 """
 
-tab_list = [
-    "📊 Dashboard",
-    "📈 Dataset Analytics",
-    "🧪 Generate Query",
-    "🎯 Benchmarking",
-    "🧬 Synthetic Data",
-    # "📜 History",
-    "⚙️ Setting",
+tab_list = [get_text("app_home", "data_hub"),
+    get_text("app_home", "data_insight"),
+    get_text("app_home", "green_query_builder"),
+    get_text("app_home", "eco_benchmark"),
+    get_text("app_home", "synthetic_data"),
+    get_text("app_home", "settings"),
 ]
 
 # nth-child è 1-based, quindi start=1
@@ -173,6 +202,16 @@ for order, tab in enumerate(tab_list, start=1):
 
 html += "</style>"
 
+st.markdown("""
+<style>
+.stTabs [data-baseweb="tab"] p {
+    font-weight: 700;
+}
+</style>
+""",
+unsafe_allow_html=True
+)
+
 st.markdown(html, unsafe_allow_html=True)
 (
     dashboard_tab,
@@ -180,18 +219,19 @@ st.markdown(html, unsafe_allow_html=True)
     generate_query_tab,
     benchmarking_tab,
     synthetic_tab,
-    # history_page_tab,
     settings_page_tab,
 ) = st.tabs(tab_list)
 
 with dashboard_tab:
-    st.header("📊 Dashboard")
+    st.header(get_text("app_home", "data_hub"))
 
-    load, managment = st.tabs(['📄Load Dataset', "🗄️ Gestione DBMS"])
+    load, managment = st.tabs([
+        get_text("app_home", "load_dataset"), 
+        get_text("app_home", "db_management")])
 
     with load:
         with st.container(border=True):
-            st.subheader("📄 Load Dataset")
+            st.subheader(get_text("app_home", "load_dataset"))
 
             tab1, tab2 = st.tabs([
                 get_text("load_dataset", "tab_file_upload"),
@@ -205,8 +245,10 @@ with dashboard_tab:
 
         if len(list(st.session_state["dataframes"]["DBMS"].keys())) > 0:
             with st.container(border=True):
-                st.subheader("🤖 Load Model")
-                tab1, tab2 = st.tabs([get_text("load_model", "local"), get_text("load_model", "online")])
+                st.subheader(get_text("app_home", "load_model"))
+                tab1, tab2 = st.tabs([
+                    get_text("load_model", "local"), 
+                    get_text("load_model", "online")])
                 with tab1:
                     configure_local_model_tab(key_prefix='configure_local_model')
                 with tab2:
@@ -215,39 +257,54 @@ with dashboard_tab:
     # --- GESTIONE DBMS ---
     with managment:
         with st.container(border=True):
-            st.header("🗄️ Gestione DBMS")
+            st.header(get_text("app_home", "db_management"))
             db_management_tab()
 
 # --- DATASET ANALYTICS ---
 with dataset_analytic_tab:
-    st.header("📈 Dataset Analytics")
+    st.header(get_text("app_home", "data_insight"))
     db_analytics_tab()
 
 # --- GENERATE QUERY ---
 with generate_query_tab:
-    st.header("🧪 Generate Query")
-    # Riutilizzo della tua funzione esistente
+    st.header(get_text("app_home", "green_query_builder"))
     query_gen_eval_tab()
 
 
 # --- BENCHMARKING ---
 with benchmarking_tab:
-    # st.header("🎯 Benchmarking") # Header is now inside the tab function
+    st.header(get_text("app_home", "eco_benchmark2")) 
     benchmark_tab()
 
 
 # --- SYNTHETIC DATA ---
 with synthetic_tab:
-    st.header("🧬 Synthetic Data")
+    st.header(get_text("app_home", "synthetic_data"))
     synthetic_data_tab()
-
-
-# # --- HISTORY ---
-# with history_page_tab:
-#     history_tab()
-
 
 # --- SETTINGS ---
 with settings_page_tab:
-    st.header("⚙️ Settings")
+    st.header(get_text("app_home", "settings"))
     settings_tab()
+
+
+# CSS personalizzato per styling premium
+st.markdown("""
+    <style>
+    .footer {
+        margin: 0rem;
+        padding: 0.5rem;
+        text-align: center;
+        color: #888;
+        font-size: 1rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Footer
+st.markdown("""
+    <div class="footer">
+        <p>🌳 CALIBER - Carbon-Aware LLM-Integrated Benchmarking & Eco-Responsible Query Rewriting</p>
+        <p>Developed with 💚 for a sustainable future</p>
+    </div>
+""", unsafe_allow_html=True)

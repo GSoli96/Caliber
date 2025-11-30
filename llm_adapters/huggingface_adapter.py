@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import time
 from datetime import datetime
+from utils.translations import get_text
 
 # --- HF hub opzionale, solo per list/cache details ---
 try:
@@ -66,15 +67,15 @@ def list_models():
     Scansiona la cache di Hugging Face e restituisce la lista dei modelli trovati.
     """
     if not HUGGINGFACE_HUB_AVAILABLE:
-        return {'error': "Libreria 'huggingface_hub' non installata. Esegui: pip install huggingface_hub"}
+        return {'error': get_text('llm_adapters', 'hf_hub_not_installed')}
     try:
         cache_info = scan_cache_dir()
         model_ids = [repo.repo_id for repo in cache_info.repos]
         if not model_ids:
-            return {'error': "Nessun modello trovato nella cache di Hugging Face."}
+            return {'error': get_text('llm_adapters', 'hf_no_models')}
         return model_ids
     except Exception as e:
-        return {'error': f"Errore durante la scansione della cache di Hugging Face: {e}"}
+        return {'error': get_text('llm_adapters', 'hf_scan_error', error=e)}
 
 
 def get_model_details(model_name: str):
@@ -82,12 +83,12 @@ def get_model_details(model_name: str):
     Recupera i dettagli di un modello specifico dalla cache di Hugging Face.
     """
     if not HUGGINGFACE_HUB_AVAILABLE:
-        return {'error': "Libreria 'huggingface_hub' non disponibile."}
+        return {'error': get_text('llm_adapters', 'hf_hub_not_available')}
     try:
         cache_info = scan_cache_dir()
         repo_info = next((repo for repo in cache_info.repos if repo.repo_id == model_name), None)
         if not repo_info:
-            return {'error': f"Dettagli non trovati per il modello '{model_name}' nella cache."}
+            return {'error': get_text('llm_adapters', 'hf_details_not_found', model=model_name)}
 
         last_modified_str = "N/A"
         if isinstance(repo_info.last_modified, datetime):
@@ -97,10 +98,10 @@ def get_model_details(model_name: str):
             last_modified_str = last_modified_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
         details = {
-            "Nome (Repo ID)": repo_info.repo_id,
-            "Dimensione su Disco": humanize.naturalsize(repo_info.size_on_disk),
-            "Percorso Cache": str(repo_info.repo_path),
-            "Ultima Modifica": last_modified_str
+            get_text('llm_adapters', 'hf_detail_name'): repo_info.repo_id,
+            get_text('llm_adapters', 'hf_detail_size'): humanize.naturalsize(repo_info.size_on_disk),
+            get_text('llm_adapters', 'hf_detail_cache_path'): str(repo_info.repo_path),
+            get_text('llm_adapters', 'hf_detail_last_modified'): last_modified_str
         }
 
         config_file = Path(repo_info.repo_path) / "config.json"
@@ -108,12 +109,12 @@ def get_model_details(model_name: str):
             with open(config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
             archs = config.get("architectures", [])
-            details["Architettura"] = archs[0] if archs else "N/A"
-            details["Tipo Modello"] = config.get("model_type", "N/A")
+            details[get_text('llm_adapters', 'hf_detail_architecture')] = archs[0] if archs else "N/A"
+            details[get_text('llm_adapters', 'hf_detail_model_type')] = config.get("model_type", "N/A")
 
         return details
     except Exception as e:
-        return {'error': f"Errore nel recuperare i dettagli del modello '{model_name}': {e}"}
+        return {'error': get_text('llm_adapters', 'hf_details_error', model=model_name, error=e)}
 
 
 def generate(prompt: str, model_name: str, max_tokens=128):
@@ -127,7 +128,7 @@ def generate(prompt: str, model_name: str, max_tokens=128):
 
 
     if not TRANSFORMERS_AVAILABLE:
-        return "Libreria 'transformers' non installata. Esegui 'pip install transformers torch'."
+        return get_text('llm_adapters', 'transformers_not_installed')
 
     try:
         config = AutoConfig.from_pretrained(model_name, local_files_only=True)
@@ -145,7 +146,7 @@ def generate(prompt: str, model_name: str, max_tokens=128):
                 is_generative = True
 
         if not is_generative:
-            error_msg = f"ERRORE: Il modello '{model_name}' non è generativo (CausalLM o Encoder-Decoder)."
+            error_msg = get_text('llm_adapters', 'hf_model_not_generative', model=model_name)
             return error_msg
 
         device_map, torch_dtype, device_legacy = _select_device_map_and_dtype()
@@ -157,16 +158,15 @@ def generate(prompt: str, model_name: str, max_tokens=128):
 
             if "SentencePiece" in msg or "tokenizer.model" in msg:
                 return (
-                    f"Errore: il tokenizer di '{model_name}' richiede il file "
-                    "'tokenizer.model' (SentencePiece) ma non è presente nella cache locale. "
-                    "Scarica il modello completo oppure disabilita local_files_only."
+                    get_text('llm_adapters', 'hf_tokenizer_error', model=model_name) + " " +
+                    get_text('llm_adapters', 'hf_tokenizer_sentencepiece_missing')
                 )
 
             # fallback: prova a scaricare i file mancanti
             try:
                 tok = AutoTokenizer.from_pretrained(model_name)
             except Exception as e2:
-                return f"Errore nel caricamento del tokenizer per '{model_name}': {e2}"
+                return get_text('llm_adapters', 'hf_tokenizer_load_error', model=model_name, error=e2)
 
         if tok.pad_token_id is None and tok.eos_token_id is not None:
             tok.pad_token = tok.eos_token
@@ -209,7 +209,7 @@ def generate(prompt: str, model_name: str, max_tokens=128):
             full_text = None
 
         if not full_text:
-            return "Errore: L'output del modello era vuoto o malformato."
+            return get_text('llm_adapters', 'hf_empty_output')
 
         generated_text = full_text
         p = prompt.strip()
@@ -222,10 +222,11 @@ def generate(prompt: str, model_name: str, max_tokens=128):
     except RuntimeError as rte:
         msg = str(rte)
         if "CUDA out of memory" in msg or "out of memory" in msg.lower():
-            return ("Errore: memoria GPU esaurita durante la generazione. "
-                    "Riduci max_new_tokens/batch o usa un modello più piccolo. "
-                    "In alternativa forza l'uso della CPU.")
-        return f"Errore runtime durante la generazione con '{model_name}': {rte}"
+            return (
+                get_text('llm_adapters', 'hf_gpu_memory') + " " +
+                get_text('llm_adapters', 'hf_gpu_memory_advice')
+            )
+        return get_text('llm_adapters', 'hf_runtime_error', model=model_name, error=rte)
 
     except Exception as e:
-        return f"Errore durante la generazione con il modello '{model_name}': {e}"
+        return get_text('llm_adapters', 'hf_generation_error', model=model_name, error=e)

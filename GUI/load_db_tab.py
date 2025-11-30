@@ -56,32 +56,26 @@ def load_db_tab(key):
         dataset_tab_dbms(key)
 
 def dataset_tab_dbms(key_alter=""):
-    """Visualizza i dettagli per TUTTI i database DBMS caricati in session_state."""
     loaded_databases = st.session_state["dataframes"]["DBMS"]
 
     if not loaded_databases:
         st.info(get_text("load_dataset", "no_db_loaded"))
         return
 
-    with st.expander('📁 Dataset Overview', expanded=False):
+    with st.expander(get_text("load_dataset", "overview"), expanded=False):
         for db_name, tables_data in loaded_databases.items():
 
-            st.header(f"📁 Database: {db_name}")
+            st.header(get_text("load_dataset", "db_title", db_name=db_name))
 
-            # 3. Recupera la configurazione specifica per *questo* database
-            #    Questo funziona grazie alle modifiche al prerequisito
             config_dict = st.session_state.get('uploaded_dbms', {}).get(db_name)
 
             with st.container(border=True):
                 st.subheader(get_text("load_dataset", "db_info"))
 
-                # 4. Funzione modulare per mostrare le info
                 _display_db_info(config_dict, db_name, tables_data, key_alter)
 
-                # st.divider()
                 st.subheader(get_text("load_dataset", "explore_tables"))
 
-                # 5. Logica esistente per creare i tab delle tabelle
                 tab_names = []
                 tab_dfs = []
 
@@ -111,7 +105,7 @@ def dataset_tab_dbms(key_alter=""):
                                 )
                                 st.write(df.head(rows_to_show))
                         else:
-                            st.error(f'Table {name} in dataset {db_name} non trovato!')
+                            st.error(get_text("load_dataset", "table_not_found", name=name, db_name=db_name))
 
 
 # ============================================================================
@@ -157,7 +151,6 @@ def render_dbms_input_for_loading(key_prefix, idx):
                     st.session_state[cache_key] = dbs
                 except Exception as e:
                     st.session_state[cache_key] = []
-                    st.warning(f"Could not retrieve databases: {str(e)}")
 
             available_dbs = st.session_state.get(cache_key, [])
 
@@ -186,14 +179,14 @@ def render_dbms_input_for_loading(key_prefix, idx):
                 if ret_item['db_choice'] in ["SQLite", "DuckDB"]:
                     ret_item['path_to_file'] = st.text_input(
                         get_text("load_dataset", "path_to_file"),
-                        help=f'es. database_name.db (Relative paths are saved in {DB_DIR})',
-                        placeholder='database_name.db',
+                        help=get_text("load_dataset", "path_to_file_help", db_dir=DB_DIR),
+                        placeholder=get_text("load_dataset", "path_to_file_placeholder", db_dir=DB_DIR),
                         key=f'path_to_file_{key_prefix}_{idx}'
                     )
                 else:
                     ret_item['db_name'] = st.text_input(
                         get_text("load_dataset", "db_name"),
-                        help='Insert Database name',
+                        help=get_text("load_dataset", "insert_name"),
                         placeholder="database",
                         key=f'db_name_{key_prefix}_{idx}',
                     )
@@ -204,8 +197,7 @@ def render_dbms_input_for_loading(key_prefix, idx):
     available_dbs = st.session_state.get(f'available_dbs_{ret_item["db_choice"]}_{key_prefix}_{idx}', [])
     if not available_dbs:
         info_placeholder.info(
-            f"ℹ️ No {ret_item['db_choice']} databases found. "
-            f"Try creating one in the **{get_text('load_dataset', 'tab_file_upload')}** tab."
+            get_text("load_dataset", "info_placeholder", db_choice=ret_item['db_choice'], tab_file_upload=get_text('load_dataset', 'tab_file_upload'))
         )
 
     col1, col2, col3 = st.columns([2, 5, 2])
@@ -245,8 +237,8 @@ def render_dbms_input_for_creation(key_prefix, idx):
             if ret_item['db_choice'] in ["SQLite", "DuckDB"]:
                 ext = ".db" if ret_item['db_choice'] == "SQLite" else ".duckdb"
                 label = get_text("load_dataset", "db_name")
-                help_text = f"Extension {ext} will be added automatically. Saved in {DB_DIR}"
-                placeholder = "database_name"
+                help_text = get_text("load_dataset", "Save_db_ext", ext=ext, DB_DIR=DB_DIR)
+                placeholder = get_text("load_dataset", "path_to_file_placeholder").replace(".db", "")
 
                 user_input = st.text_input(
                     label,
@@ -271,7 +263,7 @@ def render_dbms_input_for_creation(key_prefix, idx):
             else:
                 ret_item['db_name'] = st.text_input(
                     get_text("load_dataset", "db_name"),
-                    help='Insert Database name',
+                    help=get_text("load_file_tab", "insert_db_name"),
                     placeholder="database",
                     key=f'db_name_{key_prefix}_{idx}',
                 )
@@ -363,7 +355,7 @@ def validate_dbms_input(ret_item, is_loading):
             if is_loading:
                 # Loading mode: validate extension is present
                 if not user_path.endswith(ext):
-                    st.error(f"Please select a valid {ret_item['db_choice']} database file ({ext})")
+                    st.error(get_text("load_file_tab", "error1", ext=ext))
                     ret_item['complete_state'] = False
                     return ret_item
 
@@ -401,7 +393,7 @@ def handle_overwrite_rename_cancel(key_prefix, idx, ret_item):
 
     # Column 1: Overwrite button
     with col_act1:
-        if st.button("Overwrite", key=f"act_overwrite_{key_prefix}_{idx}", use_container_width=True, type="primary"):
+        if st.button(get_text("load_file_tab", "overwrite"), key=f"act_overwrite_{key_prefix}_{idx}", use_container_width=True, type="primary"):
             # Delete the existing database
             try:
                 temp_dict = {'config_dict': ret_item, 'dfs_dict': {}}
@@ -413,7 +405,7 @@ def handle_overwrite_rename_cancel(key_prefix, idx, ret_item):
                 dict_to_dbsm = {'config_dict': ret_item, 'dfs_dict': dfs_dict}
                 mgr_create = DBManager(dict_to_dbsm, 'create')
 
-                with st.spinner("Creating database..."):
+                with st.spinner(get_text("load_dataset", "create_db")):
                     dumped, loaded_db = mgr_create.create_db()
 
                 if loaded_db:
@@ -425,13 +417,12 @@ def handle_overwrite_rename_cancel(key_prefix, idx, ret_item):
                     st.session_state['create_db_done'] = True
                     st.session_state["dataframes"]["DBMS"][db_name] = dumped
 
-                    st.success(f'✅ Database **{loaded_db}** successfully overwritten and recreated!')
-                    st_toast_temp(f"Database {loaded_db} overwritten successfully", "success")
+                    st.success(get_text("load_file_tab", "db_overwritten", db_name=loaded_db))
                 else:
-                    st.error("❌ Failed to create database after deletion.")
+                    st.error(get_text("load_file_tab", "failed_to_create"))
 
             except Exception as e:
-                st.error(f"❌ Error during overwrite: {str(e)}")
+                st.error(get_text("load_file_tab", "failed_create", error=str(e)))
 
             # Exit overwrite mode
             st.session_state[f'overwrite_mode_{key_prefix}_{idx}'] = False
@@ -439,7 +430,7 @@ def handle_overwrite_rename_cancel(key_prefix, idx, ret_item):
 
     # Column 2: Reset Name button
     with col_act2:
-        if st.button("Reset Name", key=f"act_reset_{key_prefix}_{idx}", use_container_width=True, type="secondary"):
+        if st.button(get_text("load_dataset", "reset_name"), key=f"act_reset_{key_prefix}_{idx}", use_container_width=True, type="secondary"):
             # Exit overwrite mode and increment widget counter to reset the input field
             st.session_state[f'overwrite_mode_{key_prefix}_{idx}'] = False
             st.session_state['widget_idx_counter'] += 1

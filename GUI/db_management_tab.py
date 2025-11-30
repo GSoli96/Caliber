@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import time
 from db_adapters.DBManager import DBManager
+from utils.translations import get_text
 import sys
 
 def db_management_tab():
@@ -53,22 +54,22 @@ def _render_dbms_tab(dbms_type):
         c1, c2 = st.columns([1, 1])
 
         if st.session_state.DBMS_Sever[dbms_type]['status'] == 'not_running':
-            st.markdown(f"### 🖥️ Server: {dbms_type}")
+            st.markdown(f"### {get_text('db_management', 'server_title', dbms_type=dbms_type)}")
             with c1:
                 # Check status automatico
                 ok, msg = manager.server_control('status')
                 is_running = ok and msg == "Running"
 
                 if is_running:
-                    st.markdown("#### Status: ✅ Running")
+                    st.markdown(f"#### {get_text('db_management', 'status_label')} {get_text('db_management', 'status_running')}")
                     st.session_state.DBMS_Sever[dbms_type]['status'] = 'running'
                 else:
-                    st.markdown("#### Status: 🔴 Stopped")
+                    st.markdown(f"#### {get_text('db_management', 'status_label')} {get_text('db_management', 'status_stopped')}")
                     st.session_state.DBMS_Sever[dbms_type]['status'] = 'not_running'
             with c2:
                 # Start Button - Disabled if running
                 if st.button(
-                        f"▶️ Start {dbms_type}",
+                        get_text('db_management', 'btn_start', dbms_type=dbms_type),
                         key=f"btn_start_{dbms_type}",
                         use_container_width=True,
                         disabled=True if st.session_state.DBMS_Sever[dbms_type]['status'] == 'running' else False):
@@ -83,9 +84,9 @@ def _render_dbms_tab(dbms_type):
 
         elif st.session_state.DBMS_Sever[dbms_type]['status'] == 'running':
             with c1:
-                st.markdown(f"### 🖥️ Server: {dbms_type}")
+                st.markdown(f"### {get_text('db_management', 'server_title', dbms_type=dbms_type)}")
             with c2:
-                st.markdown("#### Status: ✅ Running")
+                st.markdown(f"#### {get_text('db_management', 'status_label')} {get_text('db_management', 'status_running')}")
             st.session_state.DBMS_Sever[dbms_type]['status'] = 'running'
         
         # Riga 3: Placeholder per errori (o toast sopra)
@@ -94,13 +95,13 @@ def _render_dbms_tab(dbms_type):
         # Serverless (SQLite, DuckDB)
         c1, c2 = st.columns([1, 1])
         with c1:
-            st.markdown(f"### 📂 DBMS: {dbms_type}")
+            st.markdown(f"### {get_text('db_management', 'serverless_label', dbms_type=dbms_type)}")
         with c2:
-            st.success(" Serverless (File-based)")
+            st.success(get_text('db_management', 'serverless_info'))
 
     st.markdown('---')
     # --- SEZIONE DATABASE ---
-    st.subheader("📂 Database List")
+    st.subheader(get_text('db_management', 'db_list_header'))
 
     # Lista DB
     dbs = manager.get_available_databases()
@@ -117,29 +118,29 @@ def _render_dbms_tab(dbms_type):
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         if not filtered_dbs:
-            st.info("ℹ️ No databases found.")
+            st.info(get_text('db_management', 'no_databases'))
         else:
-            selected_db = st.selectbox("📂 Select Database", filtered_dbs, key=f"sel_db_{dbms_type}")
+            selected_db = st.selectbox(get_text('db_management', 'select_database'), filtered_dbs, key=f"sel_db_{dbms_type}")
         
     if selected_db:
         # --- DETTAGLI DB ---
         details = manager.get_db_details(selected_db)
 
         if "error" in details:
-            st.error(f"❌ Error loading details: {details['error']}")
+            st.error(get_text('db_management', 'error_loading', error=details['error']))
         else:
             with col2:
                 st.write("")
                 st.write("")
-                st.markdown(f"**📏 Size:** {details.get('size_mb', 'N/A')}")
+                st.markdown(f"**{get_text('db_management', 'size_label')}** {details.get('size_mb', 'N/A')}")
             with col3:
                 st.write("")
                 st.write("")
-                st.markdown(f"**📊 Tables:** {len(details['tables'])}")
+                st.markdown(f"**{get_text('db_management', 'tables_label')}** {len(details['tables'])}")
             with col4:
                 st.write("")
                 st.write("")
-                rename = st.button("✏️ Rename DB", key=f"p_btn_ren_db_{dbms_type}")
+                rename = st.button(get_text('db_management', 'btn_rename_db'), key=f"p_btn_ren_db_{dbms_type}")
 
             with st.container(border=True if rename else False):
                 c_ren, c_del = st.columns(2)
@@ -148,11 +149,11 @@ def _render_dbms_tab(dbms_type):
                     with c_ren:
                         a, b = st.columns(2)
                         with a:
-                            new_db_name = st.text_input("✏️ New Name", key=f"ren_db_in_{dbms_type}")
+                            new_db_name = st.text_input(get_text('db_management', 'new_name_label'), key=f"ren_db_in_{dbms_type}")
                         with b:
                             st.write("")
                             st.write("")
-                            if st.button("✏️ Rename DB", key=f"btn_ren_db_{dbms_type}"):
+                            if st.button(get_text('db_management', 'btn_rename_db'), key=f"btn_ren_db_{dbms_type}"):
                                 ok, msg = manager.rename_db(selected_db, new_db_name)
                                 if ok: 
                                     st.toast(msg)
@@ -163,7 +164,7 @@ def _render_dbms_tab(dbms_type):
                     with c_del:
                         st.write("")
                         st.write("")
-                        if st.button("🗑️ Delete Dataset", key=f"btn_del_db_{dbms_type}", type="primary"):
+                        if st.button(get_text('db_management', 'btn_delete_db'), key=f"btn_del_db_{dbms_type}", type="primary"):
                             ok, msg = manager.delete_db(selected_db)
                             if ok:
                                 st.toast(msg)
@@ -173,10 +174,10 @@ def _render_dbms_tab(dbms_type):
 
         if details['tables']:
             # --- TABELLE ---
-            st.markdown("### 📋 Tables")
+            st.markdown(f"### {get_text('db_management', 'tables_header')}")
             for t in details['tables']:
-                with st.expander(f"📄 Table: {t['name']} ({t['rows']} rows)", expanded=False):
-                    st.write(f"**📊 Columns:** {len(t['columns'])}")
+                with st.expander(get_text('db_management', 'table_expander', name=t['name'], rows=t['rows']), expanded=False):
+                    st.write(f"**{get_text('db_management', 'columns_label')}** {len(t['columns'])}")
 
                     # Schema
                     df_schema = pd.DataFrame(t['columns'])
@@ -184,18 +185,18 @@ def _render_dbms_tab(dbms_type):
                         
                 # Preview
                 if t['preview'] is not None:
-                    st.write("**👁️ Preview:**")
+                    st.write(f"**{get_text('db_management', 'preview_label')}**")
                     st.dataframe(t['preview'], hide_index=True)
                 
                 # Rename Table
                 c_ren_t, _ = st.columns([2, 1])
                 with c_ren_t:
                     new_tbl_name = st.text_input(
-                        f"✏️ Rename {t['name']} to:",
+                        get_text('db_management', 'rename_table_label', name=t['name']),
                         key=f"ren_tbl_{dbms_type}_{t['name']}"
                     )
 
-                    if st.button("✏️ Rename Table", key=f"btn_ren_tbl_{dbms_type}_{t['name']}"):
+                    if st.button(get_text('db_management', 'btn_rename_table'), key=f"btn_ren_tbl_{dbms_type}_{t['name']}"):
                         ok, msg = manager.rename_table(selected_db, t['name'], new_tbl_name)
                         if ok:
                             st.success(msg)

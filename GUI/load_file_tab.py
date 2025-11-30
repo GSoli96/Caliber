@@ -70,7 +70,7 @@ def load_file_tab(key):
     if len(list(st.session_state['dataframes']['files'].keys())) > 0:
         st.header(get_text("load_dataset", "db_config"))
         with st.expander(get_text("load_dataset", "dbms_config"), expanded=True):
-            configure_file_dbms(key_prefix='configure_dbms_tab1')
+            configure_file_dbms(key_prefix='configure_dbms_tab1', name = name)
 
 def upload_files(key_prefix):
     """Renders file upload form with separator selection."""
@@ -92,8 +92,8 @@ def upload_files(key_prefix):
 
         with col2:
             sep_choice = st.selectbox(get_text("load_dataset", "separator"), options=sep_options, index=0,
-                                      placeholder="Choose one option",
-                                      help="Seleziona il separatore dei CSV",
+                                      placeholder=get_text("load_dataset", "Choose_option"),
+                                      help=get_text("load_dataset", "separator"),
                                       key=f'selectbox_{key_prefix}_{st.session_state["widget_idx_counter"]}')
 
             # Se l'utente sceglie 'Custom', mostra un campo per inserire manualmente
@@ -303,7 +303,7 @@ def dataset_tab(name):
         elif current_sep in [";", ",", "|"]:
             default_idx = sep_options.index(current_sep)
         else:
-            default_idx = sep_options.index("Custom")
+            default_idx = sep_options.index(get_text("load_dataset", "custom"))
 
         colA, colB = st.columns([2, 2])
         with colA:
@@ -312,16 +312,16 @@ def dataset_tab(name):
                 options=sep_options,
                 index=default_idx,
                 key=f"sep_choice_{name}",
-                help="Seleziona il separatore dei CSV",
+                help=get_text("load_dataset", "separator"),
             )
         with colB:
-            if sep_choice == "Custom":
+            if sep_choice == get_text("load_dataset", "custom"):
                 custom_val = st.text_input(
                     get_text("load_dataset", "custom_sep_1char"),
                     value=current_sep if current_sep not in [";", ",", "|", "\\t"] else "",
                     max_chars=1,
                     key=f"custom_sep_{name}",
-                    help="Inserisci un singolo carattere (es. :)",
+                    help=get_text("load_dataset", "insert"),
                 )
             else:
                 custom_val = None
@@ -334,7 +334,7 @@ def dataset_tab(name):
                     new_sep = "\\t"
                 elif sep_choice == "Custom":
                     if not custom_val:
-                        st.error("Inserisci un separatore personalizzato (1 carattere).")
+                        st.error(get_text("load_dataset", "custom_sep_1char"))
                         st.stop()
                     new_sep = custom_val
                 else:
@@ -414,7 +414,7 @@ def dataset_tab(name):
 # ============================================================================
 # SHARED: DBMS INPUT COMPONENTS
 # ============================================================================
-def render_dbms_input_for_creation(key_prefix, idx):
+def render_dbms_input_for_creation(key_prefix, idx, name):
     """Renders DBMS input widgets for Tab 1 (creating database from files)."""
     ret_item = {}
 
@@ -433,8 +433,8 @@ def render_dbms_input_for_creation(key_prefix, idx):
             if ret_item['db_choice'] in ["SQLite", "DuckDB"]:
                 ext = ".db" if ret_item['db_choice'] == "SQLite" else ".duckdb"
                 label = get_text("load_dataset", "db_name")
-                help_text = f"Extension {ext} will be added automatically. Saved in {DB_DIR}"
-                placeholder = "database_name"
+                help_text = get_text("load_dataset", "extension_db", ext=ext, DB_DIR=DB_DIR)
+                placeholder = get_text("load_dataset", "db_name")
 
                 user_input = st.text_input(
                     label,
@@ -459,8 +459,8 @@ def render_dbms_input_for_creation(key_prefix, idx):
             else:
                 ret_item['db_name'] = st.text_input(
                     get_text("load_dataset", "db_name"),
-                    help='Insert Database name',
-                    placeholder="database",
+                    help=get_text("load_dataset", "insert_db_name"),
+                    placeholder=name,
                     key=f'db_name_{key_prefix}_{idx}',
                 )
 
@@ -549,7 +549,8 @@ def validate_dbms_input(ret_item, is_loading):
             if is_loading:
                 # Loading mode: validate extension is present
                 if not user_path.endswith(ext):
-                    st.error(f"Please select a valid {ret_item['db_choice']} database file ({ext})")
+                    text = get_text("load_dataset", "error1", db_choice=ret_item['db_choice'], ext=ext)
+                    st.error(text)
                     ret_item['complete_state'] = False
                     return ret_item
 
@@ -586,7 +587,7 @@ def handle_overwrite_rename_cancel(key_prefix, idx, ret_item):
 
     # Column 1: Overwrite button
     with col_act1:
-        if st.button("Overwrite", key=f"act_overwrite_{key_prefix}_{idx}", use_container_width=True, type="primary"):
+        if st.button(get_text("load_dataset", "overwrite"), key=f"act_overwrite_{key_prefix}_{idx}", use_container_width=True, type="primary"):
             # Delete the existing database
             try:
                 temp_dict = {'config_dict': ret_item, 'dfs_dict': {}}
@@ -610,13 +611,12 @@ def handle_overwrite_rename_cancel(key_prefix, idx, ret_item):
                     st.session_state['create_db_done'] = True
                     st.session_state["dataframes"]["DBMS"][db_name] = dumped
 
-                    st.success(f'✅ Database **{loaded_db}** successfully overwritten and recreated!')
-                    st_toast_temp(f"Database {loaded_db} overwritten successfully", "success")
+                    st.success(get_text("load_dataset", "db_overwritten", db_name=loaded_db))
                 else:
-                    st.error("❌ Failed to create database after deletion.")
+                    st.error(get_text("load_dataset", "failed_to_create"))
 
             except Exception as e:
-                st.error(f"❌ Error during overwrite: {str(e)}")
+                st.error(get_text("load_dataset", "error_during_overwrite", error=str(e)))
 
             # Exit overwrite mode
             st.session_state[f'overwrite_mode_{key_prefix}_{idx}'] = False
@@ -637,9 +637,9 @@ def handle_overwrite_rename_cancel(key_prefix, idx, ret_item):
 # ============================================================================
 # SHARED: DATABASE CONFIGURATION
 # ============================================================================
-def configure_file_dbms(key_prefix):
+def configure_file_dbms(key_prefix, name):
     """Configures and creates a database from uploaded files (used by Tab 1)."""
-    dbms_parameters = render_dbms_input_for_creation(key_prefix, st.session_state['widget_idx_counter'])
+    dbms_parameters = render_dbms_input_for_creation(key_prefix, st.session_state['widget_idx_counter'], name)
     if dbms_parameters['complete_state']:
         db_name = dbms_parameters['db_name']
         st.session_state['uploaded_dbms'][db_name] = dbms_parameters
@@ -654,7 +654,7 @@ def configure_file_dbms(key_prefix):
             mgr = DBManager(dict_to_dbsm, 'create')
             dumped, loaded_db = mgr.create_db()  # <-- parte un thread interno e ritorna la lista dei caricamenti
             if not loaded_db:
-                st.error(f"Failed to create database.")
+                st.error(get_text("load_dataset", "failed_create"))
             else:
                 # Update session state
                 st.session_state['db_choice'] = dbms_parameters['db_choice']
@@ -668,12 +668,12 @@ def configure_file_dbms(key_prefix):
                 if reload_success and reloaded_data:
                     # Store ONLY the reloaded database (ensuring single dataset)
                     st.session_state["dataframes"]["DBMS"][db_name] = reloaded_data
-                    st.success(f'✅ Successfully created and loaded database **{db_name}**.')
+                    st.success(get_text("load_dataset", "dbms_success"))
                     st_toast_temp(get_text("load_dataset", "dbms_success"), "success")
                 else:
                     # Fallback: use the dumped data if reload fails
                     st.session_state["dataframes"]["DBMS"][db_name] = dumped
-                    st.warning(f'⚠️ Database **{db_name}** created but reload failed. Using created data.')
+                    st.warning(get_text("load_dataset", "reload_failed", db_name=db_name))
 
                 # Invalidate cache for available databases to force refresh
                 for key in list(st.session_state.keys()):

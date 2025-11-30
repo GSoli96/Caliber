@@ -91,21 +91,8 @@ def db_analytics_tab():
             if st.button(get_text("load_dataset", "export_zip_btn"), key="btn_export_analytics_zip"):
                 with st.spinner(get_text("load_dataset", "exporting_zip")):
                     zip_bytes, zip_name = export_analytics_zip(loaded_databases)
-                    st.download_button(
-                        label=get_text("load_dataset", "download_zip"),
-                        data=zip_bytes,
-                        file_name=zip_name,
-                        mime="application/zip",
-                        key="download_analytics_zip_btn"
-                    )
-
-    else:
-        st.warning('Please laod a dataset from a DBMS.')
-
-def _display_db_info(config_dict, db_name, tables_data):
-    """Helper function to display DBMS configuration details."""
-    key_alter = ""
-    if not config_dict:
+                    st.download_button(label=get_text("load_dataset", "download_zip"), data=zip_bytes,
+                                       file_name=zip_name, mime="application/zip")
         st.warning(get_text("load_dataset", "config_metadata_missing", db_name=db_name))
         return
 

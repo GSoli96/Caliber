@@ -40,7 +40,6 @@ import json
 import requests
 
 def label_with_icon(name: str) -> str:
-    """Ritorna '🧩 Nome' se non c'è un'icona specifica."""
     return f"{ICONS.get(name, '🧩')} {name}"
 
 def get_nonce(key_prefix: str) -> int:
@@ -51,39 +50,25 @@ def get_nonce(key_prefix: str) -> int:
 
 
 def do_reset(key_prefix: str):
-
-
-    # 1) elimina tutte le chiavi di stato legate al prefisso (widget inclusi)
     keys_to_drop = [k for k in list(st.session_state.keys()) if k.startswith(f"{key_prefix}_")]
     for kdrop in keys_to_drop:
         st.session_state.pop(kdrop, None)
-
-    # 2) bump del nonce per forzare nuove chiavi
     nonce_key = f"{key_prefix}__nonce"
     st.session_state[nonce_key] = st.session_state.get(nonce_key, 0) + 1
-
-    # 3) pulisci eventuale cache adapter e rerun
     try:
         llm_adapters.clear_cache_for("list_models")
     except Exception as e:
-        st.warning(f"Impossibile pulire cache: {e}")
+        st.warning(get_text("conf_model", "unable_to_clean", e=e))
     st.rerun()
 
 # --- sostituisci in conf_model.py ---
 def configure_local_model_tab(key_prefix: str = "lm_selector"):
-    """
-    Versione STABILE a tab.
-    - section_id: stringa fissa per generare chiavi stabili. NON cambiare tra i rerun.
-    """
     st.markdown("""
         <style>
-        /* Selettore per la barra delle tab */
         div[data-baseweb="tab-list"] {
             justify-content: space-between;
         }
-
-        /* Seleziona i singoli tab e cambia ordine */
-        div[data-baseweb="tab-list"] button:nth-child(1) { order: 1; }  /* LLM 1 */
+        div[data-baseweb="tab-list"] button:nth-child(1) { order: 1; }
         div[data-baseweb="tab-list"] button:nth-child(2) { order: 2; }  /* LLM 2 */
         div[data-baseweb="tab-list"] button:nth-child(3) { order: 3; }  /* LLM 3 */
         div[data-baseweb="tab-list"] button:nth-child(5) { order: 9; }  /* LLM 4 */
@@ -207,7 +192,7 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
                 current = selected_by_backend.get(backend)
                 default_idx = labels.index(_label(current)) if current in models else 0
 
-                sel = st.selectbox(f"{ICONS['Select a Model']} {get_text('conf_model', 'available_model')}", options=labels,
+                sel = st.selectbox(f"{get_text('conf_model', 'available_model')}", options=labels,
                                    index=default_idx, key=k(f"model_{backend}"))
                 selected_by_backend[backend] = sel
 
@@ -234,25 +219,30 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
                             for z, sub in nested_part.items():
                                 rows.extend(_dict_to_table_rows(sub, section=z))
 
-                            df = pd.DataFrame(rows, columns=["Sezione", "Campo", "Valore"])
+                            df = pd.DataFrame(rows, columns=[
+                                get_text('conf_model', 'dataframe_section'), 
+                                get_text('conf_model', 'dataframe_field'), 
+                                get_text('conf_model', 'dataframe_value')])
 
                             df = df[
-                                (~df["Valore"].apply(_is_empty_value)) &
-                                (~df["Valore"].apply(_is_complex_value))
+                                (~df[get_text('conf_model', 'dataframe_value')].apply(_is_empty_value)) &
+                                (~df[get_text('conf_model', 'dataframe_value')].apply(_is_complex_value))
                                 ].reset_index(drop=True)
 
                             # pulizia nomi "Campo"
                             df = _clean_campo_names(df)
 
                             # separa overview e spiegazioni
-                            overview_df = df[df["Sezione"] == "Overview"].drop(columns=["Sezione"])
-                            expl_df_full = df[df["Sezione"] != "Overview"]
+                            overview_df = df[
+                                df[
+                                    get_text('conf_model', 'dataframe_section')] == get_text('conf_model', 'dataframe_overview')].drop(columns=[get_text('conf_model', 'dataframe_section')])
+                            expl_df_full = df[df[get_text('conf_model', 'dataframe_section')] != get_text('conf_model', 'dataframe_overview')]
 
                             # memorizza i nomi delle sezioni PRIMA di droppare la colonna
-                            section_names = sorted(expl_df_full["Sezione"].unique()) if not expl_df_full.empty else []
+                            section_names = sorted(expl_df_full[get_text('conf_model', 'dataframe_section')].unique()) if not expl_df_full.empty else []
 
                             # poi elimina la colonna
-                            expl_df = expl_df_full.drop(columns=["Sezione"])
+                            expl_df = expl_df_full.drop(columns=[get_text('conf_model', 'dataframe_section')])
 
                             # ---- 1️⃣ TABELLONA OVERVIEW ----
                             st.markdown(f"### {get_text('conf_model', 'model_overview')}")
@@ -265,8 +255,11 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
                                     tabs = st.tabs(section_names)
                                     for tab_i, sec in zip(tabs, section_names):
                                         with tab_i:
-                                            sec_df = expl_df_full[expl_df_full["Sezione"] == sec][
-                                                ["Campo", "Valore"]].reset_index(drop=True)
+                                            sec_df = expl_df_full[
+                                                expl_df_full[
+                                                    get_text('conf_model', 'dataframe_section')] == sec][
+                                                [get_text('conf_model', 'dataframe_field'),
+                                                get_text('conf_model', 'dataframe_value')]].reset_index(drop=True)
                                             st.table(sec_df)
 
                     if backend in ("Hugging Face", "LM Studio"):
@@ -290,9 +283,9 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
                                 st.session_state[out_key] = out
 
                             if st.session_state.get(out_key) is not None:
-                                with st.expander(f"{ICONS['Response']} {get_text('conf_model', 'response')}", expanded=True):
+                                with st.expander(f"{get_text('conf_model', 'response')}", expanded=True):
                                     st.write(st.session_state[out_key])
-                                    if st.button(f"{ICONS['Clear Output']} {get_text('conf_model', 'clear_output')}",
+                                    if st.button(f"{get_text('conf_model', 'clear_output')}",
                                                  key=k(f"clear_out_{backend}")):
                                         st.session_state[out_key] = None
                                         st.rerun()
@@ -326,13 +319,10 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
 def configure_online_model(key_prefix):
     backend_display_options = list(llm_adapters.LLM_ADAPTERS.keys())
 
-    # Tab con icone (ordine invariato)
     tab1, tab2, tab3, tab4 = st.tabs([label_with_icon(n) for n in backend_display_options])
 
-    # --- TAB: HuggingFace ---
     with tab1:
-        # tua funzione di ricerca UI
-        hugging_face_tab()  # deve settare session_state['results_HF'] e ['submit_HF']
+        hugging_face_tab()
 
         results = st.session_state.get('results_HF', [])
         submitted = st.session_state.get('submit_HF', None)
@@ -362,17 +352,17 @@ def configure_online_model(key_prefix):
                 st.warning(get_text("conf_model", "search_invalid_id"))
                 return
 
-            selected = st.selectbox(f"{ICONS['Select a Model']} {get_text('conf_model', 'select_model')}", names, key="hf_model_select")
+            selected = st.selectbox(get_text('conf_model', 'select_model'), names, key="hf_model_select")
 
             # dettaglio del selezionato
             m = next((x for x in results if (x.get('modelId') or x.get('id')) == selected), None)
             if m:
                 st.markdown(f"### [{selected}](https://huggingface.co/{selected})")
                 st.write(
-                    f"**Task:** {m.get('pipeline_tag', '—')}  |  "
-                    f"**Downloads:** {m.get('downloads', '—')}  |  "
-                    f"**Likes:** {m.get('likes', '—')}  |  "
-                    f"**Author:** {m.get('author', '—')}"
+                    f"**{get_text('conf_model', 'hugging_task')}:** {m.get('pipeline_tag', '—')}  |  "
+                    f"**{get_text('conf_model', 'hugging_download')}:** {m.get('downloads', '—')}  |  "
+                    f"**{get_text('conf_model', 'hugging_likes')}:** {m.get('likes', '—')}  |  "
+                    f"**{get_text('conf_model', 'hugging_authors')}:** {m.get('author', '—')}"
                 )
                 tags = m.get('tags') or []
                 if tags:
@@ -383,7 +373,7 @@ def configure_online_model(key_prefix):
                 if lang:
                     st.caption(get_text("conf_model", "language", lang=lang))
 
-                load_model = st.button(f"{ICONS['Load Model']} {get_text('conf_model', 'load_model_btn')}", key="load_model_{}".format(selected))
+                load_model = st.button(f"{get_text('conf_model', 'load_model_btn')}", key="load_model_{}".format(selected))
 
                 # --- MODIFICA CHIAVE: Gestione dello stato al click ---
                 state = st.session_state.get('hf_dl', {})
@@ -452,7 +442,7 @@ def configure_online_model(key_prefix):
 
 def upload_llm():
     backend_display_options = list(llm_adapters.LLM_ADAPTERS.keys())
-    llm_backend = st.selectbox(f"{ICONS['LLM Model Source']} {get_text('conf_model', 'model_source')}", options=backend_display_options,
+    llm_backend = st.selectbox(get_text('conf_model', 'model_source'), options=backend_display_options,
                                key='llm_backend',
                                on_change=lambda: st.session_state.update({'llm_model': None}))
     if llm_backend:
@@ -460,7 +450,7 @@ def upload_llm():
         if isinstance(available_models, list) and available_models:
             st.selectbox(get_text("conf_model", "local_model_available"), options=available_models, key='llm_model')
             if st.session_state.llm_model:
-                with st.expander(f"{ICONS['Details']} {get_text('conf_model', 'model_details')}", expanded=True):
+                with st.expander(get_text('conf_model', 'model_details'), expanded=True):
                     model_details_dict = llm_adapters.get_model_details(backend=llm_backend,
                                                                         model_name=st.session_state.llm_model)
                     if 'error' not in model_details_dict:
@@ -634,11 +624,9 @@ def show_tab_local_upload(key_prefix, name):
     st.markdown(f"### {get_text('conf_model', 'upload_local_header')}")
     st.caption(get_text("conf_model", "upload_local_caption"))
 
-    # === Percorso repository upload ===
     upload_root = Path(".uploaded_models")
     upload_root.mkdir(exist_ok=True)
 
-    # === Helpers ===
     def slugify(name: str) -> str:
         s = name.strip().lower()
         s = re.sub(r"[^\w\-\.]+", "-", s)
@@ -647,11 +635,9 @@ def show_tab_local_upload(key_prefix, name):
 
     def detect_fmt(files: list[str]) -> str:
         lower = [f.lower() for f in files]
-        # GGUF
         if any(f.endswith(".gguf") for f in lower):
             return "GGUF (llama.cpp)"
 
-        # Transformers (HF)
         has_config = any(f.endswith("config.json") for f in lower)
         has_weights = any(
             f.endswith(".safetensors") or f.endswith("pytorch_model.bin")
@@ -666,16 +652,14 @@ def show_tab_local_upload(key_prefix, name):
         if has_config and has_weights and has_tokenizer:
             return "Transformers (HF)"
 
-        # ONNX
         if any(f.endswith(".onnx") for f in lower):
             return "ONNX"
 
-        return "Altro/Sconosciuto"
+        return get_text("conf_model", "other_unknown")
 
-    # Specifiche minime per formato (OR con “|”)
     def required_by_format(fmt: str) -> list[str]:
         if fmt == "GGUF (llama.cpp)":
-            return [".gguf"]  # almeno un file .gguf
+            return [".gguf"]
         if fmt == "Transformers (HF)":
             return [
                 "config.json",
@@ -687,29 +671,24 @@ def show_tab_local_upload(key_prefix, name):
         return []
 
     def check_missing(all_files: list[str], fmt: str) -> list[str]:
-        """Ritorna l’elenco (descrittivo) dei requisiti mancanti."""
-        if fmt == "Altro/Sconosciuto":
+        if fmt == get_text("conf_model", "other_unknown"):
             return []
         present = set(f.lower() for f in all_files)
         missing = []
         for req in required_by_format(fmt):
-            # req può essere una OR-list "a|b|c", estensioni .xxx o glob *.xxx
             choices = [x.strip().lower() for x in req.split("|")]
             ok = False
             for ch in choices:
                 if ch.startswith("*."):
-                    # glob: *.onnx
                     ext = ch[1:]
                     if any(p.endswith(ext) for p in present):
                         ok = True;
                         break
                 elif ch.startswith("."):
-                    # estensione: .gguf
                     if any(p.endswith(ch) for p in present):
                         ok = True;
                         break
                 else:
-                    # nome esatto
                     if ch in present or any(p.endswith("/" + ch) or p.endswith("\\" + ch) for p in present):
                         ok = True;
                         break
@@ -717,7 +696,6 @@ def show_tab_local_upload(key_prefix, name):
                 missing.append(req)
         return missing
 
-    # === Form upload ===
     files = st.file_uploader(
         get_text("conf_model", "select_files"),
         accept_multiple_files=True,
@@ -741,13 +719,11 @@ def show_tab_local_upload(key_prefix, name):
         folder.mkdir(exist_ok=True, parents=True)
         saved_files = []
 
-        # Scrivi/estrai i file
         for f in files:
             data = f.read()
             name = f.name
             lower = name.lower()
 
-            # estrazione archivi
             try:
                 if lower.endswith(".zip"):
                     with zipfile.ZipFile(io.BytesIO(data)) as zf:
@@ -761,18 +737,16 @@ def show_tab_local_upload(key_prefix, name):
                         saved_files.extend([m.name for m in tf.getmembers() if m.isfile()])
                         continue
             except Exception as e:
-                st.warning(f"Archivio {name} non estratto ({e}), salvo il file come è.")
+                st.warning(get_text("conf_model", "archivio", name=name, e=e))
 
             (folder / name).parent.mkdir(parents=True, exist_ok=True)
             (folder / name).write_bytes(data)
             saved_files.append(name)
 
-        # Scansione risultante
         all_files = [p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file()]
         fmt = detect_fmt(all_files)
         missing = check_missing(all_files, fmt)
 
-        # ⚠️ Validazione hard: se mancano file, non tenere il modello
         if hard_validate and missing:
             shutil.rmtree(folder, ignore_errors=True)
             st.error(get_text("conf_model", "save_cancelled"))
@@ -811,17 +785,12 @@ def show_tab_local_upload(key_prefix, name):
 
 @st.cache_data(show_spinner=False)
 def list_ollama_models(host: str = "http://localhost:11434"):
-    """Ritorna i modelli locali in Ollama (API /api/tags)."""
     r = requests.get(f"{host}/api/tags", timeout=5)
     r.raise_for_status()
     js = r.json()
     return js.get("models", [])
 
 def pull_ollama(model_name: str, host: str = "http://localhost:11434"):
-    """
-    Esegue un pull streaming (API /api/pull).
-    Ritorna un generatore di messaggi di stato.
-    """
     with requests.post(
             f"{host}/api/pull",
             json={"name": model_name},
@@ -836,19 +805,14 @@ def pull_ollama(model_name: str, host: str = "http://localhost:11434"):
 
 @st.cache_data(show_spinner=False)
 def list_lmstudio_models(host: str = "http://localhost:1234"):
-    """
-    Lista modelli esposti dal server locale di LM Studio (OpenAI-compatible).
-    GET /v1/models -> {"data":[{"id":"..."}]}
-    """
     r = requests.get(f"{host}/v1/models", timeout=5)
     r.raise_for_status()
     js = r.json()
     return js.get("data", [])
 
-@st.cache_data(show_spinner="🔍 Contatto Hugging Face…")
+@st.cache_data(show_spinner=get_text("conf_model", "searching_hugging"))
 def hf_search_models(task, author, search, sort, limit, token):
     HF_API = "https://huggingface.co/api/models"
-    # prepara query
     params = {"limit": limit, "full": 1}
     if task:   params["pipeline_tag"] = task
     if author: params["author"] = author
@@ -860,10 +824,8 @@ def hf_search_models(task, author, search, sort, limit, token):
         headers["Authorization"] = f"Bearer {token}"
 
     r = requests.get(HF_API, params=params, headers=headers, timeout=5)
-    # se vuoi vedere il motivo a monte, esponilo nel caller
     r.raise_for_status()
-    data = r.json()  # lista di dict già serializzabili
-    # Normalizza output a un sottoinsieme utile
+    data = r.json()
     results = []
     for m in data:
         results.append({
@@ -1029,18 +991,14 @@ def lmstudio_tab():
                 prog = st.progress(0)
                 status = st.empty()
 
-                # Esegui e streamma log
                 st.info(get_text("conf_model", "executing_cmd", q=q, args=' '.join(args)))
                 rc = None
                 pct_seen = 0
                 try:
                     gen = lms_get_stream(q.strip(), extra_args=args)
-                    # lms_get_stream è un generatore: le prime N yield sono righe, l’ultimo return è returncode
                     for line in gen:
-                        # prova a estrarre percentuali “grezze”
                         status.write(line)
                         log_area.code(line, language="bash")
-                        # euristiche: cerca pattern tipo "XX%" nelle righe
                         import re
                         m = re.search(r"(\d{1,3})\s*%", line)
                         if m:
@@ -1048,10 +1006,6 @@ def lmstudio_tab():
                             if pct != pct_seen:
                                 prog.progress(pct)
                                 pct_seen = pct
-                    # quando il generatore termina, l’ultimo valore prodotto dalla funzione è il returncode
-                    # ma Python non permette di “catturarlo” direttamente qui; gestiamo il caso col trucco:
-                    # lms_get_stream fa 'return rc' alla fine, ma qui si esce semplicemente dal loop.
-                    # Per semplicità, se siamo qui assumiamo completata: metti 100%.
                     prog.progress(100)
                     rc = 0
                 except Exception as e:
@@ -1342,14 +1296,14 @@ def spacy_tab():
     pre = st.session_state['detailed_spacy'][candidate]
     # tabella orizzontale dei principali
     base = [{
-        "Modello": pre.get("model"),
-        "Lingua": f'{pre.get("language")} ({pre.get("lang_code")})',
-        "Versione": pre.get("version") or "N/D",
-        "Pipeline": ", ".join(pre.get("pipeline") or []) or "—",
-        "Task attesi": ", ".join(pre.get("tasks") or []) or "—",
-        "Vettori": pre.get("vectors") or "—",
-        "Installato": "Sì" if pre.get("installed") else "No",
-        "Size hint": pre.get("size_hint") or "N/D",
+        get_text("conf_model", "model"): pre.get("model"),
+        get_text("conf_model", "language"): f'{pre.get("language")} ({pre.get("lang_code")})',
+        get_text("conf_model", "version"): pre.get("version") or "N/D",
+        get_text("conf_model", "pipeline"): ", ".join(pre.get("pipeline") or []) or "—",
+        get_text("conf_model", "tasks"): ", ".join(pre.get("tasks") or []) or "—",
+        get_text("conf_model", "vectors"): pre.get("vectors") or "—",
+        get_text("conf_model", "installed"): get_text("conf_model", "si") if pre.get("installed") else get_text("conf_model", "no"),
+        get_text("conf_model", "size_hint"): pre.get("size_hint") or "N/D",
     }]
     st.dataframe(pd.DataFrame(base), hide_index=True, width='stretch')
 
@@ -1386,14 +1340,14 @@ def spacy_tab():
                 vec_dim = int(getattr(nlp.vocab, "vectors_length", 0) or 0)
                 vec_keys = int(getattr(getattr(nlp.vocab, "vectors", None), "n_keys", 0) or 0)
                 full = {
-                    "Modello": meta.get("name", candidate),
-                    "Lingua": meta.get("lang", getattr(nlp, "lang", "N/A")),
-                    "Versione": meta.get("version", "N/A"),
-                    "Pipeline": ", ".join(pipe_names) or "—",
-                    "Vettori (dim)": vec_dim,
-                    "Vettori (keys)": vec_keys,
-                    "Descrizione": meta.get("description", "—"),
-                    "spaCy compatibile": meta.get("spacy_version", "—"),
+                    get_text("conf_model", "model"): meta.get("name", candidate),
+                    get_text("conf_model", "language"): meta.get("lang", getattr(nlp, "lang", "N/A")),
+                    get_text("conf_model", "version"): meta.get("version", "N/A"),
+                    get_text("conf_model", "pipeline"): ", ".join(pipe_names) or "—",
+                    get_text("conf_model", "vectors_dim"): vec_dim,
+                    get_text("conf_model", "vectors_keys"): vec_keys,
+                    get_text("conf_model", "description"): meta.get("description", "—"),
+                    get_text("conf_model", "spaCy_compatible"): meta.get("spacy_version", "—"),
                 }
                 st.dataframe(pd.DataFrame([full]), hide_index=True, width='stretch')
             except Exception as e:
@@ -1465,15 +1419,11 @@ def spacy_ner_load():
 
 # --- utility: riassume la “sensibilità” per label usando la tua funzione
 def summarize_sensitivity_by_label(ents, nlp):
-    """
-    Ritorna: {label: {'count':N, 'sens_count':K, 'examples':[...]} }
-    dove 'sens_count' è quante entità di quella label sono state giudicate sensibili.
-    """
     summary = {}
     for ent in ents:
         label = ent["label"]
         text = ent["text"]
-        res = is_sensitive_column(text, nlp)  # riuso sul testo dell’entità
+        res = is_sensitive_column(text, nlp)
         s = summary.setdefault(label, {"count": 0, "sens_count": 0, "examples": []})
         s["count"] += 1
         if res.get("sensitive"):
@@ -1483,28 +1433,25 @@ def summarize_sensitivity_by_label(ents, nlp):
     return summary
 
 def build_legend_html(ents, nlp):
-    # palette fissa per label NER
-
-    # --- Dizionario: label spaCy -> descrizione breve in italiano
     NER_LABEL_INFO = {
-        "PERSON": "Persona (nome proprio)",
-        "NORP": "Gruppi (naz., relig., politici)",
-        "FAC": "Struttura fisica (edificio, ponte, ecc.)",
-        "ORG": "Organizzazione (azienda, ente, squadra)",
-        "GPE": "Paese/Regione/Città",
-        "LOC": "Località non politica (montagne, fiumi…)",
-        "PRODUCT": "Prodotto/oggetto",
-        "EVENT": "Evento nominato",
-        "WORK_OF_ART": "Opera (libro, film, quadro…)",
-        "LAW": "Legge o atto normativo",
-        "LANGUAGE": "Lingua",
-        "DATE": "Data/periodo",
-        "TIME": "Orario",
-        "PERCENT": "Percentuale",
-        "MONEY": "Valuta/importo",
-        "QUANTITY": "Quantità/misura",
-        "ORDINAL": "Ordinale (1º, 2º…)",
-        "CARDINAL": "Cardinale",
+        "PERSON": f'{get_text("conf_model", "ner_label_person")}',
+        "NORP": f'{get_text("conf_model", "ner_label_norp")}',
+        "FAC": f'{get_text("conf_model", "ner_label_fac")}',
+        "ORG": f'{get_text("conf_model", "ner_label_org")}',
+        "GPE": f'{get_text("conf_model", "ner_label_gpe")}',
+        "LOC": f'{get_text("conf_model", "ner_label_loc")}',
+        "PRODUCT": f'{get_text("conf_model", "ner_label_product")}',
+        "EVENT": f'{get_text("conf_model", "ner_label_event")}',
+        "WORK_OF_ART": f'{get_text("conf_model", "ner_label_work_of_art")}',
+        "LAW": f'{get_text("conf_model", "ner_label_law")}',
+        "LANGUAGE": f'{get_text("conf_model", "ner_label_language")}',
+        "DATE": f'{get_text("conf_model", "ner_label_date")}',
+        "TIME": f'{get_text("conf_model", "ner_label_time")}',
+        "PERCENT": f'{get_text("conf_model", "ner_label_percent")}',
+        "MONEY": f'{get_text("conf_model", "ner_label_money")}',
+        "QUANTITY": f'{get_text("conf_model", "ner_label_quantity")}',
+        "ORDINAL": f'{get_text("conf_model", "ner_label_ordinal")}',
+        "CARDINAL": f'{get_text("conf_model", "ner_label_cardinal")}',
     }
     labs = sorted({e["label"] for e in ents})
     sens = summarize_sensitivity_by_label(ents, nlp)
@@ -1512,12 +1459,12 @@ def build_legend_html(ents, nlp):
     for l in labs:
         base = LABEL_COLORS.get(l, FALLBACK[hash(l) % len(FALLBACK)])
         style = _style_for(base)  # già definita prima per contrasto
-        desc = NER_LABEL_INFO.get(l, "Entità spaCy")
+        desc = NER_LABEL_INFO.get(l, "spaCy entity")
         stats = sens.get(l, {"count": 0, "sens_count": 0, "examples": []})
         if stats["sens_count"] > 0:
-            tag = f"🔒 sensibile ({stats['sens_count']}/{stats['count']})"
+            tag = f"🔒 {get_text("conf_model", "sensitive")} ({stats['sens_count']}/{stats['count']})"
         else:
-            tag = f"🟢 non sensibile ({stats['count']})"
+            tag = f"🟢 {get_text("conf_model", "non_sensitive")} ({stats['count']})"
         examples = f" — es.: {', '.join(stats['examples'])}" if stats["examples"] else ""
         items.append(
             f"<div style='margin:4px 0;'>"
@@ -1529,9 +1476,6 @@ def build_legend_html(ents, nlp):
 
 @st.cache_data(show_spinner=get_text("conf_model", "searching_ollama"), ttl=3600)
 def ollama_registry_catalog(limit: int = 2000) -> list[str] | dict:
-    """
-    Ritorna la lista dei repository (es. 'llama3', 'qwen2.5', 'mistral', ...) dal registry online.
-    """
     try:
         url = "https://registry.ollama.ai/v2/library/_catalog"
         resp = requests.get(url, params={"n": limit}, timeout=10)
@@ -1546,9 +1490,6 @@ def ollama_registry_catalog(limit: int = 2000) -> list[str] | dict:
 
 @st.cache_data(show_spinner=get_text("conf_model", "fetching_tags"), ttl=3600)
 def ollama_registry_tags(model: str, limit: int = 200) -> list[str] | dict:
-    """
-    Ritorna la lista dei tag disponibili per un repository (es. 'latest', '7b', 'instruct', …).
-    """
     try:
         url = f"https://registry.ollama.ai/v2/library/{model}/tags/list"
         resp = requests.get(url, params={"n": limit}, timeout=10)
@@ -1565,24 +1506,22 @@ def _dict_to_table_rows(d: dict, section: str | None = None):
             # appiattisci di un livello (es. "Spiegazioni")
             for k2, v2 in v.items():
                 rows.append({
-                    "Sezione": k if section is None else f"{section} / {k}",
-                    "Campo": k2,
-                    "Valore": str(v2),
+                    get_text("conf_model", "section"): k if section is None else f"{section} / {k}",
+                    get_text("conf_model", "field"): k2,
+                    get_text("conf_model", "value"): str(v2),
                 })
         else:
             rows.append({
-                "Sezione": section or "Overview",
-                "Campo": k,
-                "Valore": str(v)
+                get_text("conf_model", "section"): section or get_text("conf_model", "overview"),
+                get_text("conf_model", "field"): k,
+                get_text("conf_model", "value"): str(v)
             })
     return rows
 
 def _is_complex_value(v):
-    """True se v è un oggetto complesso da escludere dal dataframe."""
     return isinstance(v, (dict, list, tuple, set, pd.DataFrame))
 
 def _is_empty_value(v):
-    """Ritorna True se il valore è da considerarsi 'vuoto'."""
     if v is None:
         return True
     if isinstance(v, float) and np.isnan(v):
@@ -1594,27 +1533,18 @@ def _is_empty_value(v):
     return False
 
 def _clean_campo_names(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Pulisce la colonna 'Campo' secondo le regole:
-    - se esiste coppia (nome, nome (dal nome)) -> tieni 'nome'
-    - se esiste solo (nome (dal nome)) -> rinomina in 'nome'
-    """
     import re
-    campi = df["Campo"].tolist()
-    base_names = [re.sub(r"\s*\(dal nome\)\s*$", "", c).strip() for c in campi]
-    df["Campo_base"] = base_names
+    campi = df[get_text("conf_model", "field")].tolist()
+    base_names = [re.sub(f"\s*\({get_text("conf_model", "by_name")}\)\s*$", "", c).strip() for c in campi]
+    df[get_text("conf_model", "campo_base")] = base_names
 
-    # identifica duplicati base
-    duplicates = df["Campo_base"].duplicated(keep=False)
+    duplicates = df[get_text("conf_model", "campo_base")].duplicated(keep=False)
 
-    # 1️⃣ se duplicato, tieni solo la versione senza "(dal nome)"
-    df_clean = df[~((duplicates) & (df["Campo"].str.contains(r"\(dal nome\)", case=False)))]
+    df_clean = df[~((duplicates) & (df[get_text("conf_model", "field")].str.contains(f"\({get_text("conf_model", "by_name")}\)", case=False)))]
 
-    # 2️⃣ se non duplicato ma contiene "(dal nome)", rinomina rimuovendo la parte finale
-    df_clean.loc[df_clean["Campo"].str.contains(r"\(dal nome\)", case=False), "Campo"] = \
-        df_clean.loc[df_clean["Campo"].str.contains(r"\(dal nome\)", case=False), "Campo_base"]
+    df_clean.loc[df_clean[get_text("conf_model", "field")].str.contains(f"\({get_text("conf_model", "by_name")}\)", case=False), get_text("conf_model", "field")] = \
+        df_clean.loc[df_clean[get_text("conf_model", "field")].str.contains(f"\({get_text("conf_model", "by_name")}\)", case=False), get_text("conf_model", "campo_base")]
 
-    # 3️⃣ rimuovi colonna ausiliaria
-    df_clean = df_clean.drop(columns=["Campo_base"])
+    df_clean = df_clean.drop(columns=[get_text("conf_model", "campo_base")])
 
     return df_clean.reset_index(drop=True)
