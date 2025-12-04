@@ -246,7 +246,7 @@ def query_gen_eval_tab():
 
     if st.session_state['create_db_done'] == True:
         if len(list(st.session_state["dataframes"]["DBMS"].keys())) > 0:
-            dataset_tab_geneval("geneval")
+            dataset_tab_geneval("geneval", st.session_state["dataframes"]["DBMS"])
     else:
         st.info(get_text("gen_eval", "please_load_dataset"))
 

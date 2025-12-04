@@ -1,33 +1,4 @@
 import streamlit as st
-
-
-# === Tema dinamico (CSS) ===
-def apply_theme():
-    theme = st.session_state.get("theme", "Light")
-    if theme == "Dark":
-        st.markdown("""
-        <style>
-        .stApp {
-            background-color: #0e1117;
-            color: white;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <style>
-        .stApp {
-            background-color: #ffffff;
-            color: black;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
-
-def apply_language():
-    pass
-
-
 from utils.translations import get_text
 
 def settings_tab():

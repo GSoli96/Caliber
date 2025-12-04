@@ -625,42 +625,41 @@ def configure_file_dbms(key_prefix, name):
         # Clear any existing databases from session state (only one active database at a time)
         st.session_state["dataframes"]["DBMS"] = {}
 
-        with st.spinner(show_time=True):
-            dfs_dict = st.session_state["dataframes"]["files"]
+        dfs_dict = st.session_state["dataframes"]["files"]
 
-            config_dict = dbms_parameters
-            config_dict['dfs_dict'] = dfs_dict
-            dict_to_dbsm = {'config_dict': config_dict}
-            loaded_db, _ = create_dbms(dict_to_dbsm, "riga 683")
-            if not loaded_db:
-                st.error(f"Failed to create database.")
-            else:
-                # Update session state
-                st.session_state['db_choice'] = dbms_parameters['db_choice']
-                st.session_state['db_name'] = dbms_parameters['db_name']
-                st.session_state['create_db_done'] = True
+        config_dict = dbms_parameters
+        config_dict['dfs_dict'] = dfs_dict
+        dict_to_dbsm = {'config_dict': config_dict}
+        loaded_db, _ = create_dbms(dict_to_dbsm, "riga 683")
+        if not loaded_db:
+            st.error(f"Failed to create database.")
+        else:
+            # Update session state
+            st.session_state['db_choice'] = dbms_parameters['db_choice']
+            st.session_state['db_name'] = dbms_parameters['db_name']
+            st.session_state['create_db_done'] = True
 
-                # Reload the database from DBMS to ensure consistency
-            mgr_reload = DBManager({'config_dict': dbms_parameters}, 'download')
-            reloaded_data, reload_success = mgr_reload.download_db()
+            # Reload the database from DBMS to ensure consistency
+        mgr_reload = DBManager({'config_dict': dbms_parameters}, 'download')
+        reloaded_data, reload_success = mgr_reload.download_db()
 
-            if reload_success and reloaded_data:
-                # Store ONLY the reloaded database (ensuring single dataset)
-                st.session_state["dataframes"]["DBMS"][db_name] = reloaded_data
-                st.success(get_text(
-                    "load_dataset",
-                     "dbms_success_upload", 
-                     db_name=dbms_parameters['db_name'], 
-                     dbms_name=dbms_parameters['db_choice']
-                     )
-                )
-                st_toast_temp(get_text("load_dataset", "dbms_success_upload"), "success")
-            else:
-                # Fallback: use the reloaded data if reload fails
-                st.session_state["dataframes"]["DBMS"][db_name] = reloaded_data
-                st.warning(get_text("load_dataset", "reload_failed", db_name=db_name))
+        if reload_success and reloaded_data:
+            # Store ONLY the reloaded database (ensuring single dataset)
+            st.session_state["dataframes"]["DBMS"][db_name] = reloaded_data
+            st.success(get_text(
+                "load_dataset",
+                    "dbms_success_upload", 
+                    db_name=dbms_parameters['db_name'], 
+                    dbms_name=dbms_parameters['db_choice']
+                    )
+            )
+            st_toast_temp(get_text("load_dataset", "dbms_success_upload"), "success")
+        else:
+            # Fallback: use the reloaded data if reload fails
+            st.session_state["dataframes"]["DBMS"][db_name] = reloaded_data
+            st.warning(get_text("load_dataset", "reload_failed", db_name=db_name))
 
-            # Invalidate cache for available databases to force refresh
-            for key in list(st.session_state.keys()):
-                if key.startswith('available_dbs_'):
-                    del st.session_state[key]
+        # Invalidate cache for available databases to force refresh
+        for key in list(st.session_state.keys()):
+            if key.startswith('available_dbs_'):
+                del st.session_state[key]

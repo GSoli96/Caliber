@@ -236,11 +236,10 @@ def run_greenefy_process():
     st.rerun()
 
 
-def dataset_tab_geneval(key_alter=""):
+def dataset_tab_geneval(key_alter="", loaded_databases=None):
     """
     Visualizza i dettagli per TUTTI i database DBMS caricati in session_state.
     """
-    loaded_databases = st.session_state["dataframes"]["DBMS"]
 
     if not loaded_databases:
         st.info("Nessun database (da DBMS) è stato ancora caricato.")

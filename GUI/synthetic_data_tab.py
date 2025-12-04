@@ -31,7 +31,7 @@ def synthetic_data_tab():
     if 'synthetic_datasets' not in st.session_state:
         st.session_state['synthetic_datasets'] = {}
     if 'synthetic_gen' not in st.session_state:
-        st.session_state['synthetic_gen'] = True
+        st.session_state['synthetic_gen'] = False
     if 'synthetic_generation_state' not in st.session_state:
         st.session_state['synthetic_generation_state'] = {
             'strategy': None,
@@ -52,7 +52,7 @@ def synthetic_data_tab():
 
     
     # Strategy selection
-    with st.expander("📊 Select Generation Strategy", expanded=st.session_state['synthetic_gen']):
+    with st.expander("📊 Select Generation Strategy", expanded= not st.session_state['synthetic_gen']):
         
         strategy = st.selectbox(
             "Choose a synthetic data generation strategy:",
@@ -92,7 +92,7 @@ def synthetic_data_tab():
 def _render_faker_ui():
     """Render UI for Faker-based generation."""
     
-    with st.expander("🎭 Faker - Simple Tabular Data", expanded=st.session_state['synthetic_gen']):
+    with st.expander("🎭 Faker - Simple Tabular Data", expanded= not st.session_state['synthetic_gen']):
         st.info("""
         **About Faker**: Generates realistic fake data like names, addresses, emails, etc.
         
@@ -287,6 +287,7 @@ def _generate_faker_dataset(dataset_name: str, num_rows: int, locale: str, seed:
         progress_bar.progress(100, text="✅ Generation complete!")
         st.success(f"Successfully generated dataset '{dataset_name}' with {len(df)} rows and {len(df.columns)} columns")
         st.balloons()
+        st.rerun()
         
     except Exception as e:
         st.error(f"Error generating data: {str(e)}")
@@ -302,7 +303,7 @@ def _generate_faker_dataset(dataset_name: str, num_rows: int, locale: str, seed:
 def _render_gaussian_copula_ui():
     """Render UI for GaussianCopula generation."""
     
-    with st.expander("📊 SDV GaussianCopula - Statistical Modeling", expanded=st.session_state['synthetic_gen']):
+    with st.expander("📊 SDV GaussianCopula - Statistical Modeling", expanded=not st.session_state['synthetic_gen']):
         st.info("""
         **About GaussianCopula**: Uses statistical modeling to learn distributions and correlations from real data.
         
@@ -387,6 +388,7 @@ def _generate_gaussian_copula_dataset(dataset_name: str, real_data: pd.DataFrame
         status_text.text("✅ Generation complete!")
         st.success(f"Successfully generated dataset '{dataset_name}' with {len(df)} rows")
         st.balloons()
+        st.rerun()
         
     except Exception as e:
         st.error(f"Error generating data: {str(e)}")
@@ -403,7 +405,7 @@ def _generate_gaussian_copula_dataset(dataset_name: str, real_data: pd.DataFrame
 def _render_ctgan_ui():
     """Render UI for CTGAN generation."""
     
-    with st.expander("🧠 SDV CTGAN - Deep Learning (GAN)", expanded=st.session_state['synthetic_gen']):
+    with st.expander("🧠 SDV CTGAN - Deep Learning (GAN)", expanded=not st.session_state['synthetic_gen']):
         
         st.info("""
         **About CTGAN**: Conditional Tabular GAN uses deep learning to generate high-quality synthetic data.
@@ -567,7 +569,7 @@ def _generate_ctgan_dataset(
 def _render_tvae_ui():
     """Render UI for TVAE generation."""
     
-    with st.expander("🧠 SDV TVAE - Deep Learning (VAE)", expanded=st.session_state['synthetic_gen']):
+    with st.expander("🧠 SDV TVAE - Deep Learning (VAE)", expanded=not st.session_state['synthetic_gen']):
         
         st.info("""
         **About TVAE**: Tabular Variational AutoEncoder uses deep learning to generate synthetic data.
@@ -694,6 +696,7 @@ def _generate_tvae_dataset(dataset_name: str, real_data: pd.DataFrame, num_rows:
         status_text.text("✅ Generation complete!")
         st.success(f"Successfully generated dataset '{dataset_name}' with {len(df)} rows")
         st.balloons()
+        st.rerun()
         
     except Exception as e:
         st.error(f"Error generating data: {str(e)}")
@@ -728,107 +731,132 @@ def _render_generated_datasets():
             strategy = dataset_info['strategy']
             params = dataset_info['params']
             
-            # Dataset info
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Strategy", strategy)
-            with col2:
-                st.metric("Rows", f"{len(df):,}")
-            with col3:
-                st.metric("Columns", len(df.columns))
+            num_col = 0
+            if 'strategy' in dataset_info:
+                num_col += 1
             
-            # Parameters
-            with st.expander("Generation Parameters", expanded=True):
-                col1, col2 = st.columns(2)
+            if 'dataframe' in dataset_info:
+                num_col += 2
+            
+            if 'num_rows' in params:
+                num_col += 1
+            
+            if 'original_rows' in params:
+                num_col += 1
+            
+            if 'epochs' in params:
+                num_col += 1
+            
+            if 'batch_size' in params:
+                num_col += 1
+            
+            # Dataset info
+            cols = st.columns(num_col)
+            col_idx = 0
+            if 'strategy' in dataset_info:
+                with cols[col_idx]:
+                    st.metric("Strategy", strategy)
+                col_idx += 1
+            
+            if 'dataframe' in dataset_info:
+                with cols[col_idx]:
+                    st.metric("Total Rows", f"{len(df):,}")
+                col_idx += 1
 
-                with col1:
+                with cols[col_idx]:
+                    st.metric("Total Features", len(df.columns))
+                col_idx += 1
+
+            if "num_rows" in params:
+                with cols[col_idx]:
                     st.metric("Rows to generate", params["num_rows"])
+                col_idx += 1
 
-                with col2:
+            if "original_rows" in params:
+                with cols[col_idx]:
                     st.metric("Original rows", params["original_rows"])
+                col_idx += 1
 
+            if "epochs" in params:
+                with cols[col_idx]:
+                    st.metric("Epochs", params["epochs"])
+                col_idx += 1
+                
+            if "batch_size" in params:
+                with cols[col_idx]:
+                    st.metric("Batch size", params["batch_size"])
             
             # Analytics (reuse existing component)
             with st.expander("📊 Dataset Analytics", expanded=True):
                 show_df_details(df, dataset_name, f"synthetic_{dataset_name}")
             
             # Download options
-            st.divider()
-            st.subheader("💾 Download Dataset")
-            
-            col_d1, col_d2, col_d3 = st.columns(3)
-            
-            with col_d1:
-                # CSV download
-                csv_buffer = io.StringIO()
-                df.to_csv(csv_buffer, index=False, sep=';')
-                st.download_button(
-                    label="📄 Download as CSV",
-                    data=csv_buffer.getvalue(),
-                    file_name=f"{dataset_name}.csv",
-                    mime="text/csv",
-                    key=f"download_csv_{dataset_name}",
-                    use_container_width=True
-                )
-            
-            with col_d2:
-                # Parquet download
-                parquet_buffer = io.BytesIO()
-                df.to_parquet(parquet_buffer, index=False)
-                st.download_button(
-                    label="📦 Download as Parquet",
-                    data=parquet_buffer.getvalue(),
-                    file_name=f"{dataset_name}.parquet",
-                    mime="application/octet-stream",
-                    key=f"download_parquet_{dataset_name}",
-                    use_container_width=True
-                )
-            
-            with col_d3:
-                # Excel download
-                excel_buffer = io.BytesIO()
-                df.to_excel(excel_buffer, index=False, engine='openpyxl')
-                st.download_button(
-                    label="📊 Download as Excel",
-                    data=excel_buffer.getvalue(),
-                    file_name=f"{dataset_name}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key=f"download_excel_{dataset_name}",
-                    use_container_width=True
-                )
-            
-            # Create database option
-            st.subheader("🗄️ Create Database from Synthetic Data")
-            
-            if st.button(f"Create Database from '{dataset_name}'", key=f"create_db_{dataset_name}"):
-                _create_database_from_synthetic(dataset_name, df)
+            import io
+            import tempfile
+            import os
 
+            with st.container(border=True):
+                st.subheader("💾 Download Dataset")
 
-def _create_database_from_synthetic(dataset_name: str, df: pd.DataFrame):
-    """Create a database from synthetic dataset."""
+                # Ora 4 colonne (CSV, Parquet, Excel, HDF5)
+                col_d1, col_d2, col_d3, col_d4 = st.columns(4)
     
-    # Add to uploaded files (mimicking file upload)
-    st.session_state['uploaded_files'][dataset_name] = {
-        'uploaded_file': f'{dataset_name}.csv',  # No actual file
-        'separator': ';'
-    }
+                with col_d1:
+                    # CSV download
+                    csv_buffer = io.StringIO()
+                    df.to_csv(csv_buffer, index=False, sep=';')
+                    st.download_button(
+                        label="📄 Download as CSV",
+                        data=csv_buffer.getvalue(),
+                        file_name=f"{dataset_name}.csv",
+                        mime="text/csv",
+                        key=f"download_csv_{dataset_name}",
+                        use_container_width=True
+                    )
     
-    # Add to dataframes
-    st.session_state['dataframes']['files'][dataset_name] = {
-        'df': df,
-        'separator': ';'
-    }
+                with col_d2:
+                    # Parquet download
+                    parquet_buffer = io.BytesIO()
+                    df.to_parquet(parquet_buffer, index=False)
+                    st.download_button(
+                        label="📦 Download as Parquet",
+                        data=parquet_buffer.getvalue(),
+                        file_name=f"{dataset_name}.parquet",
+                        mime="application/octet-stream",
+                        key=f"download_parquet_{dataset_name}",
+                        use_container_width=True
+                    )
     
-    with st.expander("🗄️ Create Database from Synthetic Data", expanded=True):
-        configure_file_dbms(key_prefix='configure_dbms_syntetic_tab1')
-    
-    # st.success(f"""
-    # ✅ Dataset '{dataset_name}' added to available datasets!
-    
-    # You can now:
-    # 1. Go to the "Dashboard" tab
-    # 2. Scroll to "Database Configuration"
-    # 3. Create a database from this synthetic data
-    # """)
-    
-    st.info("💡 Tip: The dataset is now available in the file list and can be used to create SQLite, DuckDB, or other database types.")
+                with col_d3:
+                    # Excel download
+                    excel_buffer = io.BytesIO()
+                    df.to_excel(excel_buffer, index=False, engine='openpyxl')
+                    st.download_button(
+                        label="📊 Download as Excel",
+                        data=excel_buffer.getvalue(),
+                        file_name=f"{dataset_name}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"download_excel_{dataset_name}",
+                        use_container_width=True
+                    )
+
+                with col_d4:
+                    # HDF5 (.h5) download
+                    with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as tmp:
+                        tmp_name = tmp.name
+                        # Salva il DataFrame in formato HDF5
+                        df.to_hdf(tmp_name, key="data", mode="w")
+                        tmp.seek(0)
+                        h5_bytes = tmp.read()
+                    
+                    # Rimuovi il file temporaneo dal disco
+                    os.remove(tmp_name)
+
+                    st.download_button(
+                        label="📂 Download as HDF5",
+                        data=h5_bytes,
+                        file_name=f"{dataset_name}.h5",
+                        mime="application/x-hdf5",
+                        key=f"download_h5_{dataset_name}",
+                        use_container_width=True
+                    )

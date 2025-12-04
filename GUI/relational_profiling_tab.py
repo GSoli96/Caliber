@@ -48,6 +48,10 @@ from plotly.subplots import make_subplots
 
 
 def _render_numeric_imputation(df, missing_cols, key):
+
+    if 'imputed_df_cache_{key}' not in st.session_state:
+        st.session_state[f'imputed_df_cache_{key}'] = None
+    
     # Filtra solo colonne numeriche che hanno missing
     numeric_cols_missing = [c for c in missing_cols if pd.api.types.is_numeric_dtype(df[c])]
 
@@ -67,11 +71,13 @@ def _render_numeric_imputation(df, missing_cols, key):
         st.warning(get_text('imputation', 'no_cols'))
         return
 
-    # 3. Selezione Metodo
-    method = st.selectbox(
-        get_text('imputation', 'method'),
-        options=["simple", "knn", "iterative"],
-        format_func=lambda x: get_text('imputation', x),
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        # 3. Selezione Metodo
+        method = st.selectbox(
+            get_text('imputation', 'method'),
+            options=["simple", "knn", "iterative"],
+            format_func=lambda x: get_text('imputation', x),
         key=f"num_method_sel_{key}"
     )
 
@@ -82,21 +88,23 @@ def _render_numeric_imputation(df, missing_cols, key):
     cols_non_numeric = [c for c in cols_to_impute if c not in cols_numeric]
 
     if method == "simple":
-        strategy = st.selectbox(
-            get_text('imputation', 'strategy'),
-            options=["mean", "median", "most_frequent", "constant"],
-            format_func=lambda x: get_text('imputation', x),
-            key=f"num_strategy_sel_{key}"
-        )
+        with col2:
+            strategy = st.selectbox(
+                get_text('imputation', 'strategy'),
+                options=["mean", "median", "most_frequent", "constant"],
+                format_func=lambda x: get_text('imputation', x),
+                key=f"num_strategy_sel_{key}"
+            )
 
         fill_value = None
         if strategy == "constant":
-            fill_value = st.text_input(get_text('imputation', 'fill_value'), value="0", key=f"num_fill_val_{key}")
-            if cols_numeric and not cols_non_numeric:
-                try:
-                    fill_value = float(fill_value)
-                except:
-                    pass
+            with col3:
+                fill_value = st.text_input(get_text('imputation', 'fill_value'), value="0", key=f"num_fill_val_{key}")
+                if cols_numeric and not cols_non_numeric:
+                    try:
+                        fill_value = float(fill_value)
+                    except:
+                        pass
 
         if cols_non_numeric and strategy in ["mean", "median"]:
             st.warning(
@@ -108,59 +116,127 @@ def _render_numeric_imputation(df, missing_cols, key):
         if cols_non_numeric:
             st.warning(f"⚠️ KNN Imputation supports only numeric columns. Ignored: {cols_non_numeric}")
 
-        k = st.slider(get_text('imputation', 'n_neighbors'), 1, 20, 5, key=f"num_k_slider_{key}")
-        imputer = KNNImputer(n_neighbors=k)
+        with col2:
+            k = st.slider(get_text('imputation', 'n_neighbors'), 1, 20, 5, key=f"num_k_slider_{key}")
+            imputer = KNNImputer(n_neighbors=k)
 
     elif method == "iterative":
         if cols_non_numeric:
             st.warning(f"⚠️ Iterative Imputation supports only numeric columns. Ignored: {cols_non_numeric}")
 
-        max_iter = st.slider(get_text('imputation', 'max_iter'), 1, 50, 10, key=f"num_iter_slider_{key}")
-        imputer = IterativeImputer(max_iter=max_iter, random_state=0)
-
+        with col2:
+            max_iter = st.slider(get_text('imputation', 'max_iter'), 1, 50, 10, key=f"num_iter_slider_{key}")
+            imputer = IterativeImputer(max_iter=max_iter, random_state=0)
+    
+    with col3:
     # 5. Row Limit
-    row_limit = st.number_input(
-        get_text('imputation', 'rows_limit'),
-        min_value=0,
-        max_value=len(df),
-        value=0,
-        help=get_text('imputation', 'rows_limit_help'),
-        key=f"num_row_limit_{key}"
-    )
+        row_limit = st.number_input(
+            get_text('imputation', 'rows_limit'),
+            min_value=0,
+            max_value=len(df),
+            value=0,
+            help=get_text('imputation', 'rows_limit_help'),
+            key=f"num_row_limit_{key}"
+        )
+    impute = st.button(get_text('imputation', 'apply_btn'), key=f"num_apply_btn_{key}")
+
+    metrics = None
+    target_df = None
 
     # 6. Applica
-    if st.button(get_text('imputation', 'apply_btn'), key=f"num_apply_btn_{key}"):
-        try:
-            target_df = df.copy()
-            if row_limit > 0:
-                target_df = target_df.head(row_limit)
+    if impute:
+        target_df = df.copy()
+        if row_limit > 0:
+            target_df = target_df.head(row_limit)
 
-            valid_cols = cols_to_impute
-            if method in ["knn", "iterative"]:
-                valid_cols = cols_numeric
+        valid_cols = cols_to_impute
+        if method in ["knn", "iterative"]:
+            valid_cols = cols_numeric
 
-            if not valid_cols:
-                st.error("No valid columns for this method.")
-                return
+        if not valid_cols:
+            st.error("No valid columns for this method.")
+            return
 
-            data_to_impute = target_df[valid_cols]
+        data_to_impute = target_df[valid_cols]
 
-            with st.spinner("Imputing..."):
+        with st.spinner("Imputing..."):
+            # START MONITORING
+            data_list, stop_event, monitor = start_monitoring()
+            try:
                 imputed_data = imputer.fit_transform(data_to_impute)
-                imputed_df = pd.DataFrame(imputed_data, columns=valid_cols, index=target_df.index)
-                target_df[valid_cols] = imputed_df
+            finally:
+                # STOP MONITORING
+                metrics = stop_monitoring(data_list, stop_event, monitor)
 
-                st.success(get_text('imputation', 'success'))
-                st.write(get_text('imputation', 'preview'))
-                st.dataframe(target_df[valid_cols].head(10))
+            imputed_df = pd.DataFrame(imputed_data, columns=valid_cols, index=target_df.index)
+            target_df[valid_cols] = imputed_df
 
-                if row_limit == 0 or row_limit == len(df):
-                    st.session_state[f'imputed_df_cache_{key}'] = target_df
-                else:
-                    st.warning("Imputation performed on partial dataset. To save, set limit to 0 (all rows).")
+            st.toast(get_text('imputation', 'success'))
+            
+    # DISPLAY RESOURCE PLOTS
+    if metrics is not None:
+        with st.expander("🌳Resource Consumption", expanded=False):
+            fig_cpu, fig_co2 = create_resource_plots_two_columns(metrics)
+            if fig_cpu and fig_co2:
+                c_res1, c_res2 = st.columns(2)
+                c_res1.plotly_chart(fig_cpu, use_container_width=True)
+                c_res2.plotly_chart(fig_co2, use_container_width=True)
+            
+    if target_df is not None:
+        with st.expander(get_text('imputation', 'preview'), expanded=False):
+            rows_to_show = st.number_input(
+                get_text("load_dataset", "rows_to_show"),
+                min_value=1,
+                max_value=len(df),
+                value=min(5, len(df)),
+                step=1,
+                help=get_text("load_dataset", "rows_to_show_help"),
+                key=f'numberInput_preview_missing_{key}',
+            )
+            st.write(target_df.head(rows_to_show))
 
-        except Exception as e:
-            st.error(get_text('imputation', 'error', e=e))
+        if row_limit == 0 or row_limit == len(df):
+            st.session_state[f'imputed_df_cache_{key}'] = target_df 
+        else:
+            st.warning("Imputation performed on partial dataset. To save, set limit to 0 (all rows).")
+
+    if st.session_state[f'imputed_df_cache_{key}'] is not None:
+        if st.button(
+            "💾 Save imputed dataset",
+            key=f"save_imputed_{key}",
+            help="Save the modified dataset with the imputed data."
+        ):
+            st.toast('Dataset saved successfully!')
+
+            dbms_parameters = st.session_state["dataframes"]["DBMS"][st.session_state["db_name"]]
+
+            config_dict = dbms_parameters
+            config_dict['dfs_dict'] = target_df
+            dict_to_dbsm = {'config_dict': config_dict}
+            loaded_db, _ = create_dbms(dict_to_dbsm, "riga 221")
+            
+            if not loaded_db:
+                st.toast(f"Failed to create database.")
+            else:
+                st.session_state['db_choice'] = dbms_parameters['db_choice']
+                st.session_state['db_name'] = dbms_parameters['db_name']
+                st.session_state['create_db_done'] = True
+                st.session_state["dataframes"]["DBMS"][st.session_state["db_name"]] = target_df
+
+
+from db_adapters.DBManager import DBManager
+
+def create_dbms(dbms_parameters, msg):
+    """Create database from DBMS."""
+    print(msg)
+    print(dbms_parameters.keys())
+    print(dbms_parameters.items())
+    with st.spinner("Creating database..."):
+        mgr_create = DBManager(dbms_parameters, 'create')
+
+        reloaded_data, reload_success = mgr_create.create_db()
+    
+    return reload_success, reloaded_data
 
 def _render_llm_imputation(df, missing_cols, key):
     # Filtra solo colonne object/string che hanno missing
@@ -232,6 +308,10 @@ def _render_llm_imputation(df, missing_cols, key):
         # Configurazione LLM
         llm_kwargs = st.session_state.get(f"lm_selector__cfg_by_backend", {}).get(backend, {})
 
+        # START GLOBAL MONITORING
+        global_data_list, global_stop_event, global_monitor = start_monitoring()
+        llm_intervals = []
+
         for idx, col in rows_to_process:
             status_text.text(get_text('imputation', 'imputing_progress', current=completed + 1, total=total))
 
@@ -263,6 +343,7 @@ def _render_llm_imputation(df, missing_cols, key):
 
             try:
                 # Chiamata LLM
+                t_start = dt.datetime.now(dt.timezone.utc)
                 imputed_val = llm_adapters.generate(
                     backend=backend,
                     prompt=prompt,
@@ -270,6 +351,8 @@ def _render_llm_imputation(df, missing_cols, key):
                     max_tokens=50,  # Breve
                     **llm_kwargs
                 )
+                t_end = dt.datetime.now(dt.timezone.utc)
+                llm_intervals.append((t_start, t_end))
 
                 st.session_state.setdefault(f'imputation_queue_{key}', []).append({
                     "index": idx,
@@ -284,11 +367,57 @@ def _render_llm_imputation(df, missing_cols, key):
             completed += 1
             progress_bar.progress(completed / total)
 
+        # STOP GLOBAL MONITORING
+        global_metrics = stop_monitoring(global_data_list, global_stop_event, global_monitor)
+
+        # Filter for LLM specific
+        llm_metrics = []
+        for m in global_metrics:
+            t = m.get('timestamp')
+            # timestamp in metrics is already datetime with timezone (from system_monitor_utilities)
+            # We check if it falls in any interval
+            if t and any(start <= t <= end for start, end in llm_intervals):
+                llm_metrics.append(m)
+
+        st.session_state[f'imputation_metrics_{key}'] = {
+            'total': global_metrics,
+            'llm': llm_metrics
+        }
+
         st.success("Imputation generation complete. Please review below.")
         st.rerun()
 
     # 4. Review UI
     if f'imputation_queue_{key}' in st.session_state and st.session_state[f'imputation_queue_{key}']:
+        
+        # DISPLAY METRICS IF AVAILABLE
+        if f'imputation_metrics_{key}' in st.session_state:
+            metrics_data = st.session_state[f'imputation_metrics_{key}']
+            total_metrics = metrics_data.get('total', [])
+            llm_metrics = metrics_data.get('llm', [])
+            
+            if total_metrics:
+                st.markdown("### Resource Consumption")
+                
+                # Row 1: Total System
+                st.markdown("**Total System Consumption**")
+                fig_cpu_tot, fig_co2_tot = create_resource_plots_two_columns(total_metrics)
+                if fig_cpu_tot and fig_co2_tot:
+                    c_tot1, c_tot2 = st.columns(2)
+                    c_tot1.plotly_chart(fig_cpu_tot, use_container_width=True)
+                    c_tot2.plotly_chart(fig_co2_tot, use_container_width=True)
+                
+                # Row 2: LLM Specific
+                if llm_metrics:
+                    st.markdown("**LLM-Only Consumption**")
+                    fig_cpu_llm, fig_co2_llm = create_resource_plots_two_columns(llm_metrics)
+                    if fig_cpu_llm and fig_co2_llm:
+                        c_llm1, c_llm2 = st.columns(2)
+                        c_llm1.plotly_chart(fig_cpu_llm, use_container_width=True)
+                        c_llm2.plotly_chart(fig_co2_llm, use_container_width=True)
+            
+            st.divider()
+
         st.divider()
         st.subheader(get_text('imputation', 'review_header'))
 
@@ -453,11 +582,11 @@ def create_resource_plots_two_columns(metrics_data):
 
     # Detect Streamlit theme
     theme = st.get_option("theme.base")
-
+    st.write(theme)
     if theme == "dark":
         BG = "#111418"            # dark background
-        GRID = "rgba(255,255,255,0.20)"
-        AXIS = "#d0d0d0"          # visible light gray
+        GRID = "rgba(190,190,190,0.20)"
+        AXIS = "#111418"          # visible light gray
         TITLE = "#ffffff"
     else:
         BG = "white"
@@ -794,11 +923,11 @@ def ui_integrita_dataset(
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        z_thresh = st.slider("Z-score threshold", 2.0, 5.0, 3.0, 0.1)
+        z_thresh = st.slider("Z-score threshold", 2.0, 5.0, 3.0, 0.1, key=f"{ss_key}-z_thresh")
 
     if has_dates:
         with c2:
-            future_grace_days = st.slider("Future date tolerance (days)", 0, 30, 1)
+            future_grace_days = st.slider("Future date tolerance (days)", 0, 30, 1, key=f"{ss_key}-future_grace_days")
         with c3:
             min_year = st.number_input("Minimum acceptable year", 1800, 2100, 1900)
     else:
@@ -807,7 +936,8 @@ def ui_integrita_dataset(
 
     tag = "anom"
     if st.button(get_text("profiling", "run"), key=f"{ss_key}-{tag}-run"):
-        start_threaded_job(ss_key, tag, task_anomalies, df, float(z_thresh), int(min_year), int(future_grace_days),
+        start_threaded_job(ss_key, 
+        tag, task_anomalies, df, float(z_thresh),
                            ss_key, tag)
 
     if job_running(ss_key, tag):
@@ -878,19 +1008,12 @@ def missing_value_tab(df: pd.DataFrame, key=""):
 
     st.info(f"{get_text('imputation', 'cols_with_missing')} {', '.join(missing_cols)}")
 
-    # --- SCELTA TIPO IMPUTAZIONE ---
-    imputation_type = st.radio(
-        get_text('imputation', 'imputation_type'),
-        options=["numeric", "text"],
-        format_func=lambda x: get_text('imputation', 'numeric_standard') if x == "numeric" else get_text('imputation',
-                                                                                                         'text_llm'),
-        key=f"imputation_type_{key}"
-    )
+    tab1, tab2 = st.tabs([get_text('imputation', 'numeric_standard'), get_text('imputation', 'text_llm')])
 
-    if imputation_type == "numeric":
+    with tab1:
         # --- LOGICA ESISTENTE (NUMERICA) ---
         _render_numeric_imputation(df, missing_cols, key)
-    else:
+    with tab2:
         # --- LOGICA LLM (TESTO) ---
         _render_llm_imputation(df, missing_cols, key)
 
