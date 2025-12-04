@@ -17,7 +17,7 @@ if 'server_lmStudio' not in st.session_state:
 
 # ================= NUOVA FUNZIONE CACHATA =================
 
-@st.cache_data(ttl=5, show_spinner=get_text("lmstudio_adapter", "checking_status"))
+@st.cache_data(ttl=5, show_spinner=get_text("llm_adapters", "checking_status"))
 def get_lmstudio_status(host: str) -> Tuple[bool, int]:
     """
     Controlla lo stato del server LM Studio e conta i modelli.
@@ -85,13 +85,13 @@ def _run(cmd: list[str], timeout: int | None = 15):
             "cmd_str": _cmd_str(cmd), "dur_s": round(time.time() - t0, 3),
         }
     except FileNotFoundError:
-        return {"ok": False, "code": 127, "stdout": "", "stderr": get_text("lmstudio_adapter", "file_not_found"),
+        return {"ok": False, "code": 127, "stdout": "", "stderr": get_text("llm_adapters", "file_not_found"),
                 "cmd_str": _cmd_str(cmd), "dur_s": round(time.time() - t0, 3)}
     except subprocess.TimeoutExpired:
-        return {"ok": False, "code": 124, "stdout": "", "stderr": get_text("lmstudio_adapter", "timeout"),
+        return {"ok": False, "code": 124, "stdout": "", "stderr": get_text("llm_adapters", "timeout"),
                 "cmd_str": _cmd_str(cmd), "dur_s": round(time.time() - t0, 3)}
     except Exception as e:
-        return {"ok": False, "code": 1, "stdout": "", "stderr": get_text("lmstudio_adapter", "error_generic", e=e),
+        return {"ok": False, "code": 1, "stdout": "", "stderr": get_text("llm_adapters", "error_generic", e=e),
                 "cmd_str": _cmd_str(cmd), "dur_s": round(time.time() - t0, 3)}
 
 
@@ -99,7 +99,7 @@ def _run(cmd: list[str], timeout: int | None = 15):
 def lms_ls_raw():
     lms = _which_lms()
     if not lms:
-        return {"ok": False, "code": 127, "stdout": "", "stderr": get_text("lmstudio_adapter", "cli_not_found"), "cmd_str": "lms ls"}
+        return {"ok": False, "code": 127, "stdout": "", "stderr": get_text("llm_adapters", "cli_not_found"), "cmd_str": "lms ls"}
     cmd = (["cmd", "/c", lms, "ls"] if os.name == "nt" and lms.lower().endswith((".cmd", ".bat")) else [lms, "ls"])
     return _run(cmd, timeout=20)
 
@@ -154,7 +154,7 @@ def start_server_background():
     """
     lms = _which_lms()
     if not lms:
-        return {"ok": False, "msg": get_text("lmstudio_adapter", "cli_not_found")}
+        return {"ok": False, "msg": get_text("llm_adapters", "cli_not_found")}
     args = ["server", "start"]
     cmd = ([lms, *args] if not (os.name == "nt" and lms.lower().endswith((".cmd", ".bat")))
            else ["cmd", "/c", lms, *args])
@@ -182,13 +182,13 @@ def stop_server_background():
             else:
                 os.kill(pid, 15)  # SIGTERM
             _set_pid(None)
-            return {"ok": True, "msg": get_text("lmstudio_adapter", "terminated_pid", pid=pid)}
+            return {"ok": True, "msg": get_text("llm_adapters", "terminated_pid", pid=pid)}
         except Exception as e:
-            return {"ok": False, "msg": get_text("lmstudio_adapter", "error_stop_pid", pid=pid, e=e)}
+            return {"ok": False, "msg": get_text("llm_adapters", "error_stop_pid", pid=pid, e=e)}
 
     lms = _which_lms()
     if not lms:
-        return {"ok": False, "msg": get_text("lmstudio_adapter", "cli_not_found")}
+        return {"ok": False, "msg": get_text("llm_adapters", "cli_not_found")}
     cmd = ([lms, "server", "stop"] if not (os.name == "nt" and lms.lower().endswith((".cmd", ".bat")))
            else ["cmd", "/c", lms, "server", "stop"])
     info = _run(cmd, timeout=10)
@@ -206,7 +206,7 @@ def generate(prompt: str, model_name: str, max_tokens: int = 128, host: str = "h
         j = r.json()
         return j["choices"][0]["message"]["content"]
     except Exception as e:
-        return get_text("lmstudio_adapter", "http_error", e=e)
+        return get_text("llm_adapters", "http_error", e=e)
 
 
 def _parse_lms_ls(stdout: str) -> dict:
@@ -271,7 +271,7 @@ def _get_model_details_core(model_name: str) -> dict:
     lms = _which_lms()
     if not lms:
         info = {
-            "name": model_name, "type": get_text("lmstudio_adapter", "unknown_type"),
+            "name": model_name, "type": get_text("llm_adapters", "unknown_type"),
             "params": "—", "arch": "—", "size": "—",
         }
         info.update(_enrich_from_name(model_name))
@@ -282,7 +282,7 @@ def _get_model_details_core(model_name: str) -> dict:
         p = subprocess.run([lms, "ls"], capture_output=True, text=True, timeout=10)
         stdout = p.stdout or ""
     except Exception as e:
-        return {"Errore": get_text("lmstudio_adapter", "lms_ls_error", e=e)}
+        return {"Errore": get_text("llm_adapters", "lms_ls_error", e=e)}
 
     parsed = _parse_lms_ls(stdout)
 
@@ -312,7 +312,7 @@ def _get_model_details_core(model_name: str) -> dict:
         }
     else:
         info = {
-            "name": model_name, "type": get_text("lmstudio_adapter", "unknown_type"),
+            "name": model_name, "type": get_text("llm_adapters", "unknown_type"),
             "params": "—", "arch": "—", "size": "—",
         }
 
@@ -328,56 +328,56 @@ def _short_explanations(info: dict) -> dict:
     """
     tipo = info.get("type", "—")
     spieg_tipo = (
-        get_text("lmstudio_adapter", "type_llm")
+        get_text("llm_adapters", "type_llm")
         if tipo == "LLM"
-        else get_text("lmstudio_adapter", "type_embedding")
+        else get_text("llm_adapters", "type_embedding")
         if tipo == "Embedding"
-        else get_text("lmstudio_adapter", "type_unknown")
+        else get_text("llm_adapters", "type_unknown")
     )
     params = info.get("params", "—")
     spieg_params = (
-        get_text("lmstudio_adapter", "params_approx", params=params)
+        get_text("llm_adapters", "params_approx", params=params)
         if params != "—" else
-        get_text("lmstudio_adapter", "params_unknown")
+        get_text("llm_adapters", "params_unknown")
     )
     arch = info.get("arch", "—")
     spieg_arch = (
-        get_text("lmstudio_adapter", "arch_fam", arch=arch)
+        get_text("llm_adapters", "arch_fam", arch=arch)
         if arch != "—" else
-        get_text("lmstudio_adapter", "arch_unknown")
+        get_text("llm_adapters", "arch_unknown")
     )
     size = info.get("size", "—")
     spieg_size = (
-        get_text("lmstudio_adapter", "size_disk", size=size)
+        get_text("llm_adapters", "size_disk", size=size)
         if size != "—" else
-        get_text("lmstudio_adapter", "size_unknown")
+        get_text("llm_adapters", "size_unknown")
     )
     addestr = info.get("training", "—")
     spieg_add = (
-        get_text("lmstudio_adapter", "train_instruct")
+        get_text("llm_adapters", "train_instruct")
         if addestr.startswith("Instruct") else
-        get_text("lmstudio_adapter", "train_base")
+        get_text("llm_adapters", "train_base")
     )
     quant = info.get("quantization", "—")
     spieg_quant = (
-        get_text("lmstudio_adapter", "quant_desc", quant=quant)
+        get_text("llm_adapters", "quant_desc", quant=quant)
         if quant != "—" else
-        get_text("lmstudio_adapter", "quant_unknown")
+        get_text("llm_adapters", "quant_unknown")
     )
     ctx = info.get("ctx_est", "—")
     spieg_ctx = (
-        get_text("lmstudio_adapter", "ctx_window", ctx=ctx)
+        get_text("llm_adapters", "ctx_window", ctx=ctx)
         if ctx != "—" else
-        get_text("lmstudio_adapter", "ctx_unknown")
+        get_text("llm_adapters", "ctx_unknown")
     )
     return {
-        get_text("lmstudio_adapter", "type_col"): spieg_tipo,
-        get_text("lmstudio_adapter", "params_col"): spieg_params,
-        get_text("lmstudio_adapter", "arch_col"): spieg_arch,
-        get_text("lmstudio_adapter", "size_disk"): spieg_size,
-        get_text("lmstudio_adapter", "training_col"): spieg_add,
-        get_text("lmstudio_adapter", "quant_col"): spieg_quant,
-        get_text("lmstudio_adapter", "ctx_col"): spieg_ctx,
+        get_text("llm_adapters", "type_col"): spieg_tipo,
+        get_text("llm_adapters", "params_col"): spieg_params,
+        get_text("llm_adapters", "arch_col"): spieg_arch,
+        get_text("llm_adapters", "size_disk"): spieg_size,
+        get_text("llm_adapters", "training_col"): spieg_add,
+        get_text("llm_adapters", "quant_col"): spieg_quant,
+        get_text("llm_adapters", "ctx_col"): spieg_ctx,
     }
 
 
@@ -422,7 +422,7 @@ def run_server_lmStudio(host: str = "http://localhost:1234", key='lmstudo'):
     res = start_server_background()
     if res["ok"]:
         st.session_state['server_lmStudio'] = True
-        st_toast_temp(get_text("lmstudio_adapter", "started_background"), 'success')
+        st_toast_temp(get_text("llm_adapters", "started_background"), 'success')
         get_lmstudio_status.clear()
         st.rerun()
     else:
@@ -434,7 +434,7 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
     if st is None:
         raise RuntimeError("Streamlit non disponibile")
 
-    st.subheader(get_text("lmstudio_adapter", "panel_title"))
+    st.subheader(get_text("llm_adapters", "panel_title"))
 
     init_key = f"{key}_initialized"
 
@@ -446,18 +446,18 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
         try:
             online, count = get_lmstudio_status(host)
         except Exception as e:
-            st.error(get_text("lmstudio_adapter", "connection_error", e=e))
+            st.error(get_text("llm_adapters", "connection_error", e=e))
             online, count = False, 0
 
     st.session_state['server_lmStudio'] = online
 
     c1, c2, c3 = st.columns([2, 2, 2])
     with c1:
-        if st.button(get_text("lmstudio_adapter", "start_btn"), key=key + '_Start'):
+        if st.button(get_text("llm_adapters", "start_btn"), key=key + '_Start', disabled=online):
             res = start_server_background()
             if res["ok"]:
                 st.session_state['server_lmStudio'] = True
-                st_toast_temp(get_text("lmstudio_adapter", "started_background"), 'success')
+                st_toast_temp(get_text("llm_adapters", "started_background"), 'success')
                 get_lmstudio_status.clear()
                 st.rerun()
             else:
@@ -465,11 +465,11 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
                 st_toast_temp(res["msg"], 'error')
 
     with c2:
-        if st.button(get_text("lmstudio_adapter", "stop_btn"), key=key + '_Stop'):
+        if st.button(get_text("llm_adapters", "stop_btn"), key=key + '_Stop', disabled=not online):
             res = stop_server_background()
             if res["ok"]:
                 st.session_state['server_lmStudio'] = False
-                st_toast_temp(get_text("lmstudio_adapter", "stop_toast"), 'warning')
+                st_toast_temp(get_text("llm_adapters", "stop_toast"), 'warning')
                 get_lmstudio_status.clear()
                 st.rerun()
             else:
@@ -482,20 +482,20 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
     list_model = False
     with c3:
         if online:
-            list_model = st.button(get_text("lmstudio_adapter", "list_models_btn"), key=key + '_lms')
+            list_model = st.button(get_text("llm_adapters", "list_models_btn"), key=key + '_lms', disabled=not online)
         elif st.session_state.get(init_key, False):
-            st.warning(get_text("lmstudio_adapter", "start_server_warning"))
+            st.warning(get_text("llm_adapters", "start_server_warning"))
 
     cols_status = st.columns([2, 2, 3])
     with cols_status[0]:
         st.metric(
-            label=get_text("lmstudio_adapter", "http_server_label"),
-            value=get_text("lmstudio_adapter", "online") if online else get_text("lmstudio_adapter", "offline")
+            label=get_text("llm_adapters", "http_server_label"),
+            value=get_text("llm_adapters", "online") if online else get_text("llm_adapters", "offline")
         )
     with cols_status[1]:
-        st.metric(get_text("lmstudio_adapter", "num_models"), count)
+        st.metric(get_text("llm_adapters", "num_models"), count)
     with cols_status[2]:
-        st.caption(get_text("lmstudio_adapter", "endpoint", url=f"{host.rstrip('/')}/v1/models"))
+        st.caption(get_text("llm_adapters", "endpoint", url=f"{host.rstrip('/')}/v1/models"))
 
     pid = _get_pid()
 
@@ -506,17 +506,17 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
         stderr = (info.get("stderr") or "").strip()
 
         primary = stdout or stderr
-        primary_label = get_text("lmstudio_adapter", "stdout") if stdout else get_text("lmstudio_adapter", "stderr_fallback")
+        primary_label = get_text("llm_adapters", "stdout") if stdout else get_text("llm_adapters", "stderr_fallback")
 
         with st.expander(primary_label):
             st.code(primary or "<vuoto>", language="bash")
 
         if stdout and stderr:
-            with st.expander(get_text("lmstudio_adapter", "stderr") if primary_label == get_text("lmstudio_adapter", "stdout") else get_text("lmstudio_adapter", "stdout")):
-                st.code(stderr if primary_label == get_text("lmstudio_adapter", "stdout") else stdout, language="bash")
+            with st.expander(get_text("llm_adapters", "stderr") if primary_label == get_text("llm_adapters", "stdout") else get_text("llm_adapters", "stdout")):
+                st.code(stderr if primary_label == get_text("llm_adapters", "stdout") else stdout, language="bash")
 
         if info.get("ok"):
-            st.success(get_text("lmstudio_adapter", "cmd_success"))
+            st.toast(get_text("llm_adapters", "cmd_success"))
 
             parsed = parse_lmstudio_ls(primary)
 
@@ -525,22 +525,22 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
             siz = parsed.get("summary", {}).get("total_size", "—")
             c1, c2 = st.columns(2)
             with c1:
-                st.metric(get_text("lmstudio_adapter", "total_models"), tot)
+                st.metric(get_text("llm_adapters", "total_models"), tot)
             with c2:
-                st.metric(get_text("lmstudio_adapter", "disk_space"), siz)
+                st.metric(get_text("llm_adapters", "disk_space"), siz)
 
             if parsed["llms"]:
-                st.markdown(get_text("lmstudio_adapter", "llm_header"))
+                st.markdown(get_text("llm_adapters", "llm_header"))
                 st.table(pd.DataFrame(parsed["llms"]))
 
             if parsed["embeddings"]:
-                st.markdown(get_text("lmstudio_adapter", "embedding_header"))
+                st.markdown(get_text("llm_adapters", "embedding_header"))
                 st.table(pd.DataFrame(parsed["embeddings"]))
 
         else:
-            st.error(get_text("lmstudio_adapter", "cmd_failed"))
+            st.error(get_text("llm_adapters", "cmd_failed"))
     elif list_model and not online:
-        st_toast_temp(get_text("lmstudio_adapter", "server_not_running"), 'warning')
+        st_toast_temp(get_text("llm_adapters", "server_not_running"), 'warning')
 
 
 def parse_lmstudio_ls(text: str):
@@ -587,10 +587,10 @@ def parse_lmstudio_ls(text: str):
             else:
                 continue
             res["llms"].append({
-                get_text("lmstudio_adapter", "model_col"): name, 
-                get_text("lmstudio_adapter", "params_col"): params, 
-                get_text("lmstudio_adapter", "arch_col"): arch, 
-                get_text("lmstudio_adapter", "size_col"): size
+                get_text("llm_adapters", "model_col"): name, 
+                get_text("llm_adapters", "params_col"): params, 
+                get_text("llm_adapters", "arch_col"): arch, 
+                get_text("llm_adapters", "size_col"): size
             })
         elif section == "emb":
             if len(parts) >= 4:
@@ -600,10 +600,10 @@ def parse_lmstudio_ls(text: str):
             else:
                 continue
             res["embeddings"].append({
-                get_text("lmstudio_adapter", "embedding_col"): name, 
-                get_text("lmstudio_adapter", "params_col"): params, 
-                get_text("lmstudio_adapter", "arch_col"): arch, 
-                get_text("lmstudio_adapter", "size_col"): size
+                get_text("llm_adapters", "embedding_col"): name, 
+                get_text("llm_adapters", "params_col"): params, 
+                get_text("llm_adapters", "arch_col"): arch, 
+                get_text("llm_adapters", "size_col"): size
             })
     return res
 
@@ -617,16 +617,16 @@ def get_model_details(model_name: str):
 
     # prepara i campi principali
     fields = [
-        (get_text("lmstudio_adapter", "name_col"), details.get("name")),
-        (get_text("lmstudio_adapter", "type_col"), details.get("type")),
-        (get_text("lmstudio_adapter", "params_col"), details.get("params")),
-        (get_text("lmstudio_adapter", "arch_col"), details.get("arch")),
-        (get_text("lmstudio_adapter", "size_disk"), details.get("size")),
-        (get_text("lmstudio_adapter", "training_col"), details.get("training")),
-        (get_text("lmstudio_adapter", "quant_col"), details.get("quantization")),
-        (get_text("lmstudio_adapter", "format_col"), details.get("format")),
-        (get_text("lmstudio_adapter", "ctx_col"), details.get("ctx_est")),
-        (get_text("lmstudio_adapter", "version_col"), details.get("ver_est")),
+        (get_text("llm_adapters", "name_col"), details.get("name")),
+        (get_text("llm_adapters", "type_col"), details.get("type")),
+        (get_text("llm_adapters", "params_col"), details.get("params")),
+        (get_text("llm_adapters", "arch_col"), details.get("arch")),
+        (get_text("llm_adapters", "size_disk"), details.get("size")),
+        (get_text("llm_adapters", "training_col"), details.get("training")),
+        (get_text("llm_adapters", "quant_col"), details.get("quantization")),
+        (get_text("llm_adapters", "format_col"), details.get("format")),
+        (get_text("llm_adapters", "ctx_col"), details.get("ctx_est")),
+        (get_text("llm_adapters", "version_col"), details.get("ver_est")),
     ]
 
     # filtra solo i valori significativi
@@ -634,7 +634,7 @@ def get_model_details(model_name: str):
 
     # se non c'è nulla, ritorna solo l'avviso nel dict
     if not data:
-        details["warning"] = get_text("lmstudio_adapter", "no_details")
+        details["warning"] = get_text("llm_adapters", "no_details")
         return details
 
     # costruisce un DataFrame e lo aggiunge al dict
@@ -645,7 +645,7 @@ def get_model_details(model_name: str):
     exp = details.get("explanations", {})
     if exp:
         exp_df = pd.DataFrame(
-            [{get_text("lmstudio_adapter", "param_col"): k, get_text("lmstudio_adapter", "desc_col"): v} for k, v in exp.items() if v and v.strip()]
+            [{get_text("llm_adapters", "param_col"): k, get_text("llm_adapters", "desc_col"): v} for k, v in exp.items() if v and v.strip()]
         )
         details["explanations_df"] = exp_df
 
@@ -676,7 +676,7 @@ def lms_get_stream(model_or_query: str, extra_args: list[str] | None = None):
     """
     lms = _which_lms_cli()
     if not lms:
-        yield get_text("lmstudio_adapter", "cli_error_path")
+        yield get_text("llm_adapters", "cli_error_path")
         return 127
 
     # Costruisci comando cross-platform, supportando .cmd su Windows
@@ -695,10 +695,10 @@ def lms_get_stream(model_or_query: str, extra_args: list[str] | None = None):
             bufsize=1, universal_newlines=True
         )
     except FileNotFoundError:
-        yield get_text("lmstudio_adapter", "cli_exec_error")
+        yield get_text("llm_adapters", "cli_exec_error")
         return 127
     except Exception as e:
-        yield get_text("lmstudio_adapter", "start_fail", e=e)
+        yield get_text("llm_adapters", "start_fail", e=e)
         return 1
 
     # stream delle righe

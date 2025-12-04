@@ -45,6 +45,17 @@ if not os.path.exists(DB_DIR):
 
 
 class DBManager:
+    """
+    Database Manager class for handling multiple DBMS types (SQLite, DuckDB, MySQL, PostgreSQL, SQL Server).
+    
+    This class provides a unified interface for creating, loading, and managing databases across different
+    database management systems. It handles both file-based databases (SQLite, DuckDB) and server-based
+    databases (MySQL, PostgreSQL, SQL Server).
+    
+    Attributes:
+        RESERVED_KEYWORDS (set): SQL reserved keywords that cannot be used as database names.
+        SERVICE_MAP (dict): Mapping of DBMS types to their Windows service names.
+    """
     RESERVED_KEYWORDS = {"select", "from", "where", "union", "join", "group", "order", "limit"}
 
     # Mappatura dei servizi Windows per i DBMS server-based
@@ -55,21 +66,34 @@ class DBManager:
     }
 
     def __init__(self, dict_stato: dict, type: str):
+        """
+        Initializes the DBManager instance.
+        
+        Args:
+            dict_stato (dict): Session state dictionary containing configuration and data.
+            type (str): Operation type - "create_db" for creating databases, "download" for loading existing databases.
+        """
         self.ss = dict_stato
         self.type = type
+        print("[DBManager] Type: ", self.type)
 
         config_dict = self.ss.get("config_dict", {})
-        self.dfs_dict = self.ss.get("dfs_dict", {})
+        print("[DBManager] Config dict: ", config_dict)
+        self.dfs_dict = config_dict.get("dfs_dict", {})
+        print("[DBManager] DFS dict: ", self.dfs_dict)
 
         # Config globale (parametri server, ecc.)
         self.global_config = load_config()
+        print("[DBManager] Global config: ", self.global_config)
 
         if not config_dict:
             # Nessuna configurazione -> istanza "vuota"
+            print("[DBManager] Nessuna configurazione -> istanza \"vuota\"")
             return
 
         if not self.dfs_dict and self.type != "download":
             # Per create_db servono i DataFrame; per download_db no
+            print("[DBManager] Nessun DataFrame -> istanza \"vuota\"")
             return
 
         # --- Lettura parametri dalla GUI ---
@@ -80,25 +104,29 @@ class DBManager:
             or config_dict.get("conn_str")
             or ""
         )
+        print("[DBManager] Connection string: ", self.connection_string)
 
         # Nome database
-        self.db_name: str = (config_dict.get("db_name", "Db").strip()).replace(" ", "_")
-
+        self.db_name: str = self._safe_db_name((config_dict.get("db_name", "").strip()).replace(" ", "_"))
+        print("[DBManager] DB Name: ", self.db_name)
         # Lista tabelle / colonne
         tblist = config_dict.get("table_list", [])
         if tblist:
             self.table_list = [table.strip().replace(" ", "_") for table in tblist]
         else:
             self.table_list = "Load all tables"
+        print("[DBManager] Table list: ", self.table_list)
 
         self.load_all_tables: bool = bool(config_dict.get("load_all_tables", False))
+        print("[DBManager] Load all tables: ", self.load_all_tables)
 
         # Scelta DBMS
         self.choice_DBMS: str = (
             config_dict.get("choice_DBMS")
             or config_dict.get("db_choice")
-            or "SQLite"
+            or ""
         )
+        print("[DBManager] DBMS: ", self.choice_DBMS)
 
         # Percorso file per SQLite / DuckDB
         self.sqlite_db_path: Optional[str] = None
@@ -107,23 +135,54 @@ class DBManager:
             self.sqlite_db_path = config_dict.get("db_path") or config_dict.get("path_to_file")
             # Se arriva solo il path, deriva il nome db dal file (come fa la GUI)
             if self.sqlite_db_path and not config_dict.get("db_name"):
-                self.db_name = os.path.basename(self.sqlite_db_path)
+                self.db_name = os.path.splitext(os.path.basename(self.sqlite_db_path))[0]
+        print("[DBManager] SQLite DB Path: ", self.sqlite_db_path)
 
         # Carica i DataFrame solo se non siamo in modalità download
         if self.type != "download":
             self.db_to_load = self.load_df()
+            print("[DBManager] DataFrame loaded: ", self.db_to_load)
         else:
             self.db_to_load = None
+            print("[DBManager] DataFrame not loaded")
 
         self.psw_conn = config_dict.get("psw_conn")
+        print("[DBManager] Password connection: ", self.psw_conn)
 
     # ---------------------- Utility interne ----------------------
+    def _normalize_db_path(self):
+        """
+        Normalizza il percorso del file DB per SQLite e DuckDB.
+        Garantisce:
+            - che l'estensione sia corretta (.db o .duckdb)
+            - che il path sia assoluto
+            - che DB_DIR venga sempre applicato correttamente
+        """
+        filename = self.sqlite_db_path or self.db_name
+
+        # Aggiungi estensione se manca
+        if not filename.lower().endswith(".db") and not filename.lower().endswith(".duckdb"):
+            ext = ".db" if self.choice_DBMS == "SQLite" else ".duckdb"
+            filename += ext
+
+        # Se l’utente ha passato un percorso assoluto, usa quello
+        if os.path.isabs(filename):
+            return filename
+
+        # Altrimenti applica DB_DIR
+        return os.path.abspath(os.path.join(DB_DIR, filename))
 
     def _check_service_status(self, dbms_type: str) -> bool:
         """
-        Controlla se il servizio del DBMS è attivo (solo per DBMS server-based su Windows).
-
-        Per SQLite/DuckDB o DBMS non mappati ritorna sempre True.
+        Checks if the DBMS service is running (only for server-based DBMS on Windows).
+        
+        For SQLite/DuckDB or unmapped DBMS types, always returns True.
+        
+        Args:
+            dbms_type (str): The type of DBMS (e.g., "MySQL", "PostgreSQL", "SQL Server").
+        
+        Returns:
+            bool: True if the service is running or not applicable, False otherwise.
         """
         service_name = self.SERVICE_MAP.get(dbms_type)
         if not service_name:
@@ -153,10 +212,15 @@ class DBManager:
 
     def load_df(self) -> Dict[str, pd.DataFrame]:
         """
-        La GUI passa self.dfs_dict con la struttura:
+        Extracts DataFrames from the session state dictionary.
+        
+        The GUI passes self.dfs_dict with the structure:
         { "table_name": {"df": pd.DataFrame, ...} }
-
-        Questa funzione estrae il pd.DataFrame da entry["df"] (se presente).
+        
+        This function extracts the pd.DataFrame from entry["df"] if present.
+        
+        Returns:
+            Dict[str, pd.DataFrame]: Dictionary mapping table names to their DataFrames.
         """
         items = list(self.dfs_dict.keys())
         db_to_load: Dict[str, pd.DataFrame] = {}
@@ -168,10 +232,25 @@ class DBManager:
         return db_to_load
 
     def _sanitize_table_name(self, name: str) -> str:
+        """
+        Sanitizes a table name by removing invalid characters.
+        
+        Args:
+            name (str): The original table name.
+        
+        Returns:
+            str: Sanitized table name with only alphanumeric characters and underscores.
+        """
         safe = re.sub(r"[^0-9a-zA-Z_]", "_", str(name)).strip("_")
         return safe or "table_unnamed"
 
     def _sqlalchemy_scheme(self) -> str:
+        """
+        Returns the SQLAlchemy connection scheme for the selected DBMS.
+        
+        Returns:
+            str: SQLAlchemy connection scheme string (e.g., "sqlite", "postgresql+psycopg").
+        """
         m = {
             "SQLite": "sqlite",
             "PostgreSQL": "postgresql+psycopg",
@@ -185,8 +264,14 @@ class DBManager:
 
     def get_available_databases(self) -> List[str]:
         """
-        Recupera la lista dei database disponibili sul server o nella directory locale
-        (a seconda del DBMS scelto).
+        Retrieves the list of available databases on the server or in the local directory
+        (depending on the chosen DBMS).
+        
+        For file-based databases (SQLite, DuckDB), lists files in the database directory.
+        For server-based databases, queries the server for available databases.
+        
+        Returns:
+            List[str]: List of available database names.
         """
         try:
             if self.choice_DBMS == "SQLite":
@@ -261,8 +346,14 @@ class DBManager:
 
     def _normalize_connection_url(self) -> str:
         """
-        Normalizza la connection string (anche se arriva in formati tipo JDBC)
-        in qualcosa che SQLAlchemy possa usare.
+        Normalizes the connection string (even if it arrives in JDBC format)
+        into something SQLAlchemy can use.
+        
+        Parses connection parameters from various formats and constructs a valid
+        SQLAlchemy connection URL with appropriate authentication and options.
+        
+        Returns:
+            str: Normalized SQLAlchemy connection URL.
         """
         raw = (self.connection_string or "").strip()
         if raw.startswith("jdbc:"):
@@ -356,8 +447,12 @@ class DBManager:
 
     def _server_engine(self):
         """
-        Ritorna un engine connesso al *server* (non ad un DB specifico).
-        Usato per creare/droppare database su DBMS server-based.
+        Returns an engine connected to the *server* (not to a specific database).
+        
+        Used for creating/dropping databases on server-based DBMS.
+        
+        Returns:
+            Engine: SQLAlchemy engine connected to the server root.
         """
         url = self._normalize_connection_url()
         connect_args: Dict[str, Any] = {}
@@ -368,12 +463,18 @@ class DBManager:
 
     def _db_engine(self):
         """
-        Ritorna un engine puntato al database specifico (file o server).
+        Returns an engine pointed to the specific database (file or server).
+        
+        Constructs the appropriate connection URL based on the DBMS type and
+        database name/path.
+        
+        Returns:
+            Engine: SQLAlchemy engine connected to the target database.
         """
         if self.choice_DBMS == "SQLite":
             if not self.sqlite_db_path:
                 db_path = os.path.abspath(
-                    os.path.join(DB_DIR, f"{self._safe_db_name(self.db_name)}.db")
+                    os.path.join(DB_DIR, f"{self.db_name}")
                 )
             else:
                 if os.path.isabs(self.sqlite_db_path):
@@ -383,21 +484,13 @@ class DBManager:
             url = f"sqlite:///{db_path}"
 
         elif self.choice_DBMS == "DuckDB":
-            if not self.sqlite_db_path:
-                db_path = os.path.abspath(
-                    os.path.join(DB_DIR, f"{self._safe_db_name(self.db_name)}.duckdb")
-                )
-            else:
-                if os.path.isabs(self.sqlite_db_path):
-                    db_path = self.sqlite_db_path
-                else:
-                    db_path = os.path.abspath(os.path.join(DB_DIR, self.sqlite_db_path))
+            db_path = self._normalize_db_path()
             url = f"duckdb:///{db_path}"
 
         else:
             server_url = self._normalize_connection_url()
             parsed = urlparse(server_url)
-            url = urlunparse(parsed._replace(path=f"/{self._safe_db_name(self.db_name)}"))
+            url = urlunparse(parsed._replace(path=f"/{self.db_name}"))
 
             if self.choice_DBMS == "SQL Server":
                 q = parse_qs(parsed.query or "")
@@ -415,7 +508,10 @@ class DBManager:
 
     def _reset_all_db(self) -> None:
         """
-        Cancella il database (file o DB server-based) se esiste.
+        Deletes the database (file or server-based database) if it exists.
+        
+        For file-based databases, removes the file from disk.
+        For server-based databases, executes DROP DATABASE command.
         """
         if not self.db_name and not self.sqlite_db_path:
             raise ValueError("db_name o db_path mancante in config_dict.")
@@ -429,7 +525,7 @@ class DBManager:
                     db_path = os.path.abspath(os.path.join(DB_DIR, self.sqlite_db_path))
             else:
                 db_path = os.path.abspath(
-                    os.path.join(DB_DIR, f"{self._safe_db_name(self.db_name)}.db")
+                    os.path.join(DB_DIR, f"{self.db_name}")
                 )
             if os.path.exists(db_path):
                 try:
@@ -440,21 +536,11 @@ class DBManager:
 
         # DuckDB
         if self.choice_DBMS == "DuckDB":
-            if self.sqlite_db_path:
-                if os.path.isabs(self.sqlite_db_path):
-                    db_path = self.sqlite_db_path
-                else:
-                    db_path = os.path.abspath(os.path.join(DB_DIR, self.sqlite_db_path))
-            else:
-                db_path = os.path.abspath(
-                    os.path.join(DB_DIR, f"{self._safe_db_name(self.db_name)}.duckdb")
-                )
+            db_path = self._normalize_db_path()
             if os.path.exists(db_path):
-                try:
-                    os.remove(db_path)
-                except OSError as e:
-                    print(f"Error removing DuckDB file {db_path}: {e}")
+                os.remove(db_path)
             return
+
 
         base_engine = None
         drop_stmt = None
@@ -464,11 +550,11 @@ class DBManager:
             parsed = urlparse(server_url)
             url_postgres = urlunparse(parsed._replace(path="/postgres"))
             base_engine = create_engine(url_postgres, future=True)
-            drop_stmt = text(f'DROP DATABASE IF EXISTS "{self._safe_db_name(self.db_name)}"')
+            drop_stmt = text(f'DROP DATABASE IF EXISTS "{self.db_name}"')
 
         elif self.choice_DBMS == "MySQL":
             base_engine = self._server_engine()
-            drop_stmt = text(f"DROP DATABASE IF EXISTS `{self._safe_db_name(self.db_name)}`")
+            drop_stmt = text(f"DROP DATABASE IF EXISTS `{self.db_name}`")
 
         elif self.choice_DBMS == "SQL Server":
             server_url = self._normalize_connection_url()
@@ -477,10 +563,10 @@ class DBManager:
             base_engine = create_engine(url_master, future=True, isolation_level="AUTOCOMMIT")
             drop_stmt = text(
                 f"""
-                IF DB_ID(N'{self._safe_db_name(self.db_name)}') IS NOT NULL
+                IF DB_ID(N'{self.db_name}') IS NOT NULL
                 BEGIN
-                    ALTER DATABASE [{self._safe_db_name(self.db_name)}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-                    DROP DATABASE [{self._safe_db_name(self.db_name)}];
+                    ALTER DATABASE [{self.db_name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                    DROP DATABASE [{self.db_name}];
                 END
                 """
             )
@@ -494,6 +580,18 @@ class DBManager:
                     print(f"Could not drop database {self.db_name}. It might not exist. Error: {e}")
 
     def _safe_db_name(self, name: str) -> str:
+        """
+        Sanitizes a database name to ensure it's safe for use.
+        
+        Converts to lowercase, removes file extensions, avoids reserved keywords,
+        and replaces invalid characters with underscores.
+        
+        Args:
+            name (str): The original database name.
+        
+        Returns:
+            str: Sanitized database name.
+        """
         name = name.strip().lower()
         if name in self.RESERVED_KEYWORDS:
             name = f"{name}_db"
@@ -502,20 +600,24 @@ class DBManager:
             name = name[:-3]
         elif name.endswith(".duckdb"):
             name = name[:-7]
+        
         return re.sub(r"\W+", "_", name)
 
     def _create_database_if_needed(self) -> None:
         """
-        Crea (da zero) il database target, cancellandolo se esiste già.
-        Per SQLite/DuckDB gestisce i file; per i DBMS server-based fa DROP+CREATE.
+        Creates the target database from scratch, deleting it if it already exists.
+        
+        For SQLite/DuckDB, manages files on disk.
+        For server-based DBMS, executes DROP + CREATE commands.
         """
-        if not self._safe_db_name(self.db_name) and not self.sqlite_db_path:
-            raise ValueError("db_name o db_path mancante in config_dict.")
+        if not self.db_name and not self.sqlite_db_path:
+            raise ValueError("Database name or path are missing.")
 
-        dbname = self._safe_db_name(self.db_name)
+        dbname = self.db_name
 
         # --- SQLite ---
         if self.choice_DBMS == "SQLite":
+            print(f"[DBManager Create] SQLite. dbname: {dbname}, sqlite_db_path: {self.sqlite_db_path}")
             if self.sqlite_db_path:
                 if os.path.isabs(self.sqlite_db_path):
                     db_path = self.sqlite_db_path
@@ -523,25 +625,17 @@ class DBManager:
                     db_path = os.path.abspath(os.path.join(DB_DIR, self.sqlite_db_path))
             else:
                 db_path = os.path.abspath(os.path.join(DB_DIR, f"{dbname}.db"))
+            
+            print(f"[DBManager Create] Final db_path: {db_path}")
             if os.path.exists(db_path):
                 os.remove(db_path)
-                print(f"[DBManager Info] Database esistente '{db_path}' trovato e rimosso.")
-            # SQLite (ri)creerà il file automaticamente al primo connect
             return
 
         # --- DuckDB ---
         if self.choice_DBMS == "DuckDB":
-            if self.sqlite_db_path:
-                if os.path.isabs(self.sqlite_db_path):
-                    db_path = self.sqlite_db_path
-                else:
-                    db_path = os.path.abspath(os.path.join(DB_DIR, self.sqlite_db_path))
-            else:
-                db_path = os.path.abspath(os.path.join(DB_DIR, f"{dbname}.duckdb"))
+            db_path = self._normalize_db_path()
             if os.path.exists(db_path):
                 os.remove(db_path)
-                print(f"[DBManager Info] Database DuckDB esistente '{db_path}' trovato e rimosso.")
-            # DuckDB (ri)creerà il file automaticamente al primo connect
             return
 
         # --- DBMS server-based ---
@@ -612,15 +706,20 @@ class DBManager:
             return
 
         # Fallback nel caso compaia un DBMS non gestito
-        raise ValueError(f"DBMS non supportato: {self.choice_DBMS}")
+        raise ValueError(f"The DBMS {self.choice_DBMS} is not supported")
 
     # ---------------------- Scelta tabelle e I/O ----------------------
 
     def _pick_tables_to_load(self) -> List[Tuple[str, pd.DataFrame]]:
         """
-        Usa self.db_to_load (generato da load_df) che ha la struttura:
+        Selects which tables to load based on configuration.
+        
+        Uses self.db_to_load (generated by load_df) with structure:
         { "table_name": pd.DataFrame }
-        e la filtra in base a self.table_list / self.load_all_tables.
+        and filters it based on self.table_list / self.load_all_tables.
+        
+        Returns:
+            List[Tuple[str, pd.DataFrame]]: List of (table_name, dataframe) tuples to load.
         """
         if self.load_all_tables or (
             isinstance(self.table_list, str)
@@ -647,15 +746,21 @@ class DBManager:
         return [(self._sanitize_table_name(k), df) for k, df in items]
 
     # ---------------------- Metodo 1: create_db ----------------------
-    def create_db(self):
+    def create_db(self,):
         """
-        Crea il database e carica i DataFrame selezionati.
-        Restituisce (out_list, True) dove:
-        out_list = [{"table": df, "table_name": ...}, ...]
-        (formato atteso dalla GUI).
+        Creates the database and loads the selected DataFrames into it.
+        
+        This method:
+        1. Checks if the DBMS service is running (for server-based databases)
+        2. Creates the database structure
+        3. Loads all selected tables from DataFrames into the database
+        
+        Returns:
+            tuple: (out_list, True) where out_list is a list of dictionaries with format:
+                   [{"table": df, "table_name": ...}, ...]
         """
         results_store = self.ss.setdefault("result", {})
-        results_store.setdefault(self._safe_db_name(self.db_name), [])
+        results_store.setdefault(self.db_name, [])
         out_list: List[Dict[str, Any]] = []
 
         def worker():
@@ -695,17 +800,20 @@ class DBManager:
         t.start()
         t.join()
 
-        results_store[self._safe_db_name(self.db_name)] = out_list
+        results_store[self.db_name] = out_list
         return out_list, True
 
     # ---------------------- Metodo 2: download_db ----------------------
 
     def download_db(self):
         """
-        Scarica tutte le tabelle dal database selezionato.
-        Restituisce (out_list, True) se c'è almeno una tabella, altrimenti (None, False).
-
-        out_list = [{"table": df, "table_name": "tbl1"}, ...]
+        Downloads all tables from the selected database.
+        
+        Connects to an existing database and retrieves all tables as DataFrames.
+        
+        Returns:
+            tuple: (out_list, True) if at least one table exists, otherwise (None, False).
+                   out_list format: [{"table": df, "table_name": "tbl1"}, ...]
         """
         results_store = self.ss.setdefault("result", {})
         out_list: List[Dict[str, Any]] = []
@@ -743,7 +851,7 @@ class DBManager:
         t.start()
         t.join()
 
-        results_store[self._safe_db_name(self.db_name)] = out_list
+        results_store[self.db_name] = out_list
         if len(out_list) == 0:
             return None, False
         else:
@@ -754,6 +862,13 @@ class DBManager:
     def _get_admin_engine(self):
         """
         Returns an engine connected to the server root (or default DB) for admin operations.
+        
+        For MySQL, connects to the server without specifying a database.
+        For PostgreSQL, connects to the 'postgres' default database.
+        For SQL Server, connects to the 'master' database.
+        
+        Returns:
+            Engine: SQLAlchemy engine for administrative operations, or None if not applicable.
         """
         if self.choice_DBMS == "MySQL":
             return self._server_engine()
@@ -775,7 +890,15 @@ class DBManager:
         return db_name.strip().replace(" ", "_")
 
     def _check_service_status(self, dbms_type: str) -> bool:
-        """Checks if the service for the given DBMS is running using connection attempts."""
+        """
+        Checks if the service for the given DBMS is running using connection attempts.
+        
+        Args:
+            dbms_type (str): The type of DBMS to check.
+        
+        Returns:
+            bool: True if the service is accessible, False otherwise.
+        """
         if dbms_type == "MySQL":
             return self._check_mysql_status()
         elif dbms_type == "PostgreSQL":
@@ -785,6 +908,14 @@ class DBManager:
         return True
 
     def _check_mysql_status(self) -> bool:
+        """
+        Checks if MySQL service is running by attempting a connection.
+        
+        Tries pymysql first as fallback, then mysql.connector if available.
+        
+        Returns:
+            bool: True if MySQL is accessible, False otherwise.
+        """
         if 'mysql.connector' not in sys.modules and mysql is None:
              # Fallback to pymysql if mysql-connector is not available
              try:
@@ -818,6 +949,12 @@ class DBManager:
         return False
 
     def _check_postgres_status(self) -> bool:
+        """
+        Checks if PostgreSQL service is running by attempting a connection.
+        
+        Returns:
+            bool: True if PostgreSQL is accessible, False otherwise.
+        """
         if psycopg2 is None: return False
         try:
             conf = self.global_config.get("POSTGRES", {})
@@ -835,6 +972,14 @@ class DBManager:
             return False
 
     def _check_sqlserver_status(self) -> bool:
+        """
+        Checks if SQL Server is running by attempting a Windows Authentication connection.
+        
+        Uses ODBC Driver 17 for SQL Server with Trusted_Connection.
+        
+        Returns:
+            bool: True if SQL Server is accessible, False otherwise.
+        """
         if pyodbc is None:
             return False
 
@@ -870,14 +1015,21 @@ class DBManager:
             with pyodbc.connect(conn_str, timeout=3):
                 return True
         except Exception as e:
-            print(f"[Windows auth] Connessione fallita: {e}")
+            print(f"[Windows auth] Connection failed: {e}")
             return False
 
     # ---------------------- DBMS Management Methods ---------------------
     def server_control(self, action: str) -> Tuple[bool, str]:
         """
         Controls the database server (start, stop, status).
-        Requires Administrator privileges for start/stop.
+        
+        Requires Administrator privileges for start/stop operations.
+        
+        Args:
+            action (str): The action to perform - 'start', 'stop', or 'status'.
+        
+        Returns:
+            Tuple[bool, str]: (success, message) indicating the result of the operation.
         """
         service_name = self.SERVICE_MAP.get(self.choice_DBMS)
         if not service_name:
@@ -913,6 +1065,12 @@ class DBManager:
     def get_available_databases(self) -> List[str]:
         """
         Returns a list of available databases for the current DBMS.
+        
+        For file-based databases, lists files in the database directory.
+        For server-based databases, queries the system catalogs.
+        
+        Returns:
+            List[str]: List of database names or file names.
         """
         dbs = []
         try:
@@ -945,7 +1103,19 @@ class DBManager:
 
     def get_db_details(self, db_name: str) -> Dict[str, Any]:
         """
-        Retrieves details for a specific database: size, tables, columns, rows, preview.
+        Retrieves detailed information for a specific database.
+        
+        Includes database size, list of tables, column information, row counts, and data previews.
+        
+        Args:
+            db_name (str): The name of the database to inspect.
+        
+        Returns:
+            Dict[str, Any]: Dictionary containing database details with keys:
+                - name: database name
+                - size_mb: size in megabytes (for file-based databases)
+                - tables: list of table details (name, columns, rows, preview)
+                - error: error message if inspection failed
         """
         details = {
             "name": db_name,
@@ -1035,6 +1205,16 @@ class DBManager:
     def rename_db(self, old_name: str, new_name: str) -> Tuple[bool, str]:
         """
         Renames a database.
+        
+        For file-based databases, renames the file on disk.
+        For server-based databases, uses ALTER DATABASE or equivalent commands.
+        
+        Args:
+            old_name (str): Current database name.
+            new_name (str): New database name.
+        
+        Returns:
+            Tuple[bool, str]: (success, message) indicating the result.
         """
         safe_old = self._safe_db_name(old_name)
         safe_new = self._safe_db_name(new_name)
@@ -1088,6 +1268,16 @@ class DBManager:
     def rename_table(self, db_name: str, old_table_name: str, new_table_name: str) -> Tuple[bool, str]:
         """
         Renames a table within a database.
+        
+        Uses DBMS-specific syntax for renaming tables.
+        
+        Args:
+            db_name (str): The database containing the table.
+            old_table_name (str): Current table name.
+            new_table_name (str): New table name.
+        
+        Returns:
+            Tuple[bool, str]: (success, message) indicating the result.
         """
         old_db_name = self.db_name
         self.db_name = db_name
@@ -1113,6 +1303,15 @@ class DBManager:
     def delete_db(self, db_name: str) -> Tuple[bool, str]:
         """
         Deletes a database.
+        
+        For file-based databases, removes the file from disk.
+        For server-based databases, executes DROP DATABASE command.
+        
+        Args:
+            db_name (str): The name of the database to delete.
+        
+        Returns:
+            Tuple[bool, str]: (success, message) indicating the result.
         """
         if self.choice_DBMS in ("SQLite", "DuckDB"):
             db_path = os.path.join(DB_DIR, db_name)
@@ -1141,8 +1340,19 @@ class DBManager:
                 return False, str(e)
 
 
-def check_service_status(service_name: str) -> bool:
 
+def check_service_status(service_name: str) -> bool:
+    """
+    Standalone function to check if a database service is running.
+    
+    Creates a temporary DBManager instance to check service status.
+    
+    Args:
+        service_name (str): The name of the service to check.
+    
+    Returns:
+        str: 'running' if the service is active, 'not_running' otherwise.
+    """
     db_manager = DBManager(type='status', dict_stato={})
 
     return 'running' if db_manager._check_service_status(service_name) else 'not_running'

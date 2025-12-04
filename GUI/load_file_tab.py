@@ -7,7 +7,6 @@ import db_adapters
 from GUI.dataset_explore_gui import info_dataset
 from db_adapters.DBManager import DBManager
 from utils.load_data import load_data_files
-# from GUI.relational_profiling_app import ui_profiling_relazionale, ui_integrita_dataset, ui_export
 from GUI.message_gui import st_toast_temp
 from utils.translations import get_text
 from utils.symbols import symbols
@@ -117,7 +116,6 @@ def upload_files(key_prefix):
 
     return submitted, new_uploaded_files, separator
 
-
 def check_duplicates_files(uploaded_files, separator, key_prefix):
     """Checks for duplicate files and handles them."""
     cur = st.session_state.setdefault('uploaded_files', {})
@@ -133,7 +131,6 @@ def check_duplicates_files(uploaded_files, separator, key_prefix):
                 if not already:
                     st.session_state['duplicate_files'].append((uploaded_file, separator))
             else:
-                # 🔴 QUI: aggiungi i file nuovi (non duplicati)
                 cur[base] = {'uploaded_file': uploaded_file, 'separator': separator}
     else:
         # nessun file ancora: aggiungi tutti
@@ -152,7 +149,6 @@ def check_duplicates_files(uploaded_files, separator, key_prefix):
         if st.session_state['choice_files'] != 'None':
             st_toast_temp(get_text("load_dataset", "choice_success", choice=st.session_state["choice_files"]),
                           'success')
-
 
 def action_for_duplicate_radio(key_prefix):
     """Handles duplicate file actions using radio buttons."""
@@ -215,60 +211,6 @@ def action_for_duplicate_radio(key_prefix):
         st.warning(get_text("load_dataset", "select_action_warning"))
         return None
 
-
-def action_for_duplicate_button(key_prefix):
-    """Handles duplicate file actions using buttons (alternative to radio)."""
-    dup = st.session_state["duplicate_files"]
-    cur = st.session_state["uploaded_files"]
-
-    # Se non ci sono duplicati, esci senza toccare nulla
-    if not dup:
-        return None
-    st.warning(get_text("load_dataset", "select_action_warning"))
-    col1, col2, col3 = st.columns([1, 1, 1])
-    # --- ESECUZIONE DELLA SCELTA ---
-    with col1:
-        btn1 = st.button(get_text("load_dataset", "action_continue"), key=f"dup_action_Continue_{key_prefix}")
-        if btn1:
-            st.session_state['choice_files'] = "Continue anyway"
-            # Aggiungi i duplicati mantenendoli, con suffisso progressivo
-            for uploaded_file, separator in dup:
-                base = uploaded_file.name.split(".")[0]
-                suffix = next(st.session_state["idx_counter"])
-                new_key = f"{base}_{suffix}"
-                cur[new_key] = {"uploaded_file": uploaded_file, "separator": separator}
-
-            st.write(
-                get_text("load_dataset", "duplicate_kept")
-                + ", ".join(cur_key for cur_key in cur.keys()), file=sys.stdout
-            )
-    with col2:
-        btn2 = st.button(get_text("load_dataset", "action_remove"), key=f"dup_remove_prev_Continue_{key_prefix}")
-        if btn2:
-            st.session_state['choice_files'] = "Remove previously uploaded datasets"
-            # Sostituisci i precedenti con i nuovi aventi lo stesso base-name
-            replaced = 0
-            for uploaded_file, separator in dup:
-                base = uploaded_file.name.split(".")[0]
-                if base in cur:
-                    cur[base].update({"uploaded_file": uploaded_file, "separator": separator})
-                    replaced += 1
-                else:
-                    # se il vecchio non c'era, aggiungilo comunque come base
-                    cur[base] = {"uploaded_file": uploaded_file, "separator": separator}
-                    replaced += 1
-
-            st.success(get_text("load_dataset", "replaced_datasets", n=replaced))
-
-    with col3:
-        btn3 = st.button(get_text("load_dataset", "action_keep"), key=f"dup_keep_prev_Continue_{key_prefix}")
-        if btn3:
-            st.session_state['choice_files'] = "Keep previous and ignore new files"
-
-            # Non fare nulla: ignoriamo i duplicati
-            st.info(get_text("load_dataset", "ignored_duplicates", n=len(dup)))
-
-
 def reset_upload(key_prefix):
     """Reset uploaded files and increment widget counter to regenerate all widgets with new keys."""
     st.session_state['uploaded_files'] = {}
@@ -276,7 +218,6 @@ def reset_upload(key_prefix):
     st.session_state['dataframes']['files'] = {}
     st.session_state['widget_idx_counter'] += 1  # Increment to regenerate widgets
     st.rerun()
-
 
 def dataset_tab(name):
     """Displays details for a single uploaded file."""
@@ -417,7 +358,7 @@ def dataset_tab(name):
 def render_dbms_input_for_creation(key_prefix, idx, name):
     """Renders DBMS input widgets for Tab 1 (creating database from files)."""
     ret_item = {}
-
+    name = name.lower()
     with st.container():
         col1db, col2db = st.columns(2)
         with col1db:
@@ -430,47 +371,54 @@ def render_dbms_input_for_creation(key_prefix, idx, name):
 
         with col2db:
             # Manual input for creation
-            if ret_item['db_choice'] in ["SQLite", "DuckDB"]:
-                ext = ".db" if ret_item['db_choice'] == "SQLite" else ".duckdb"
-                label = get_text("load_dataset", "db_name")
-                help_text = get_text("load_dataset", "extension_db", ext=ext, DB_DIR=DB_DIR)
-                placeholder = get_text("load_dataset", "db_name")
+            db_choice = ret_item['db_choice']
+            is_file_based_db = db_choice in ["SQLite", "DuckDB"]
+            db_extension = ""
+            db_name_help_text = ""
+            db_name_value = name.lower()
 
-                user_input = st.text_input(
-                    label,
-                    help=help_text,
-                    placeholder=placeholder,
-                    key=f'db_name_input_{key_prefix}_{idx}'
-                )
+            if is_file_based_db:
+                db_extension = ".db" if db_choice == "SQLite" else ".duckdb"
+                db_name_help_text = "Il file sarà salvato in " + DB_DIR + " con estensione " + db_extension
+            else:
+                db_name_help_text = get_text("load_dataset", "insert_db_name")
 
-                # Auto-add extension if not present
-                if user_input:
-                    # Remove extension if user typed it, to avoid double extension logic later
-                    if user_input.endswith(ext):
-                        base_name = user_input[:-len(ext)].lower()
+            user_input_db_name = st.text_input(
+                get_text("load_dataset", "db_name"),
+                help=db_name_help_text,
+                placeholder=db_name_value,
+                value=db_name_value,
+                key=f'db_name_input_{key_prefix}_{idx}'
+            )
+
+            ret_item['db_name'] = None
+            ret_item['db_path'] = ''
+
+            if user_input_db_name:
+                processed_db_name = user_input_db_name.lower().strip()
+                if is_file_based_db:
+                    # Remove extension if already present to avoid double extensions
+                    if processed_db_name.endswith(db_extension):
+                        base_name = processed_db_name[:-len(db_extension)]
+                    elif processed_db_name.endswith('.db') or processed_db_name.endswith('.duckdb'):
+                        # Remove any db extension  
+                        base_name = os.path.splitext(processed_db_name)[0]
                     else:
-                        base_name = user_input.lower()
-
-                    ret_item['db_path'] = f"{base_name}{ext}"
+                        base_name = processed_db_name
+                    
+                    ret_item['db_path'] = f"{base_name}{db_extension}"
                     ret_item['db_name'] = base_name
                 else:
-                    ret_item['db_path'] = ''
-                    ret_item['db_name'] = ''
-            else:
-                ret_item['db_name'] = st.text_input(
-                    get_text("load_dataset", "db_name"),
-                    help=get_text("load_dataset", "insert_db_name"),
-                    placeholder=name,
-                    key=f'db_name_{key_prefix}_{idx}',
-                )
+                    # Validate lowercase for other DBMS
+                    if not user_input_db_name.islower():
+                        st_toast_temp("Database name must be in lowercase.", msg_type="error")
+                    else:
+                        ret_item['db_name'] = processed_db_name
 
     col1, col2, col3 = st.columns([2, 5, 2])
 
     with col1:
-        submitted = st.button(get_text("load_dataset", "create_db_btn"), key=f'button_DBMS_{key_prefix}_{idx}')
-
-    ret_item['complete_state'] = True
-    ret_item['submitted'] = submitted
+        submitted = st.button(get_text("load_dataset", "create_db_btn"), key=f'button_DBMS_{key_prefix}_{idx}', disabled=ret_item['db_name'] is None)
 
     # Check if we are in "Overwrite Decision" mode
     if st.session_state.get(f'overwrite_mode_{key_prefix}_{idx}'):
@@ -481,47 +429,60 @@ def render_dbms_input_for_creation(key_prefix, idx, name):
     if not submitted:
         ret_item['complete_state'] = False
         return ret_item
-
+    else:
+        ret_item['complete_state'] = True
+        ret_item['submitted'] = submitted
     # Validation for creation mode
-    ret_item = validate_dbms_input(ret_item, is_loading=False)
+        ret_item = validate_dbms_input(ret_item, is_loading=False)
 
-    # Existence Check (only for creation mode)
-    if ret_item['complete_state']:
-        db_name_check = ret_item.get('db_name')
-        db_path_check = ret_item.get('db_path')
+        # Existence Check (only for creation mode)
+        if ret_item['complete_state']:
+            db_name_check = ret_item.get('db_name')
+            db_path_check = ret_item.get('db_path')
 
-        # Normalize name for check
-        if ret_item['db_choice'] in ["SQLite", "DuckDB"] and db_path_check:
-            if not os.path.isabs(db_path_check):
-                db_path_check = os.path.join(DB_DIR, db_path_check)
-            db_name_check = os.path.basename(db_path_check).split('.')[0]
+            # Normalize name for check
+            if ret_item['db_choice'] in ["SQLite", "DuckDB"] and db_path_check:
+                if not os.path.isabs(db_path_check):
+                    db_path_check = os.path.join(DB_DIR, db_path_check)
+                db_name_check = os.path.basename(db_path_check).split('.')[0]
 
-        exists = check_db_exists(db_name_check, ret_item['db_choice'], db_path_check)
+            exists = check_db_exists(db_name_check, ret_item['db_choice'], db_path_check)
 
-        if exists:
-            st.session_state[f'overwrite_mode_{key_prefix}_{idx}'] = True
-            st.rerun()
+            if exists:
+                st.session_state[f'overwrite_mode_{key_prefix}_{idx}'] = True
+                st.rerun()
 
-    return ret_item
+        return ret_item
 
 def check_db_exists(db_name, dbms_type, db_path=None):
     """Check if database exists (used by both tabs)."""
-    if dbms_type in ["SQLite", "DuckDB"]:
-        # Check file existence
-        if db_path:
-            if not os.path.isabs(db_path):
-                db_path = os.path.join(DB_DIR, db_path)
-            return os.path.exists(db_path)
-        return False
+
+    if os.path.exists(st.session_state.get('db_dir', "Database")):
+        list_files = os.listdir(st.session_state.get('db_dir', "Database"))
+        if dbms_type == "SQLite":
+            db_name_check = db_name+'.db'
+            if db_name_check in list_files:
+                return True
+            else:
+                return False
+        elif dbms_type == "DuckDB":
+            db_name_check = db_name+'.duckdb'
+            if db_name_check in list_files:
+                return True
+            else:
+                return False
+        else:
+            try:
+                temp_state = {'config_dict': {'choice_DBMS': dbms_type}, 'dfs_dict': {}}
+                mgr = DBManager(temp_state, 'download')
+                dbs = mgr.get_available_databases()
+                return db_name in dbs
+            except Exception as e:
+                print('Exception in check_db_exists')
+                print(e)
+                return False
     else:
-        # Check server
-        try:
-            temp_state = {'config_dict': {'choice_DBMS': dbms_type}, 'dfs_dict': {}}
-            mgr = DBManager(temp_state, 'download')
-            dbs = mgr.get_available_databases()
-            return db_name in dbs
-        except Exception:
-            return False
+        return False
 
 def validate_dbms_input(ret_item, is_loading):
     """Validate DBMS input parameters."""
@@ -574,7 +535,7 @@ def validate_dbms_input(ret_item, is_loading):
             else:
                 # Creating
                 ret_item['db_path'] = absolute_path
-                ret_item['db_name'] = os.path.basename(absolute_path)
+                ret_item['db_name'] = os.path.splitext(os.path.basename(absolute_path))[0]
 
     return ret_item
 
@@ -587,7 +548,7 @@ def handle_overwrite_rename_cancel(key_prefix, idx, ret_item):
 
     # Column 1: Overwrite button
     with col_act1:
-        if st.button(get_text("load_dataset", "overwrite"), key=f"act_overwrite_{key_prefix}_{idx}", use_container_width=True, type="primary"):
+        if st.button("Overwrite", key=f"act_overwrite_{key_prefix}_{idx}", use_container_width=True, type="primary"):
             # Delete the existing database
             try:
                 temp_dict = {'config_dict': ret_item, 'dfs_dict': {}}
@@ -597,10 +558,8 @@ def handle_overwrite_rename_cancel(key_prefix, idx, ret_item):
                 # Now create the new database
                 dfs_dict = st.session_state["dataframes"]["files"]
                 dict_to_dbsm = {'config_dict': ret_item, 'dfs_dict': dfs_dict}
-                mgr_create = DBManager(dict_to_dbsm, 'create')
-
-                with st.spinner("Creating database..."):
-                    dumped, loaded_db = mgr_create.create_db()
+                
+                loaded_db, _ = create_dbms(dict_to_dbsm, "riga 562")
 
                 if loaded_db:
                     # Update session state
@@ -611,12 +570,13 @@ def handle_overwrite_rename_cancel(key_prefix, idx, ret_item):
                     st.session_state['create_db_done'] = True
                     st.session_state["dataframes"]["DBMS"][db_name] = dumped
 
-                    st.success(get_text("load_dataset", "db_overwritten", db_name=loaded_db))
+                    st.success(f'✅ Database **{loaded_db}** successfully overwritten and recreated!')
+                    st_toast_temp(f"Database {loaded_db} overwritten successfully", "success")
                 else:
-                    st.error(get_text("load_dataset", "failed_to_create"))
+                    st.error("❌ Failed to create database after deletion.")
 
             except Exception as e:
-                st.error(get_text("load_dataset", "error_during_overwrite", error=str(e)))
+                st.error(f"❌ Error during overwrite: {str(e)}")
 
             # Exit overwrite mode
             st.session_state[f'overwrite_mode_{key_prefix}_{idx}'] = False
@@ -624,7 +584,7 @@ def handle_overwrite_rename_cancel(key_prefix, idx, ret_item):
 
     # Column 2: Reset Name button
     with col_act2:
-        if st.button("Reset Name", key=f"act_reset_{key_prefix}_{idx}", use_container_width=True, type="secondary"):
+        if st.button("Annulla", key=f"act_reset_{key_prefix}_{idx}", use_container_width=True, type="secondary"):
             # Exit overwrite mode and increment widget counter to reset the input field
             st.session_state[f'overwrite_mode_{key_prefix}_{idx}'] = False
             st.session_state['widget_idx_counter'] += 1
@@ -633,7 +593,25 @@ def handle_overwrite_rename_cancel(key_prefix, idx, ret_item):
     # If in overwrite mode, we return incomplete state until user decides
     ret_item['complete_state'] = False
     return ret_item
+def download_dbms(dbms_parameters, msg):
+    """Download database from DBMS."""
+    print(msg)
+    with st.spinner("Downloading database..."):
+        mgr_reload = DBManager({'config_dict': dbms_parameters}, 'download')
+        reloaded_data, reload_success = mgr_reload.download_db()
+    return reload_success, reloaded_data
 
+def create_dbms(dbms_parameters, msg):
+    """Create database from DBMS."""
+    print(msg)
+    print(dbms_parameters.keys())
+    print(dbms_parameters.items())
+    with st.spinner("Creating database..."):
+        mgr_create = DBManager(dbms_parameters, 'create')
+
+        reloaded_data, reload_success = mgr_create.create_db()
+    
+    return reload_success, reloaded_data
 # ============================================================================
 # SHARED: DATABASE CONFIGURATION
 # ============================================================================
@@ -648,13 +626,14 @@ def configure_file_dbms(key_prefix, name):
         st.session_state["dataframes"]["DBMS"] = {}
 
         with st.spinner(show_time=True):
-            config_dict = dbms_parameters
             dfs_dict = st.session_state["dataframes"]["files"]
-            dict_to_dbsm = {'config_dict': config_dict, 'dfs_dict': dfs_dict}
-            mgr = DBManager(dict_to_dbsm, 'create')
-            dumped, loaded_db = mgr.create_db()  # <-- parte un thread interno e ritorna la lista dei caricamenti
+
+            config_dict = dbms_parameters
+            config_dict['dfs_dict'] = dfs_dict
+            dict_to_dbsm = {'config_dict': config_dict}
+            loaded_db, _ = create_dbms(dict_to_dbsm, "riga 683")
             if not loaded_db:
-                st.error(get_text("load_dataset", "failed_create"))
+                st.error(f"Failed to create database.")
             else:
                 # Update session state
                 st.session_state['db_choice'] = dbms_parameters['db_choice']
@@ -662,20 +641,26 @@ def configure_file_dbms(key_prefix, name):
                 st.session_state['create_db_done'] = True
 
                 # Reload the database from DBMS to ensure consistency
-                mgr_reload = DBManager({'config_dict': dbms_parameters}, 'download')
-                reloaded_data, reload_success = mgr_reload.download_db()
+            mgr_reload = DBManager({'config_dict': dbms_parameters}, 'download')
+            reloaded_data, reload_success = mgr_reload.download_db()
 
-                if reload_success and reloaded_data:
-                    # Store ONLY the reloaded database (ensuring single dataset)
-                    st.session_state["dataframes"]["DBMS"][db_name] = reloaded_data
-                    st.success(get_text("load_dataset", "dbms_success"))
-                    st_toast_temp(get_text("load_dataset", "dbms_success"), "success")
-                else:
-                    # Fallback: use the dumped data if reload fails
-                    st.session_state["dataframes"]["DBMS"][db_name] = dumped
-                    st.warning(get_text("load_dataset", "reload_failed", db_name=db_name))
+            if reload_success and reloaded_data:
+                # Store ONLY the reloaded database (ensuring single dataset)
+                st.session_state["dataframes"]["DBMS"][db_name] = reloaded_data
+                st.success(get_text(
+                    "load_dataset",
+                     "dbms_success_upload", 
+                     db_name=dbms_parameters['db_name'], 
+                     dbms_name=dbms_parameters['db_choice']
+                     )
+                )
+                st_toast_temp(get_text("load_dataset", "dbms_success_upload"), "success")
+            else:
+                # Fallback: use the reloaded data if reload fails
+                st.session_state["dataframes"]["DBMS"][db_name] = reloaded_data
+                st.warning(get_text("load_dataset", "reload_failed", db_name=db_name))
 
-                # Invalidate cache for available databases to force refresh
-                for key in list(st.session_state.keys()):
-                    if key.startswith('available_dbs_'):
-                        del st.session_state[key]
+            # Invalidate cache for available databases to force refresh
+            for key in list(st.session_state.keys()):
+                if key.startswith('available_dbs_'):
+                    del st.session_state[key]

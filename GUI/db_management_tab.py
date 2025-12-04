@@ -32,13 +32,13 @@ def _render_dbms_tab(dbms_type):
     
     temp_ss = st.session_state
     # Config dict fittizio per inizializzare DBManager
+    # Config dict fittizio per inizializzare DBManager
     temp_ss['config_dict'] = {
         'choice_DBMS': dbms_type,
-        'db_name': 'temp', # placeholder
+        'db_name': 'serverStatus', # placeholder
         'connection_string': '', # placeholder, userà defaults o global config
-    }
-    # Assicuriamoci che dfs_dict esista (anche vuoto) per evitare return anticipato in __init__
-    temp_ss['dfs_dict'] = {'dummy': pd.DataFrame()} 
+        'dfs_dict': {'dummy': pd.DataFrame()} # Assicuriamoci che dfs_dict esista per evitare return anticipato
+    } 
 
     manager = DBManager(temp_ss, type="status")
     manager.choice_DBMS = dbms_type
@@ -120,10 +120,13 @@ def _render_dbms_tab(dbms_type):
         if not filtered_dbs:
             st.info(get_text('db_management', 'no_databases'))
         else:
-            selected_db = st.selectbox(get_text('db_management', 'select_database'), filtered_dbs, key=f"sel_db_{dbms_type}")
-        
-    if selected_db:
-        # --- DETTAGLI DB ---
+            selected_db = st.selectbox(
+                get_text('db_management', 'select_database'), 
+                ['Choose a BDMS']+filtered_dbs, 
+                key=f"sel_db_{dbms_type}",
+                index=0)
+    
+    if selected_db and selected_db != 'Choose a BDMS':
         details = manager.get_db_details(selected_db)
 
         if "error" in details:

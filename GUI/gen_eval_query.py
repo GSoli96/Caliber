@@ -10,7 +10,6 @@ from utils.sustainability_report import (
 )
 
 from utils.utils_gen_eval_query import dataset_tab_geneval, run_full_process_eval, run_greenefy_process
-# Aggiungere import
 from GUI.green_ai_race_tab import green_ai_race_tab
 import threading
 import pandas as pd
@@ -29,12 +28,10 @@ from GUI.green_optimizer_display import display_green_optimizer_results
 
 from utils.prompt_builder import create_sql_prompt, create_sql_optimization_prompt
 from utils.query_cleaner import extract_sql_query
-from utils.history_manager import add_history_entry
 from utils.system_monitor_utilities import get_dynamic_system_info, SystemMonitor
 from utils.load_config import get_num_alternative_queries
 import traceback
 from utils.translations import get_text
-import streamlit as st
 from utils import green_metrics
 from utils.icons import Icons
 

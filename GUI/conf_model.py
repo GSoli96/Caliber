@@ -103,25 +103,27 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
             c1, c2 = st.columns(2)
             # parametri specifici
             if backend == "LM Studio":
-                with c1:
-                    host = st.text_input(f"{get_text('conf_model', 'host_lm_studio')}",
-                                         value=cfg.get("host", "http://localhost:1234"),
-                                         key=k(f"lm_host_{backend}"))
-                with c2:
-                    flt = st.text_input(f"{get_text('conf_model', 'filter_contains')}", value=cfg.get("filter", ""),
-                                        key=k(f"lm_filter_{backend}"))
-                cfg.update(host=host, filter=flt)
-                lmstudio_panel(host=host, key=f'{backend}_local')
+                with st.container(border=True):
+                    with c1:
+                        host = st.text_input(f"{get_text('conf_model', 'host_lm_studio')}",
+                                            value=cfg.get("host", "http://localhost:1234"),
+                                            key=k(f"lm_host_{backend}"))
+                    with c2:
+                        flt = st.text_input(f"{get_text('conf_model', 'filter_contains')}", value=cfg.get("filter", ""),
+                                            key=k(f"lm_filter_{backend}"))
+                    cfg.update(host=host, filter=flt)
+                    lmstudio_panel(host=host, key=f'{backend}_local')
             elif backend == "Ollama":
-                with c1:
-                    host = st.text_input(f"{get_text('conf_model', 'host_ollama')}",
-                                         value=cfg.get("host", "http://localhost:11434"),
-                                         key=k(f"ol_host_{backend}"))
-                with c2:
-                    flt = st.text_input(f"{get_text('conf_model', 'filter_contains')}", value=cfg.get("filter", ""),
-                                        key=k(f"ol_filter_{backend}"))
-                cfg.update(host=host, filter=flt)
-                ollama_panel(host=host, key=f'{backend}_local')
+                with st.container(border=True):
+                    with c1:
+                        host = st.text_input(f"{get_text('conf_model', 'host_ollama')}",
+                                            value=cfg.get("host", "http://localhost:11434"),
+                                            key=k(f"ol_host_{backend}"))
+                    with c2:
+                        flt = st.text_input(f"{get_text('conf_model', 'filter_contains')}", value=cfg.get("filter", ""),
+                                            key=k(f"ol_filter_{backend}"))
+                    cfg.update(host=host, filter=flt)
+                    ollama_panel(host=host, key=f'{backend}_local')
             elif backend == "Hugging Face":
                 with c1:
                     tok = st.text_input(f"{get_text('conf_model', 'hf_token_opt')}",
@@ -129,10 +131,10 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
                                         type="password", key=k(f"hf_token_{backend}"))
                 cfg.update(token=tok)
             elif backend == "Spacy":
-                st.warning(get_text("conf_model", "spacy_warning"))
+                with st.container(border=True):
+                    st.warning(get_text("conf_model", "spacy_warning"))
 
             cfg_by_backend[backend] = cfg
-            st.divider()
             a1, a2, a3 = st.columns([1, 1, 2])
             with a1:
                 do_load = st.button(f"{get_text('conf_model', 'load_list')}", key=k(f"load_{backend}"))
@@ -181,140 +183,142 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
 
 
             models = models_by_backend.get(backend) or []
+            
             if models:
-                def _label(x):
-                    if isinstance(x, str): return x
-                    if isinstance(x, dict): return x.get("id") or x.get("name") or str(x)
-                    return str(x)
+                with st.container(border=True):
+                    def _label(x):
+                        if isinstance(x, str): return x
+                        if isinstance(x, dict): return x.get("id") or x.get("name") or str(x)
+                        return str(x)
 
-                labels = [_label(m) for m in models]
+                    labels = [_label(m) for m in models]
 
-                current = selected_by_backend.get(backend)
-                default_idx = labels.index(_label(current)) if current in models else 0
+                    current = selected_by_backend.get(backend)
+                    default_idx = labels.index(_label(current)) if current in models else 0
 
-                sel = st.selectbox(f"{get_text('conf_model', 'available_model')}", options=labels,
-                                   index=default_idx, key=k(f"model_{backend}"))
-                selected_by_backend[backend] = sel
+                    sel = st.selectbox(f"{get_text('conf_model', 'available_model')}", options=labels,
+                                    index=default_idx, key=k(f"model_{backend}"))
+                    selected_by_backend[backend] = sel
 
-                with st.expander(f"{get_text('conf_model', 'details')}", expanded=False):
-                    # Tab interne per azioni
-                    if backend in ["LM Studio", "Ollama"]:
-                        t1, t2, t3 = st.tabs([f"{get_text('conf_model', 'details')}",
-                                              f"🧪 {get_text('conf_model', 'test_generation')}",
-                                              f"{get_text('conf_model', 'server_cli')}"])
-                    elif backend in ("Hugging Face"):
-                        t1, t2 = st.tabs([f"{get_text('conf_model', 'details')}", f"🧪 {get_text('conf_model', 'test_generation')}"])
-                    else:
-                        t1, = st.tabs([f"{get_text('conf_model', 'details')}"])
+                    with st.expander(f"{get_text('conf_model', 'details')}", expanded=False):
+                        # Tab interne per azioni
+                        if backend in ["LM Studio", "Ollama"]:
+                            t1, t2, t3 = st.tabs([f"{get_text('conf_model', 'details')}",
+                                                f"🧪 {get_text('conf_model', 'test_generation')}",
+                                                f"{get_text('conf_model', 'server_cli')}"])
+                        elif backend in ("Hugging Face"):
+                            t1, t2 = st.tabs([f"{get_text('conf_model', 'details')}", f"🧪 {get_text('conf_model', 'test_generation')}"])
+                        else:
+                            t1, = st.tabs([f"{get_text('conf_model', 'details')}"])
 
-                    with t1:
-                        details = llm_adapters.get_model_details(backend=backend, model_name=sel, **cfg)
+                        with t1:
+                            details = llm_adapters.get_model_details(backend=backend, model_name=sel, **cfg)
 
-                        if isinstance(details, dict):
-                            nested_keys = [z for z, v in details.items() if isinstance(v, dict)]
-                            flat_part = {z: v for z, v in details.items() if z not in nested_keys}
-                            nested_part = {z: v for z, v in details.items() if z in nested_keys}
+                            if isinstance(details, dict):
+                                nested_keys = [z for z, v in details.items() if isinstance(v, dict)]
+                                flat_part = {z: v for z, v in details.items() if z not in nested_keys}
+                                nested_part = {z: v for z, v in details.items() if z in nested_keys}
 
-                            rows = _dict_to_table_rows(flat_part, section="Overview")
-                            for z, sub in nested_part.items():
-                                rows.extend(_dict_to_table_rows(sub, section=z))
+                                rows = _dict_to_table_rows(flat_part, section="Overview")
+                                for z, sub in nested_part.items():
+                                    rows.extend(_dict_to_table_rows(sub, section=z))
 
-                            df = pd.DataFrame(rows, columns=[
-                                get_text('conf_model', 'dataframe_section'), 
-                                get_text('conf_model', 'dataframe_field'), 
-                                get_text('conf_model', 'dataframe_value')])
+                                df = pd.DataFrame(rows, columns=[
+                                    get_text('conf_model', 'dataframe_section'), 
+                                    get_text('conf_model', 'dataframe_field'), 
+                                    get_text('conf_model', 'dataframe_value')])
 
-                            df = df[
-                                (~df[get_text('conf_model', 'dataframe_value')].apply(_is_empty_value)) &
-                                (~df[get_text('conf_model', 'dataframe_value')].apply(_is_complex_value))
-                                ].reset_index(drop=True)
+                                df = df[
+                                    (~df[get_text('conf_model', 'dataframe_value')].apply(_is_empty_value)) &
+                                    (~df[get_text('conf_model', 'dataframe_value')].apply(_is_complex_value))
+                                    ].reset_index(drop=True)
 
-                            # pulizia nomi "Campo"
-                            df = _clean_campo_names(df)
+                                # pulizia nomi "Campo"
+                                df = _clean_campo_names(df)
 
-                            # separa overview e spiegazioni
-                            overview_df = df[
-                                df[
-                                    get_text('conf_model', 'dataframe_section')] == get_text('conf_model', 'dataframe_overview')].drop(columns=[get_text('conf_model', 'dataframe_section')])
-                            expl_df_full = df[df[get_text('conf_model', 'dataframe_section')] != get_text('conf_model', 'dataframe_overview')]
+                                # separa overview e spiegazioni
+                                overview_df = df[
+                                    df[
+                                        get_text('conf_model', 'dataframe_section')] == get_text('conf_model', 'dataframe_overview')].drop(columns=[get_text('conf_model', 'dataframe_section')])
+                                expl_df_full = df[df[get_text('conf_model', 'dataframe_section')] != get_text('conf_model', 'dataframe_overview')]
 
-                            # memorizza i nomi delle sezioni PRIMA di droppare la colonna
-                            section_names = sorted(expl_df_full[get_text('conf_model', 'dataframe_section')].unique()) if not expl_df_full.empty else []
+                                # memorizza i nomi delle sezioni PRIMA di droppare la colonna
+                                section_names = sorted(expl_df_full[get_text('conf_model', 'dataframe_section')].unique()) if not expl_df_full.empty else []
 
-                            # poi elimina la colonna
-                            expl_df = expl_df_full.drop(columns=[get_text('conf_model', 'dataframe_section')])
+                                # poi elimina la colonna
+                                expl_df = expl_df_full.drop(columns=[get_text('conf_model', 'dataframe_section')])
 
-                            # ---- 1️⃣ TABELLONA OVERVIEW ----
-                            st.markdown(f"### {get_text('conf_model', 'model_overview')}")
-                            st.dataframe(overview_df, hide_index=True, width="stretch")
+                                # ---- 1️⃣ TABELLONA OVERVIEW ----
+                                st.markdown(f"### {get_text('conf_model', 'model_overview')}")
+                                st.dataframe(overview_df, hide_index=True, width="stretch")
 
-                            # ---- 2️⃣ EXPLANATION DETAILS ----
-                            if not expl_df.empty:
-                                st.markdown(f"### {get_text('conf_model', 'explanation_details')}")
-                                with st.expander(get_text("conf_model", "open_explanations"), expanded=False):
-                                    tabs = st.tabs(section_names)
-                                    for tab_i, sec in zip(tabs, section_names):
-                                        with tab_i:
-                                            sec_df = expl_df_full[
-                                                expl_df_full[
-                                                    get_text('conf_model', 'dataframe_section')] == sec][
-                                                [get_text('conf_model', 'dataframe_field'),
-                                                get_text('conf_model', 'dataframe_value')]].reset_index(drop=True)
-                                            st.table(sec_df)
+                                # ---- 2️⃣ EXPLANATION DETAILS ----
+                                if not expl_df.empty:
+                                    st.markdown(f"### {get_text('conf_model', 'explanation_details')}")
+                                    with st.expander(get_text("conf_model", "open_explanations"), expanded=False):
+                                        tabs = st.tabs(section_names)
+                                        for tab_i, sec in zip(tabs, section_names):
+                                            with tab_i:
+                                                sec_df = expl_df_full[
+                                                    expl_df_full[
+                                                        get_text('conf_model', 'dataframe_section')] == sec][
+                                                    [get_text('conf_model', 'dataframe_field'),
+                                                    get_text('conf_model', 'dataframe_value')]].reset_index(drop=True)
+                                                st.table(sec_df)
 
-                    if backend in ("Hugging Face", "LM Studio"):
-                        with (t2 if backend != "LM Studio" else t2):
-                            prompt = st.text_area(get_text("conf_model", "prompt"), get_text("conf_model", "prompt_placeholder"),
-                                                  key=k(f"prompt_{backend}"))
-                            cols = st.columns([1, 1])
-                            with cols[0]:
-                                max_tokens = st.number_input(get_text("conf_model", "max_new_tokens"), 1, 512, value=64,
-                                                             key=k(f"max_new_tokens_{backend}"))
-                            out_key = k(f"last_out_{backend}")
-                            if st.button(f"{get_text('conf_model', 'run')}", key=k(f"run_{backend}")):
-                                with st.spinner(get_text("conf_model", "inference")):
-                                    out = llm_adapters.generate(
-                                        backend=backend,
-                                        prompt=prompt,
-                                        model_name=sel,
-                                        max_tokens=int(max_tokens),
-                                        **cfg
-                                    )
-                                st.session_state[out_key] = out
+                        if backend in ("Hugging Face", "LM Studio"):
+                            with (t2 if backend != "LM Studio" else t2):
+                                prompt = st.text_area(get_text("conf_model", "prompt"), get_text("conf_model", "prompt_placeholder"),
+                                                    key=k(f"prompt_{backend}"))
+                                cols = st.columns([1, 1])
+                                with cols[0]:
+                                    max_tokens = st.number_input(get_text("conf_model", "max_new_tokens"), 1, 512, value=64,
+                                                                key=k(f"max_new_tokens_{backend}"))
+                                out_key = k(f"last_out_{backend}")
+                                if st.button(f"{get_text('conf_model', 'run')}", key=k(f"run_{backend}")):
+                                    with st.spinner(get_text("conf_model", "inference")):
+                                        out = llm_adapters.generate(
+                                            backend=backend,
+                                            prompt=prompt,
+                                            model_name=sel,
+                                            max_tokens=int(max_tokens),
+                                            **cfg
+                                        )
+                                    st.session_state[out_key] = out
 
-                            if st.session_state.get(out_key) is not None:
-                                with st.expander(f"{get_text('conf_model', 'response')}", expanded=True):
-                                    st.write(st.session_state[out_key])
-                                    if st.button(f"{get_text('conf_model', 'clear_output')}",
-                                                 key=k(f"clear_out_{backend}")):
-                                        st.session_state[out_key] = None
-                                        st.rerun()
+                                if st.session_state.get(out_key) is not None:
+                                    with st.expander(f"{get_text('conf_model', 'response')}", expanded=True):
+                                        st.write(st.session_state[out_key])
+                                        if st.button(f"{get_text('conf_model', 'clear_output')}",
+                                                    key=k(f"clear_out_{backend}")):
+                                            st.session_state[out_key] = None
+                                            st.rerun()
 
-                    if backend  == "LM Studio":
-                        with t3:
-                            lmstudio_panel(host=cfg.get("host", "http://localhost:1234"), key=f'local_tab3_{backend}')
+                        if backend  == "LM Studio":
+                            with t3:
+                                lmstudio_panel(host=cfg.get("host", "http://localhost:1234"), key=f'local_tab3_{backend}')
 
-                    if backend == 'Ollama':
-                        with t3:
-                            ollama_panel(host=cfg.get("host", "http://localhost:11434"), key=f'local_tab3_{backend}')
+                        if backend == 'Ollama':
+                            with t3:
+                                ollama_panel(host=cfg.get("host", "http://localhost:11434"), key=f'local_tab3_{backend}')
 
-                col_set, col_sp = st.columns([3, 5])
-                with col_sp:
-                    empty = st.empty()
-                with col_set:
-                    if st.button(get_text("conf_model", "use_model"), key=k(f"set_active_{backend}")):
-                        st.session_state.setdefault('llm', {})
-                        st.session_state['llm'] = {
-                            'backend': backend,
-                            'model': sel if isinstance(sel, str) else str(sel),
-                            'status': 'loaded',  # per i backend locali/serviti lo consideriamo pronto
-                            'kwargs': dict(cfg)  # host/token/filter ecc. salvati sopra per quel backend
-                        }
-                        # per retro-compatibilità con codice esistente:
-                        st.session_state['llm_backend'] = backend
-                        st.session_state['llm_model'] = sel if isinstance(sel, str) else str(sel)
-                        empty.success(get_text("conf_model", "active_model", backend=backend, sel=sel))
-                        st_toast_temp(get_text("conf_model", "active_model", backend=backend, sel=sel), 'success')
+            col_set, col_sp = st.columns([3, 5])
+            with col_sp:
+                empty = st.empty()
+            with col_set:
+                if st.button(get_text("conf_model", "use_model"), key=k(f"set_active_{backend}")):
+                    st.session_state.setdefault('llm', {})
+                    st.session_state['llm'] = {
+                        'backend': backend,
+                        'model': sel if isinstance(sel, str) else str(sel),
+                        'status': 'loaded',  # per i backend locali/serviti lo consideriamo pronto
+                        'kwargs': dict(cfg)  # host/token/filter ecc. salvati sopra per quel backend
+                    }
+                    # per retro-compatibilità con codice esistente:
+                    st.session_state['llm_backend'] = backend
+                    st.session_state['llm_model'] = sel if isinstance(sel, str) else str(sel)
+                    empty.success(get_text("conf_model", "active_model", backend=backend, sel=sel))
+                    st_toast_temp(get_text("conf_model", "active_model", backend=backend, sel=sel), 'success')
 
 def configure_online_model(key_prefix):
     backend_display_options = list(llm_adapters.LLM_ADAPTERS.keys())
@@ -528,8 +532,6 @@ def spacy_show_model(name):
             else:
                 st.error(get_text("conf_model", "install_failed", name=model_to_install, rc=rc))
                 st.session_state[installing_key] = False
-
-
 
 def _download_spacy_model(model_name: str, *, verbose: bool = True) -> int:
     cmd = [sys.executable, "-m", "spacy", "download", model_name]
@@ -865,16 +867,19 @@ def hugging_face_tab():
             sort = st.selectbox(get_text("conf_model", "sort_by"), ["", "downloads", "likes", "lastModified"])
             sort = sort or None
 
-        search = st.text_input(get_text("conf_model", "search_placeholder"), placeholder="es. llama, bert, gpt2")
-        limit = st.slider(
-            label=get_text("conf_model", "max_results"),
-            min_value=1,
-            max_value=100,
+        col1, col2 = st.columns(2)
+        with col1:
+            search = st.text_input(get_text("conf_model", "search_placeholder"), placeholder="es. llama, bert, gpt2")
+        with col2:
+            limit = st.slider(
+                label=get_text("conf_model", "max_results"),
+                min_value=1,
+                max_value=100,
             value=5,  # default
             step=5,
             key="hf_limit"
         )
-        use_token = st.text_input(f"{ICONS['Hugging Face Token']} " + get_text("conf_model", "hf_token_help"),
+        use_token = st.text_input(get_text("conf_model", "hf_token_help"),
                                   type="password", value=get_HF_Token())
         submit = st.form_submit_button(f"{ICONS['Filtro']} " + get_text("conf_model", "search_btn"))
 
@@ -904,10 +909,10 @@ def lmstudio_tab():
     # --- Sezione A: elenco modelli esposti dal server OpenAI-compatible ---
     col1, col2 = st.columns(2)
     with col1:
-        lm_host = st.text_input(f"{ICONS['Host']} " + get_text("conf_model", "host_lm_studio"), "http://localhost:1234",
+        lm_host = st.text_input(get_text("conf_model", "host_lm_studio"), "http://localhost:1234",
                                 help=get_text("conf_model", "lm_host_help"))
     with col2:
-        lm_filter = st.text_input(f"{ICONS['Filtro']} " + get_text("conf_model", "filter_contains"), "", placeholder="es. qwen, mistral, llama")
+        lm_filter = st.text_input(get_text("conf_model", "filter_contains"), "", placeholder="es. qwen, mistral, llama")
     # lm_host lo stai già ottenendo da st.text_input(...)
     lmstudio_panel(host=lm_host, key='online_tab')
 
@@ -915,7 +920,7 @@ def lmstudio_tab():
 
         cols_srv = st.columns([3, 1])
         with cols_srv[0]:
-            if st.button(f"{ICONS['Refresh']} " + get_text("conf_model", "refresh_cache"), help=get_text("conf_model", "refresh_cache_help")):
+            if st.button(get_text("conf_model", "refresh_cache"), help=get_text("conf_model", "refresh_cache_help")):
                 st.cache_data.clear()
 
         try:
@@ -925,12 +930,12 @@ def lmstudio_tab():
             if f:
                 items = [x for x in items if f in _norm(x["id"])]
 
-            st.caption(get_text("conf_model", "models_exposed", n=len(items)))
-            for it in items:
-                mid = it["id"]
-                with st.container(border=True):
-                    st.markdown(f"**{mid}**")
-                    st.caption(get_text("conf_model", "models_exposed_help"))
+            with st.expander(get_text("conf_model", "models_exposed", n=len(items)), expanded=False):
+                for it in items:
+                    mid = it["id"]
+                    with st.container(border=True):
+                        st.markdown(f"**{mid}**")
+                        st.caption(get_text("conf_model", "models_exposed_help"))
         except requests.exceptions.ConnectionError:
             st.error(get_text("conf_model", "lms_connection_error"))
         except Exception as e:
@@ -967,7 +972,7 @@ def lmstudio_tab():
         st.divider()
 
         # --- Sezione B: scarica/aggiorna modelli tramite CLI "lms get" ---
-        st.subheader(f"{ICONS['Download Models']} " + get_text("conf_model", "download_lms_hub"))
+        st.subheader(get_text("conf_model", "download_lms_hub"))
         st.caption(get_text("conf_model", "download_lms_help"))
 
         with st.form(key="lms_get_form"):
@@ -977,7 +982,7 @@ def lmstudio_tab():
                 no_confirm = st.checkbox(get_text("conf_model", "no_confirm"), value=True, help=get_text("conf_model", "no_confirm_help"))
             with c2:
                 fresh = st.checkbox(get_text("conf_model", "force_install"), value=False, help=get_text("conf_model", "force_install_help"))
-            submit_get = st.form_submit_button(f"{ICONS['Download Models']} " + get_text("conf_model", "download_with_lms"))
+            submit_get = st.form_submit_button(get_text("conf_model", "download_with_lms"))
 
         if submit_get:
             if not q.strip():
@@ -1030,178 +1035,93 @@ def ollama_tab():
 
     colh1, colh2 = st.columns(2)
     with colh1:
-        ollama_host = st.text_input(f"{ICONS['Host']} " + get_text("conf_model", "host_ollama"), "http://localhost:11434",
+        ollama_host = st.text_input(get_text("conf_model", "host_ollama"), "http://localhost:11434",
                                     help=get_text("conf_model", "ollama_host_help"))
     with colh2:
         reg_query = st.text_input(f"{ICONS['Filtro']} " + get_text("conf_model", "repo_filter"), "",
                                   placeholder="es. llama3, qwen2.5, mistral")
     ollama_panel(host=ollama_host, key='online_tab')
     if st.session_state['server_ollama'] is True:
-        st.divider()
-        st.subheader(get_text("conf_model", "registry_browse"))
-
-        with st.expander(f"{ICONS['Filtro']} " + get_text("conf_model", "search_registry"), expanded=True):
-            c1, c2 = st.columns([2, 1])
-            with c1:
-                reg_filter = st.text_input(f"{ICONS['Filtro']} " + get_text("conf_model", "search_repo_contains"), reg_query or "",
-                                           placeholder="es. llama3, mistral, qwen")
-            with c2:
-                refresh_reg = st.button(f"{ICONS['Refresh']} " + get_text("conf_model", "refresh_registry"))
-
-            if refresh_reg:
-                ollama_registry_catalog.clear()
-                ollama_registry_tags.clear()
-
-            catalog = ollama_registry_catalog()
-            if isinstance(catalog, dict) and "error" in catalog:
-                st.warning(catalog["error"])
-                st.info(get_text("conf_model", "manual_pull_info"))
-                repos = []
-            else:
-                repos = catalog or []
-
-            fq = (reg_filter or "").strip().lower()
-            if fq:
-                repos = [r for r in repos if fq in r.lower()]
-
-            st.caption(get_text("conf_model", "repos_in_registry", n=len(repos)))
-
-            if repos:
-                repo = st.selectbox(f"{ICONS['Select a Model']} " + get_text("conf_model", "select_repo"), repos, index=0,
-                                    key="oll_reg_repo")
-                tags = ollama_registry_tags(repo)
-                if isinstance(tags, dict) and "error" in tags:
-                    st.warning(tags["error"])
-                    tags = []
-                st.caption(get_text("conf_model", "tags_available", repo=repo, n=len(tags)))
-
-                for tg in tags:
-                    with st.container(border=True):
-                        st.markdown(f"**{repo}:{tg}**")
-                        cta1, cta2 = st.columns([1, 4])
-
-                        with cta1:
-                            do_pull = st.button(get_text("conf_model", "pull_btn"), key=f"pull_{repo}_{tg}")
-                        with cta2:
-                            st.caption(get_text("conf_model", "pull_help"))
-                        if do_pull and st.session_state['server_ollama'] is True:
-                            try:
-                                with st.spinner(get_text("conf_model", "pulling_model", name=f"{repo}:{tg}")):
-                                    url = f"{ollama_host}/api/pull"
-                                    payload = {"name": f"{repo}:{tg}"}
-                                    resp = requests.post(url, json=payload, stream=True, timeout=600)
-                                    resp.raise_for_status()
-                                    prog = st.progress(0)
-                                    last_pct = 0
-                                    for raw in resp.iter_lines(decode_unicode=True):
-                                        if not raw:
-                                            continue
-                                        try:
-                                            ev = json.loads(raw)
-                                        except Exception:
-                                            st.write(raw)
-                                            continue
-                                        if "status" in ev:
-                                            st.write(ev["status"])
-                                        if "completed" in ev and "total" in ev:
-                                            try:
-                                                comp = int(ev["completed"])
-                                                total = int(ev["total"])
-                                                pct = int(100 * comp / total) if total > 0 else last_pct
-                                                pct = max(min(pct, 100), 0)
-                                                if pct != last_pct:
-                                                    prog.progress(pct)
-                                                    last_pct = pct
-                                            except Exception:
-                                                pass
-                                    prog.progress(100)
-                                    st.success(get_text("conf_model", "pull_complete"))
-                                    st.cache_data.clear()
-                            except Exception as e:
-                                st.error(get_text("conf_model", "pull_error", e=e))
-                        elif do_pull and st.session_state['server_ollama'] is False:
-                            st_toast_temp(get_text("conf_model", "server_not_running"), 'warning')
-                            st.warning(get_text("conf_model", "server_not_running"))
-        st.divider()
-
         # ====== SEZIONE PULL MANUALE ======
-        st.subheader(get_text("conf_model", "manual_pull_header"))
-        with st.form("ollama_manual_pull"):
-            model_to_pull = st.text_input(get_text("conf_model", "remote_model_name"), placeholder="es. llama3:8b-instruct")
-            submit_pull = st.form_submit_button(get_text("conf_model", "pull_from_registry"))
-        if submit_pull and st.session_state['server_ollama'] is True:
-            if not model_to_pull.strip():
-                st.warning(get_text("conf_model", "insert_valid_tag"))
-            else:
-                try:
-                    with st.spinner(get_text("conf_model", "pulling_model", name=model_to_pull)):
-                        url = f"{ollama_host}/api/pull"
-                        payload = {"name": model_to_pull.strip()}
-                        resp = requests.post(url, json=payload, stream=True, timeout=600)
-                        resp.raise_for_status()
-                        prog = st.progress(0)
-                        last_pct = 0
-                        for raw in resp.iter_lines(decode_unicode=True):
-                            if not raw:
-                                continue
-                            try:
-                                ev = json.loads(raw)
-                            except Exception:
-                                st.write(raw)
-                                continue
-                            if "status" in ev:
-                                st.write(ev["status"])
-                            if "completed" in ev and "total" in ev:
-                                try:
-                                    comp = int(ev["completed"])
-                                    total = int(ev["total"])
-                                    pct = int(100 * comp / total) if total > 0 else last_pct
-                                    pct = max(min(pct, 100), 0)
-                                    if pct != last_pct:
-                                        prog.progress(pct)
-                                        last_pct = pct
-                                except Exception:
-                                    pass
-                        prog.progress(100)
-                        st.success(get_text("conf_model", "pull_complete"))
-                        st.cache_data.clear()
-                except Exception as e:
-                    st.error(get_text("conf_model", "pull_error_short", e=e))
-        elif st.session_state['server_ollama'] is False:
-            st_toast_temp(get_text("conf_model", "server_not_running"), 'warning')
-            st.warning(get_text("conf_model", "server_not_running"))
-        st.markdown("---")
-        st.subheader(get_text("conf_model", "set_active_ollama"))
-        chosen_ol = st.text_input(
-            get_text("conf_model", "ollama_model_name"),
-            placeholder="es. llama3.1:8b-instruct"
-        )
-        col_set, col_sp = st.columns([3, 5])
-        with col_sp:
-            empty = st.empty()
-        with col_set:
-            load_ollama = st.button(get_text("conf_model", "use_ollama_model"))
-            if load_ollama and st.session_state['server_ollama'] is True:
-                if not chosen_ol.strip():
-                    st.warning(get_text("conf_model", "insert_valid_ollama"))
+        with st.expander(get_text("conf_model", "manual_pull_header"), expanded=True):
+            st.subheader(get_text("conf_model", "manual_pull_header"))
+            with st.form("ollama_manual_pull"):
+                model_to_pull = st.text_input(get_text("conf_model", "remote_model_name"), placeholder="es. llama3:8b-instruct")
+                submit_pull = st.form_submit_button(get_text("conf_model", "pull_from_registry"))
+            if submit_pull and st.session_state['server_ollama'] is True:
+                if not model_to_pull.strip():
+                    st_toast_temp(get_text("conf_model", "insert_valid_tag"), 'warning')
                 else:
-                    st.session_state['llm'] = {
-                        'backend': "Ollama",
-                        'model': chosen_ol.strip(),
-                        'status': 'loaded',
-                        'kwargs': {'host': ollama_host}  # usa l'host letto sopra
-                    }
-                    # retro-compat
-                    st.session_state['llm_backend'] = "Ollama"
-                    st.session_state['llm_model'] = chosen_ol.strip()
-                    st.success(get_text("conf_model", "active_model", backend="Ollama", sel=chosen_ol.strip()))
-                    empty.success(get_text("conf_model", "active_model", backend="Ollama", sel=chosen_ol.strip()))
-                    st_toast_temp(get_text("conf_model", "active_model", backend="Ollama", sel=chosen_ol.strip()), 'success')
-            elif load_ollama and st.session_state['server_ollama'] is False:
+                    try:
+                        with st.spinner(get_text("conf_model", "pulling_model", name=model_to_pull)):
+                            url = f"{ollama_host}/api/pull"
+                            payload = {"name": model_to_pull.strip()}
+                            resp = requests.post(url, json=payload, stream=True, timeout=600)
+                            resp.raise_for_status()
+                            prog = st.progress(0)
+                            last_pct = 0
+                            for raw in resp.iter_lines(decode_unicode=True):
+                                if not raw:
+                                    continue
+                                try:
+                                    ev = json.loads(raw)
+                                except Exception:
+                                    st.write(raw)
+                                    continue
+                                if "status" in ev:
+                                    st.info(ev["status"])
+                                if "completed" in ev and "total" in ev:
+                                    try:
+                                        comp = int(ev["completed"])
+                                        total = int(ev["total"])
+                                        pct = int(100 * comp / total) if total > 0 else last_pct
+                                        pct = max(min(pct, 100), 0)
+                                        if pct != last_pct:
+                                            prog.progress(pct)
+                                            last_pct = pct
+                                    except Exception:
+                                        pass
+                            prog.progress(100)
+                            st.success(get_text("conf_model", "pull_complete"))
+                            st.cache_data.clear()
+                    except Exception as e:
+                        st.error(get_text("conf_model", "pull_error_short", e=e))
+            elif st.session_state['server_ollama'] is False:
                 st_toast_temp(get_text("conf_model", "server_not_running"), 'warning')
                 st.warning(get_text("conf_model", "server_not_running"))
+        
+        with st.expander(get_text("conf_model", "set_active_ollama"), expanded=True):
+            st.subheader(get_text("conf_model", "set_active_ollama"))
+            chosen_ol = st.text_input(
+                get_text("conf_model", "ollama_model_name"),
+                placeholder="es. llama3.1:8b-instruct"
+            )
+            col_set, col_sp = st.columns([3, 5])
+            with col_sp:
+                empty = st.empty()
+            with col_set:
+                load_ollama = st.button(get_text("conf_model", "use_ollama_model"))
+                if load_ollama and st.session_state['server_ollama'] is True:
+                    if not chosen_ol.strip():
+                        st_toast_temp(get_text("conf_model", "insert_valid_ollama"), 'warning')
+                    else:
+                        st.session_state['llm'] = {
+                            'backend': "Ollama",
+                            'model': chosen_ol.strip(),
+                            'status': 'loaded',
+                            'kwargs': {'host': ollama_host}  # usa l'host letto sopra
+                        }
+                        # retro-compat
+                        st.session_state['llm_backend'] = "Ollama"
+                        st.session_state['llm_model'] = chosen_ol.strip()
+                        st.success(get_text("conf_model", "active_model", backend="Ollama", sel=chosen_ol.strip()))
+                        empty.success(get_text("conf_model", "active_model", backend="Ollama", sel=chosen_ol.strip()))
+                        st_toast_temp(get_text("conf_model", "active_model", backend="Ollama", sel=chosen_ol.strip()), 'success')
+                elif load_ollama and st.session_state['server_ollama'] is False:
+                    st_toast_temp(get_text("conf_model", "server_not_running"), 'warning')
+            
     elif st.session_state.get('server_ollama') is False:
-        st.warning(get_text("conf_model", "server_not_running"))
+        st_toast_temp(get_text("conf_model", "server_not_running"), 'warning')
 import html
 
 def _darken(hex_color: str, pct: float = 0.12) -> str:
@@ -1462,9 +1382,9 @@ def build_legend_html(ents, nlp):
         desc = NER_LABEL_INFO.get(l, "spaCy entity")
         stats = sens.get(l, {"count": 0, "sens_count": 0, "examples": []})
         if stats["sens_count"] > 0:
-            tag = f"🔒 {get_text("conf_model", "sensitive")} ({stats['sens_count']}/{stats['count']})"
+            tag = f'🔒 {get_text("conf_model", "sensitive")} ({stats["sens_count"]}/{stats["count"]})'
         else:
-            tag = f"🟢 {get_text("conf_model", "non_sensitive")} ({stats['count']})"
+            tag = f'🟢 {get_text("conf_model", "non_sensitive")} ({stats["count"]})'
         examples = f" — es.: {', '.join(stats['examples'])}" if stats["examples"] else ""
         items.append(
             f"<div style='margin:4px 0;'>"
@@ -1473,20 +1393,6 @@ def build_legend_html(ents, nlp):
             f"</div>"
         )
     return "".join(items)
-
-@st.cache_data(show_spinner=get_text("conf_model", "searching_ollama"), ttl=3600)
-def ollama_registry_catalog(limit: int = 2000) -> list[str] | dict:
-    try:
-        url = "https://registry.ollama.ai/v2/library/_catalog"
-        resp = requests.get(url, params={"n": limit}, timeout=10)
-        resp.raise_for_status()
-        js = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
-        repos = js.get("repositories", [])
-        # Alcuni registry ritornano path 'library/<name>': normalizziamo
-        repos = [r.split("/", 1)[-1] if "/" in r else r for r in repos]
-        return sorted(set(repos))
-    except Exception as e:
-        return {"error": get_text("conf_model", "ollama_registry_error", e=e)}
 
 @st.cache_data(show_spinner=get_text("conf_model", "fetching_tags"), ttl=3600)
 def ollama_registry_tags(model: str, limit: int = 200) -> list[str] | dict:
@@ -1535,15 +1441,15 @@ def _is_empty_value(v):
 def _clean_campo_names(df: pd.DataFrame) -> pd.DataFrame:
     import re
     campi = df[get_text("conf_model", "field")].tolist()
-    base_names = [re.sub(f"\s*\({get_text("conf_model", "by_name")}\)\s*$", "", c).strip() for c in campi]
+    base_names = [re.sub(f"\s*\({get_text('conf_model', 'by_name')}\)\s*$", "", c).strip() for c in campi]
     df[get_text("conf_model", "campo_base")] = base_names
 
     duplicates = df[get_text("conf_model", "campo_base")].duplicated(keep=False)
 
-    df_clean = df[~((duplicates) & (df[get_text("conf_model", "field")].str.contains(f"\({get_text("conf_model", "by_name")}\)", case=False)))]
+    df_clean = df[~((duplicates) & (df[get_text("conf_model", "field")].str.contains(f"\({get_text('conf_model', 'by_name')}\)", case=False)))]
 
-    df_clean.loc[df_clean[get_text("conf_model", "field")].str.contains(f"\({get_text("conf_model", "by_name")}\)", case=False), get_text("conf_model", "field")] = \
-        df_clean.loc[df_clean[get_text("conf_model", "field")].str.contains(f"\({get_text("conf_model", "by_name")}\)", case=False), get_text("conf_model", "campo_base")]
+    df_clean.loc[df_clean[get_text("conf_model", "field")].str.contains(f"\({get_text('conf_model', 'by_name')}\)", case=False), get_text("conf_model", "field")] = \
+        df_clean.loc[df_clean[get_text("conf_model", "field")].str.contains(f"\({get_text('conf_model', 'by_name')}\)", case=False), get_text("conf_model", "campo_base")]
 
     df_clean = df_clean.drop(columns=[get_text("conf_model", "campo_base")])
 

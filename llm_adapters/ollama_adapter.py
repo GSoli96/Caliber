@@ -338,10 +338,10 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
     st.session_state['server_ollama'] = online
 
     # Pulsanti Start / Stop
-    b1, b2, b3 = st.columns([3, 2, 3])
+    b1, b2, b3, col1, col2, col3 = st.columns([3, 2, 3, 2, 2, 2])
 
     with b1:
-        if st.button(get_text("llm_adapters", "ollama_start_btn"), key=key + "_start"):
+        if st.button(get_text("llm_adapters", "ollama_start_btn"), key=key + "_start", disabled=online):
             res = start_server_background(host=host)
             if res.get("ok"):
                 st.session_state['server_ollama'] = True
@@ -357,7 +357,7 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
                 st_toast_temp(res.get("msg", get_text("llm_adapters", "ollama_server_error")), 'error')
 
     with b3:
-        if st.button(get_text("llm_adapters", "ollama_stop_btn"), key=key + "_stop"):
+        if st.button(get_text("llm_adapters", "ollama_stop_btn"), key=key + "_stop", disabled=not online):
             res = stop_server_background(host=host)
             st.toast(res.get("msg", "—"))
 
@@ -374,6 +374,12 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
             if hasattr(st, "cache_data"):
                 st.cache_data.clear()
 
+    with col1:
+        ollama_list = st.button(get_text("llm_adapters", "ollama_list_btn"), key=key + "_list", disabled=not online)
+
+    with col3:
+        button_Ps = st.button(get_text("llm_adapters", "ollama_ps_btn"), key=key + "_ps", disabled=not online)
+
     # Stato server
     c1, c2, c3 = st.columns([2, 2, 3])
     with c1:
@@ -385,15 +391,6 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
         st.metric(get_text("llm_adapters", "ollama_models_count"), count)
     with c3:
         st.caption(get_text("llm_adapters", "endpoint", url=f"{API(host)}/tags"))
-
-    # Pulsanti elenco modelli & processi
-    col1, col2, col3 = st.columns([3, 2, 3])
-
-    with col1:
-        ollama_list = st.button(get_text("llm_adapters", "ollama_list_btn"), key=key + "_list")
-
-    with col3:
-        button_Ps = st.button(get_text("llm_adapters", "ollama_ps_btn"), key=key + "_ps")
 
     # --- LIST MODELS ---
     if ollama_list:
@@ -407,14 +404,14 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
                 (stdout, get_text("llm_adapters", "stdout")) if stdout else (stderr, get_text("llm_adapters", "stderr_fallback"))
             )
 
-            with st.expander(primary_label):
-                st.code(primary or "<vuoto>", language="bash")
+            # with st.expander(primary_label):
+            #     st.code(primary or "<vuoto>", language="bash")
 
             if stdout and stderr:
                 with st.expander(get_text("llm_adapters", "stderr") if primary_label == get_text("llm_adapters", "stdout") else get_text("llm_adapters", "stdout")):
                     st.code(stderr if primary_label == get_text("llm_adapters", "stdout") else stdout, language="bash")
 
-            st.success(get_text("llm_adapters", "ollama_cmd_executed") if info.get("ok") else get_text("llm_adapters", "ollama_cmd_failed"))
+            st.toast(get_text("llm_adapters", "ollama_cmd_executed") if info.get("ok") else get_text("llm_adapters", "ollama_cmd_failed"))
 
             if info.get("ok") and primary:
                 parsed = parse_ollama_list(primary)

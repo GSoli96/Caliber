@@ -39,7 +39,7 @@ def settings_tab():
         language = st.selectbox(
             get_text("settings", "select_language"),
             ["Italiano", "English"],
-            index=0 if st.session_state.get("language", "Italiano") == "Italiano" else 1,
+            index=1 if st.session_state.get("language", "English") == "English" else 0,
             key="language_select",
             on_change=lambda: st.session_state.update({"language": st.session_state.language_select})
         )
@@ -75,33 +75,13 @@ def settings_tab():
         )
 
     # --- Configurazione Database ---
-    st.subheader(get_text("settings", "db_config"))
+    st.subheader("Settings Database")
     with st.container(border=True):
         st.text_input(
-            get_text("settings", "db_dir"),
+            "Database Directory",
             value=st.session_state.get('db_dir', "Database"),
             key="db_dir_input",
             on_change=lambda: st.session_state.update(
                 {'db_dir': st.session_state.db_dir_input}
             )
         )
-
-    # # --- Pulsante Salva ---
-    # st.divider()
-    # if st.button("💾 Salva Impostazioni"):
-    #     st.session_state["settings_saved"] = True
-    #     st.success("Impostazioni salvate con successo!")
-    #
-    # # --- Mostra riepilogo ---
-    # if st.session_state.get("settings_saved"):
-    #     st.markdown("### 🔧 Riepilogo Impostazioni Correnti")
-    #
-    #     col1, col2 = st.columns(2)
-    #     with col1:
-    #         st.markdown(f"**🌐 Lingua:**  {st.session_state.get('language', 'Italiano')}")
-    #         st.markdown(f"**🎨 Tema:**  {st.session_state.get('theme', 'Light')}")
-    #     with col2:
-    #         st.markdown(f"**🌱 Fattore Emissione:**  {st.session_state.get('emission_factor')} gCO₂/kWh")
-    #         st.markdown(f"**⚡ CPU TDP:**  {st.session_state.get('cpu_tdp')} W")
-    #
-    #     st.info("Le modifiche saranno applicate alla prossima sessione o refresh dell’app.")

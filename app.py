@@ -123,9 +123,6 @@ def activate_service():
         thread.start()
         threads.append(thread)
 
-    for thread in threads:
-        thread.join()
-
 def check_and_save_status(dbms):
     status = check_service_status(dbms)
     if 'DBMS_Sever' not in st.session_state:
@@ -149,18 +146,14 @@ st.markdown("""
     <style>
     .block-container {
         padding-top: 1.5rem;      
-        padding-bottom: 0.5rem;
+        padding-bottom: 0rem;
+        margin_button: 0rem;
     }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-st.markdown("""
-<style>
+
 .block-container h1 {
     margin-bottom: 0rem;   
-    padding-top: 0rem;      
-    padding-bottom: 1rem;
+    padding-top: 1rem;      
+    padding-bottom: 0.5rem;
 }
 
 .stTabs {

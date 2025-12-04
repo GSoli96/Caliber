@@ -15,6 +15,9 @@ rilasciano il GIL, mantenendo la UI reattiva.
 
 from __future__ import annotations
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+import streamlit as st
 import os
 import io
 import json
@@ -37,6 +40,11 @@ from sklearn.impute import SimpleImputer, KNNImputer
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 import llm_adapters
+# --- IMPORTS FOR RESOURCE MONITORING ---
+import threading
+from utils.system_monitor_utilities import SystemMonitor, get_static_system_info, get_dynamic_system_info
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 def _render_numeric_imputation(df, missing_cols, key):
@@ -366,7 +374,7 @@ def make_progress_reporter(ss_key: str, tag: str, total: int) -> Callable[[int],
 def start_threaded_job(ss_key: str, tag: str, func: Callable[..., Any], *args, **kwargs) -> None:
     """
     Avvia un job in thread e memorizza il Future in session_state.
-    - tag distingue i job (es. 'keys', 'card', 'anom', 'sem', 'fd', 'heat', 'export')
+    - tag distingue i job (es. 'keys', 'card', 'anom', 'sem',  'heat', 'export')
     """
     pool = get_thread_pool()
     if ss_key not in st.session_state:
@@ -401,9 +409,6 @@ def safe_nunique(s: pd.Series) -> int:
     except TypeError:
         return int(s.astype(str).nunique(dropna=True))
 
-
-
-
 def zscore_outlier_rate(series: pd.Series, z: float = 3.0) -> float:
     s = pd.to_numeric(series, errors="coerce")
     std = s.std(ddof=0)
@@ -413,50 +418,256 @@ def zscore_outlier_rate(series: pd.Series, z: float = 3.0) -> float:
     return float((zvals.abs() > z).mean())
 
 # ------------------------------------------------------------------------------------
+# Resource Monitoring Helpers
+# ------------------------------------------------------------------------------------
+def start_monitoring():
+    """Start resource monitoring thread."""
+    data_list = []
+    stop_event = threading.Event()
+    emission_factor = st.session_state.get('emission_factor', 250.0)
+    cpu_tdp = st.session_state.get('cpu_tdp', 65.0)
+    monitor = SystemMonitor(data_list, stop_event, emission_factor, cpu_tdp)
+    monitor.start()
+    return data_list, stop_event, monitor
+def stop_monitoring(data_list, stop_event, monitor_thread):
+    """Stop resource monitoring and return collected metrics."""
+    stop_event.set()
+    monitor_thread.join(timeout=2.0)
+    return data_list
+
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+
+import plotly.graph_objects as go
+import streamlit as st
+
+import plotly.graph_objects as go
+import streamlit as st
+
+
+def create_resource_plots_two_columns(metrics_data):
+    """Return two Plotly figures (CPU/GPU and CO2) with perfect dark/light support."""
+    if not metrics_data:
+        return None, None
+
+    # Detect Streamlit theme
+    theme = st.get_option("theme.base")
+
+    if theme == "dark":
+        BG = "#111418"            # dark background
+        GRID = "rgba(255,255,255,0.20)"
+        AXIS = "#d0d0d0"          # visible light gray
+        TITLE = "#ffffff"
+    else:
+        BG = "white"
+        GRID = "rgba(0,0,0,0.12)"
+        AXIS = "#2c2c2c"
+        TITLE = "#1a1a1a"
+
+    # Parse data
+    timestamps = [m.get("timestamp") for m in metrics_data]
+    cpu = [m.get("cpu", {}).get("percent", 0) for m in metrics_data]
+    gpu = [m.get("gpu", {}).get("percent", 0) for m in metrics_data]
+    co2 = [
+        m.get("cpu", {}).get("co2_gs_cpu", 0) +
+        m.get("gpu", {}).get("co2_gs_gpu", 0)
+        for m in metrics_data
+    ]
+    has_gpu = any(gpu)
+
+    # ----------------------
+    # CPU + GPU FIGURE
+    # ----------------------
+    fig_cpu = go.Figure()
+
+    fig_cpu.add_trace(go.Scatter(
+        x=timestamps, y=cpu,
+        mode="lines", name="CPU %",
+        line=dict(color="#4cc3ff", width=3),
+        hovertemplate="CPU: %{y:.1f}%<br>%{x}<extra></extra>"
+    ))
+
+    if has_gpu:
+        fig_cpu.add_trace(go.Scatter(
+            x=timestamps, y=gpu,
+            mode="lines", name="GPU %",
+            line=dict(color="#ff9d40", width=3),
+            hovertemplate="GPU: %{y:.1f}%<br>%{x}<extra></extra>"
+        ))
+
+    fig_cpu.update_layout(
+        height=380,
+        paper_bgcolor=BG,
+        plot_bgcolor=BG,
+        title=dict(
+            text="🧠 CPU Usage (%)" if not has_gpu else "🧠 CPU & 🎨 GPU Usage",
+            font=dict(size=20, color=TITLE),
+            x=0.02,
+            xanchor="left"
+        ),
+        showlegend=has_gpu,
+        legend=dict(
+            font=dict(color=AXIS),
+            bgcolor="rgba(0,0,0,0)"
+        ),
+        margin=dict(l=40, r=20, t=60, b=40),
+        font=dict(color=AXIS)
+    )
+
+    fig_cpu.update_xaxes(showgrid=True, gridcolor=GRID, color=AXIS)
+    fig_cpu.update_yaxes(showgrid=True, gridcolor=GRID, color=AXIS, range=[0, 100])
+
+    # ----------------------
+    # CO2 FIGURE
+    # ----------------------
+    fig_co2 = go.Figure()
+
+    fig_co2.add_trace(go.Scatter(
+        x=timestamps, y=co2,
+        mode="lines", fill="tozeroy",
+        name="CO₂ (g/s)",
+        line=dict(color="#6edc6e", width=3),
+        fillcolor="rgba(110,220,110,0.35)",
+        hovertemplate="CO₂: %{y:.4f} g/s<br>%{x}<extra></extra>"
+    ))
+
+    fig_co2.update_layout(
+        height=380,
+        paper_bgcolor=BG,
+        plot_bgcolor=BG,
+        title=dict(
+            text="🌍 CO₂ Emissions (g/s)",
+            font=dict(size=20, color=TITLE),
+            x=0.02,
+            xanchor="left"
+        ),
+        showlegend=False,
+        margin=dict(l=40, r=20, t=60, b=40),
+        font=dict(color=AXIS)
+    )
+
+    fig_co2.update_xaxes(showgrid=True, gridcolor=GRID, color=AXIS)
+    fig_co2.update_yaxes(showgrid=True, gridcolor=GRID, color=AXIS)
+
+    return fig_cpu, fig_co2
+
+
+
+# ------------------------------------------------------------------------------------
 # Task functions con PROGRESS (chiamate nei thread)
 # ------------------------------------------------------------------------------------
+def task_anomalies(
+    df: pd.DataFrame,
+    z_thresh: float,
+    min_year: Optional[int],
+    future_days: Optional[int],
+    ss_key: str,
+    tag: str
+) -> Dict[str, Any]:
 
+    # START MONITORING
+    data_list, stop_event, monitor = start_monitoring()
 
-def task_anomalies(df: pd.DataFrame, z_thresh: float, min_year: int, future_days: int, ss_key: str, tag: str) -> Dict[str, Any]:
     reporter = make_progress_reporter(ss_key, tag, total=max(1, len(df.columns)))
+
+    has_dates = any(pd.api.types.is_datetime64_any_dtype(df[c]) for c in df.columns)
+
     rows_ = []
+
     for i, col in enumerate(df.columns, start=1):
+
         ser = df[col]
-        miss = is_null_series(ser).mean()
-        const = int((safe_nunique(ser) == 1))
-        out_frac = zscore_outlier_rate(ser, z=z_thresh) if pd.api.types.is_numeric_dtype(ser) else float("nan")
-        # date
-        if pd.api.types.is_datetime64_any_dtype(ser):
+        miss_rate = is_null_series(ser).mean()
+        nunique = safe_nunique(ser)
+        is_const = (nunique == 1)
+
+        # Numeric stats
+        if pd.api.types.is_numeric_dtype(ser):
+            std = ser.std(skipna=True)
+            skew_ = ser.skew(skipna=True)
+            kurt_ = ser.kurt(skipna=True)
+            out_z = zscore_outlier_rate(ser, z=z_thresh)
+        else:
+            std = skew_ = kurt_ = np.nan
+            out_z = np.nan
+
+        # Date-only stats (only if dataset contains dates)
+        if has_dates and pd.api.types.is_datetime64_any_dtype(ser):
             s = pd.to_datetime(ser, errors="coerce", utc=True)
             now = pd.Timestamp.utcnow()
-            future = float((s > now + pd.Timedelta(days=future_days)).mean())
-            ancient = float((s < pd.Timestamp(f"{min_year}-01-01", tz="UTC")).mean())
-            date_future = round(future * 100, 2)
-            date_old = round(ancient * 100, 2)
+
+            future = (s > now + pd.Timedelta(days=future_days)).mean() if future_days is not None else 0
+            ancient = (s < pd.Timestamp(f"{min_year}-01-01", tz="UTC")).mean() if min_year else 0
+
+            future_pct = round(future * 100, 2)
+            ancient_pct = round(ancient * 100, 2)
         else:
-            date_future = float("nan"); date_old = float("nan")
+            future_pct = np.nan
+            ancient_pct = np.nan
+
+        # Severity index: weighted anomalies
+        severity = (
+            miss_rate * 0.35 +
+            (out_z if not np.isnan(out_z) else 0) * 0.35 +
+            (abs(skew_) / 10 if not np.isnan(skew_) else 0) * 0.15 +
+            (abs(kurt_) / 10 if not np.isnan(kurt_) else 0) * 0.15
+        )
+
         rows_.append({
-            "Colonna": col,
-            "Missing %": round(miss * 100, 2),
-            "Costante?": "✅" if const else "",
-            f"Outlier |z|>{z_thresh:g} %": (round(out_frac * 100, 2) if not np.isnan(out_frac) else np.nan),
-            "Date future %": date_future,
-            f"Date < {min_year} %": date_old,
+            "Column": col,
+            "Missing %": round(miss_rate * 100, 2),
+            "Constant?": "Yes" if is_const else "",
+            f"Outliers |z|>{z_thresh} %": round(out_z * 100, 2) if not np.isnan(out_z) else np.nan,
+            "Std": std,
+            "Skewness": skew_,
+            "Kurtosis": kurt_,
+            "Future dates %": future_pct,
+            f"Dates < {min_year} %": ancient_pct,
+            "Severity": round(float(severity), 4)
         })
+
         reporter(i)
+
     anomalies = pd.DataFrame(rows_)
-    return {"anomalies": anomalies}
+
+    # STOP MONITORING
+    metrics = stop_monitoring(data_list, stop_event, monitor)
+
+    return {
+        "anomalies": anomalies,
+        "metrics": metrics
+    }
+
+
 
 def task_semantic(df: pd.DataFrame, sem_sample: int, enable_spacy: bool, ss_key: str, tag: str) -> Dict[str, Any]:
+    # START MONITORING
+    data_list, stop_event, monitor = start_monitoring()
     reporter = make_progress_reporter(ss_key, tag, total=max(1, len(df.columns)))
 
+    # INTERNATIONAL PATTERNS
     patterns = {
-        "email": r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
-        "telefono_it": r"^\+?3?9?\s?[\d\s\-]{6,}$",
-        "codice_fiscale_it": r"^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$",
-        "iban_it": r"^IT[0-9A-Z]{25}$",
-        "cap_it": r"^\d{5}$",
+        "email": r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$",
+        "phone_international": r"^\+?[1-9]\d{6,14}$",
+        "italian_tax_code": r"^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$",
+        "iban": r"^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$",
+        "postal_code_generic": r"^[A-Za-z0-9\s\-]{3,10}$",
+        "ssn_usa": r"^\d{3}-?\d{2}-?\d{4}$",
+        "nin_uk": r"^[A-CEGHJ-PR-TW-Z]{2}\d{6}[A-D]$",
+        "sin_canada": r"^\d{3}\s?\d{3}\s?\d{3}$",
+        "tfn_australia": r"^\d{8,9}$",
+        "passport_generic": r"^[A-Za-z0-9]{6,9}$",
+        "passport_uk": r"^\d{9}$",
+        "passport_usa": r"^\d{9}$",
+        "aadhaar_india": r"^\d{4}\s?\d{4}\s?\d{4}$",
+        "credit_card": r"^(?:4\d{12}(?:\d{3})?|5[1-5]\d{14}|3[47]\d{13}|6(?:011|5\d{2})\d{12})$",
+        "ipv4": r"^(?:\d{1,3}\.){3}\d{1,3}$",
+        "ipv6": r"^([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}$",
+        "mac_address": r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
     }
+
+    # OPTIONAL SPACY
     nlp = None
     if enable_spacy:
         try:
@@ -469,28 +680,40 @@ def task_semantic(df: pd.DataFrame, sem_sample: int, enable_spacy: bool, ss_key:
                     continue
         except Exception:
             nlp = None
+
     rows_sem = []
+    patterns_found = set()
+
     for i, col in enumerate(df.columns, start=1):
         ser = df[col]
         dtype = str(ser.dtype)
         sample = ser.dropna().astype(str).head(int(sem_sample))
+
+        # MATCHES ONLY FOR PATTERNS WITH >0% MATCH
         matches = {}
         for label, rx in patterns.items():
             try:
                 m = sample.str.fullmatch(rx, regex=True).mean() if not sample.empty else 0.0
             except Exception:
                 m = 0.0
-            matches[label] = round(float(m) * 100, 2)
-        pii_hint = "🔒 possibile PII" if any(v > 10 for v in matches.values()) else ""
+            m = round(float(m) * 100, 2)
+            if m > 0:     # <---------- Only keep patterns that matched
+                matches[label] = m
+                patterns_found.add(label)
+
+        pii_hint = "🔒 sensitive" if any(v > 10 for v in matches.values()) else ""
+
+        # NER (minimal)
         ner_labels = Counter()
         if nlp and not sample.empty:
             try:
                 text = "\n".join(sample.sample(min(20, len(sample)), random_state=42))
                 doc = nlp(text)
-                ner_labels.update([ent.label_ for ent in doc.ents])
+                ner_labels.update(ent.label_ for ent in doc.ents)
             except Exception:
                 pass
-        # tipo SQL suggerito (euristico)
+
+        # SQL TYPE INFERENCE
         sql_type = "TEXT"
         if pd.api.types.is_integer_dtype(ser):
             sql_type = "BIGINT" if pd.to_numeric(ser, errors="coerce").max() > 2**31 - 1 else "INT"
@@ -503,23 +726,41 @@ def task_semantic(df: pd.DataFrame, sem_sample: int, enable_spacy: bool, ss_key:
         elif pd.api.types.is_string_dtype(ser):
             try:
                 maxlen = int(ser.astype(str).str.len().max())
-                if maxlen <= 50: sql_type = "VARCHAR(50)"
-                elif maxlen <= 255: sql_type = "VARCHAR(255)"
+                if maxlen <= 50: 
+                    sql_type = "VARCHAR(50)"
+                elif maxlen <= 255: 
+                    sql_type = "VARCHAR(255)"
             except Exception:
                 pass
-        rows_sem.append({
-            "Colonna": col, "dtype": dtype, "Suggerito_SQL": sql_type,
-            "Match email %": matches["email"], "Match tel %": matches["telefono_it"],
-            "Match CF %": matches["codice_fiscale_it"], "Match IBAN %": matches["iban_it"],
-            "Match CAP %": matches["cap_it"],
-            "NER labels (sample)": ", ".join(f"{k}:{v}" for k, v in ner_labels.items()) if ner_labels else "",
-            "Nota": pii_hint
-        })
+
+        row = {
+            "Column": col,
+            "dtype": dtype,
+            "Suggested_SQL": sql_type,
+            "NER_labels": ", ".join(f"{k}:{v}" for k, v in ner_labels.items()) if ner_labels else "",
+            "Note": pii_hint
+        }
+
+        # Dynamically add only the matching patterns
+        for p_label, p_val in matches.items():
+            row[f"match_{p_label}_%"] = p_val
+
+        rows_sem.append(row)
         reporter(i)
+
     sem_df = pd.DataFrame(rows_sem)
-    return {"semantic": sem_df}
 
+    # STOP MONITORING
+    metrics = stop_monitoring(data_list, stop_event, monitor)
 
+    miss_matrix = df.isna().astype(int)
+
+    return {
+        "miss_matrix": miss_matrix,
+        "semantic": sem_df,
+        "patterns_found": sorted(patterns_found),
+        "metrics": metrics
+    }
 
 # ------------------------------------------------------------------------------------
 # UI helpers per progress
@@ -549,13 +790,21 @@ def ui_integrita_dataset(
     with st.container(border=True):
         st.markdown(get_text("profiling", "integrity_quality_header", rows=n_rows, cols=n_cols))
 
+    has_dates = any(pd.api.types.is_datetime64_any_dtype(df[c]) for c in df.columns)
+
     c1, c2, c3 = st.columns(3)
     with c1:
-        z_thresh = st.slider(get_text("profiling", "outlier_threshold"), 2.0, 5.0, 3.0, 0.1, key=f"sliderc1_{ss_key}")
-    with c2:
-        future_grace_days = st.slider(get_text("profiling", "future_date_tolerance"), 0, 30, 1, key=f"sliderc2_{ss_key}")
-    with c3:
-        min_year = st.number_input(get_text("profiling", "min_year"), 1800, 2100, 1900, key=f"ninputc3_{ss_key}")
+        z_thresh = st.slider("Z-score threshold", 2.0, 5.0, 3.0, 0.1)
+
+    if has_dates:
+        with c2:
+            future_grace_days = st.slider("Future date tolerance (days)", 0, 30, 1)
+        with c3:
+            min_year = st.number_input("Minimum acceptable year", 1800, 2100, 1900)
+    else:
+        future_grace_days = None
+        min_year = None
+
     tag = "anom"
     if st.button(get_text("profiling", "run"), key=f"{ss_key}-{tag}-run"):
         start_threaded_job(ss_key, tag, task_anomalies, df, float(z_thresh), int(min_year), int(future_grace_days),
@@ -568,9 +817,51 @@ def ui_integrita_dataset(
 
 
     res = job_result(ss_key, tag)
+    # Display anomalies
     if isinstance(res, dict) and "anomalies" in res:
         results["anomalies"] = res["anomalies"]
-        st.dataframe(res["anomalies"].sort_values("Missing %", ascending=False), hide_index=True, width='stretch')
+        st.dataframe(res["anomalies"], hide_index=True, width='stretch')
+
+        # Resource consumption
+        if "metrics" in res and res["metrics"]:
+            st.divider()
+            st.subheader("📊 Resource Consumption")
+
+            fig_cpu, fig_co2 = create_resource_plots_two_columns(res["metrics"])
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.plotly_chart(fig_cpu, use_container_width=True)
+            with col2:
+                st.plotly_chart(fig_co2, use_container_width=True)
+
+
+        # --- PDF/HTML Export ---
+        with st.container(border=True):
+            st.subheader("📄 Export Report")
+
+            import base64
+            from io import BytesIO
+
+            def export_html(df):
+                html = df.to_html(index=False)
+                return html
+
+            def export_pdf(df):
+                import pdfkit
+                html = df.to_html(index=False)
+                pdf = pdfkit.from_string(html, False)
+                return pdf
+
+            if "anomalies" in res:
+                html = export_html(res["anomalies"])
+                st.download_button("⬇️ Export HTML report", data=html, file_name="anomalies_report.html")
+
+                try:
+                    pdf = export_pdf(res["anomalies"])
+                    st.download_button("⬇️ Export PDF report", data=pdf, file_name="anomalies_report.pdf")
+                except:
+                    st.info("wkhtmltopdf non presente, impossibile generare PDF.")
 
 def missing_value_tab(df: pd.DataFrame, key=""):
     """
@@ -621,89 +912,71 @@ def ui_profiling_relazionale(
 
     # testata compatta
     n_rows, n_cols = df.shape
+    st.subheader(get_text("profiling", "semantic_profiling") + " & " + get_text("profiling", "heatmap_types"))
     with st.container(border=True):
         st.markdown(get_text("profiling", "rel_profiling_header", rows=n_rows, cols=n_cols))
         st.caption(get_text("profiling", "lazy_analysis_info"))
 
     # ordina come richiesto + icone
-    t4, t5 = st.tabs([
-        # "🧩 Chiavi & PK",
-        # "🔗 Cardinalità & FK",
-        # "⚖️ Dipendenze Funzionali",
-        get_text("profiling", "semantic_profiling"),
-        get_text("profiling", "heatmap_types"),
-    ])
 
-    with t4:
-        c1, c2 = st.columns(2)
-        with c1:
-            sem_sample = st.slider(get_text("profiling", "sample_rows"), 20, 2000, 200, 20, key=f'slider4_{ss_key}')
-        with c2:
-            enable_spacy = st.checkbox(get_text("profiling", "use_spacy"), False, key=f'check4_{ss_key}')
-        tag = "sem"
-        if st.button(get_text("profiling", "run"), key=f"{ss_key}-{tag}-run"):
-            start_threaded_job(ss_key, tag, task_semantic, df, int(sem_sample), bool(enable_spacy), ss_key, tag)
+    c1, c2 = st.columns(2)
+    with c1:
+        sem_sample = st.slider(get_text("profiling", "sample_rows"), 20, 2000, 200, 20, key=f'slider4_{ss_key}')
+    with c2:
+        enable_spacy = st.checkbox(get_text("profiling", "use_spacy"), True, key=f'check4_{ss_key}')
+    
+    tag = "sem&heat"
+    if st.button(get_text("profiling", "run"), key=f"{ss_key}-{tag}-run"):
+        start_threaded_job(ss_key, tag, task_semantic, df, int(sem_sample), bool(enable_spacy), ss_key, tag)
 
-        if job_running(ss_key, tag):
-            st.progress(st.session_state[ss_key]["progress"].get(tag, 0.0), text=get_text("profiling", "semantic_profiling_progress"))
-            time.sleep(0.1)
-            st.rerun()
+    if job_running(ss_key, tag):
+        st.progress(st.session_state[ss_key]["progress"].get(tag, 0.0), text=get_text("profiling", "semantic_profiling_progress"))
+        time.sleep(0.1)
+        st.rerun()
 
-        res = job_result(ss_key, tag)
-        if isinstance(res, dict) and "semantic" in res:
-            results["semantic"] = res["semantic"]
-            st.dataframe(res["semantic"], hide_index=True, width='stretch')
+    res = job_result(ss_key, tag)
+    if isinstance(res, dict) and "semantic" in res:
+        results["semantic"] = res["semantic"]
+        st.dataframe(res["semantic"], hide_index=True, width='stretch')
 
-    # --- 🌡️ Heatmap & Tipi
-    with t5:
-        c1, c2 = st.columns(2)
-        with c1:
-            hm_max_rows = st.number_input(get_text("profiling", "max_rows_sample"), 500, 100_000, 2_000, step=500,
-                                          key=f'ninput5_{ss_key}')
-        with c2:
-            show_types = st.checkbox(get_text("profiling", "merge_dtypes"), True, key=f'check5_{ss_key}')
+        miss_matrix = res["miss_matrix"]
 
-        def _task_heat(df: pd.DataFrame, hm_max_rows: int, show_types: bool, ss_key: str, tag: str):
-            reporter = make_progress_reporter(ss_key, tag, total=3)
-            miss_matrix = df.isna().astype(int);
-            reporter(1)
-            miss_by_col = miss_matrix.mean().to_frame("Missing %").assign(
-                **{"Missing %": lambda x: (x["Missing %"] * 100).round(2)});
-            reporter(2)
-            reporter(3)
-            return {"miss_by_col": miss_by_col, "miss_matrix": miss_matrix, "hm_max_rows": hm_max_rows,
-                    "show_types": show_types}
+        try:
+            mm = (
+                miss_matrix
+                if len(miss_matrix) <= int(sem_sample)
+                else miss_matrix.sample(int(sem_sample), random_state=42)
+            )
 
-        tag = "heat"
-        if st.button(get_text("profiling", "run"), key=f"{ss_key}-{tag}-run"):
-            start_threaded_job(ss_key, tag, _task_heat, df, int(hm_max_rows), bool(show_types), ss_key, tag)
+            fig, ax = plt.subplots(figsize=(min(12, 2 + df.shape[1] * 0.5), 6))
+            sns.heatmap(mm.T, cbar=True, ax=ax)
 
-        # --- BLOCCO CORRETTO ---
-        if job_running(ss_key, tag):
-            st.progress(st.session_state[ss_key]["progress"].get(tag, 0.0), text=get_text("profiling", "preparing_heatmap"))
-            time.sleep(0.1)  # Aggiunto: Polling
-            st.rerun()  # Aggiunto: Forza rerun
-        # --- FINE BLOCCO ---
+            ax.set_xlabel("righe")
+            ax.set_ylabel("colonne")
 
-        res = job_result(ss_key, tag)
-        if isinstance(res, dict):
-            miss_by_col = res["miss_by_col"].reset_index().rename(columns={"index": "Colonna"})
-            miss_matrix = res["miss_matrix"]
-            if res.get("show_types"):
-                type_map = df.dtypes.astype(str).rename("dtype").reset_index().rename(columns={"index": "Colonna"})
-                out_df = miss_by_col.merge(type_map, on="Colonna", how="left").sort_values("Missing %", ascending=False)
-                st.dataframe(out_df, hide_index=True, width='stretch')
-            else:
-                st.dataframe(miss_by_col.sort_values("Missing %", ascending=False), hide_index=True, width='stretch')
+            with st.expander('🟥 '+get_text("profiling", "heatmap_types"), expanded=False):
+                st.pyplot(fig)
 
-            try:
-                import matplotlib.pyplot as plt, seaborn as sns
-                mm = miss_matrix if len(miss_matrix) <= res["hm_max_rows"] else miss_matrix.sample(res["hm_max_rows"],
-                                                                                                   random_state=42)
-                fig, ax = plt.subplots(figsize=(min(12, 2 + df.shape[1] * 0.5), 6))
-                sns.heatmap(mm.T, cbar=True, ax=ax);
-                ax.set_xlabel("righe");
-                ax.set_ylabel("colonne")
-                st.pyplot(fig, width='stretch')
-            except Exception:
-                st.info(get_text("profiling", "heatmap_unavailable"))
+        except Exception as e:
+            st.info(get_text("profiling", "heatmap_unavailable"))
+            st.error(f"Errore nella heatmap: {e}")
+
+        # Display resource consumption plots
+        if "metrics" in res and res["metrics"]:
+            st.divider()
+            st.subheader("📊 Resource Consumption")
+
+            fig_cpu, fig_co2 = create_resource_plots_two_columns(res["metrics"])
+
+            if fig_cpu:
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.plotly_chart(fig_cpu, use_container_width=True)
+
+                with col2:
+                    st.plotly_chart(fig_co2, use_container_width=True)
+
+
+
+

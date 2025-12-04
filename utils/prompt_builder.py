@@ -11,8 +11,17 @@ def create_sql_prompt(
     """
     Creates a clear, direct, and robust prompt for SQL query generation
     for a database with one or more tables.
+    
+    Args:
+        dfs (Dict[str, pd.DataFrame]): Dictionary mapping table names to DataFrames.
+        user_question (str): Natural language question from the user.
+        db_name (str): Name/type of the database (e.g., "SQLite", "PostgreSQL").
+        db_connection_args (dict, optional): Database connection arguments.
+    
+    Returns:
+        str: Formatted prompt for LLM to generate SQL query.
     """
-    # Fallback per quando non è caricato alcun DataFrame
+    # Fallback for when no DataFrame is loaded
     if not dfs:
         return f"""
                 ### TASK ###
@@ -26,7 +35,7 @@ def create_sql_prompt(
                 ### SQL QUERY ###
                 """
 
-    # --- Costruisce la sezione con le info del database ---
+    # --- Build database info section ---
     db_info_lines = [f"- SQL Dialect: {db_name}"]
     if db_name == "SQLite" and db_connection_args and db_connection_args.get('db_path'):
         db_path = db_connection_args['db_path']
@@ -34,7 +43,7 @@ def create_sql_prompt(
             db_info_lines.append(f"- Database File: `{db_path}`")
     db_info_str = "\n".join(db_info_lines)
 
-    # --- Costruisce la sezione con le info dello schema per OGNI TABELLA ---
+    # --- Build schema info section for EACH TABLE ---
     schema_info_parts = []
     print('Dfs', dfs)
     for table_name, df in dfs.items():
@@ -43,7 +52,7 @@ def create_sql_prompt(
 
         schema_parts = []
         for col, dtype in df.dtypes.items():
-            # Pulisce i nomi delle colonne per un uso sicuro in SQL
+            # Clean column names for safe SQL usage
             clean_col = f'"{col}"' if ' ' in col or ':' in col else col
             schema_parts.append(f"  - {clean_col} (type: {dtype})")
 
@@ -61,7 +70,7 @@ def create_sql_prompt(
 
     full_schema_str = "\n".join(schema_info_parts)
 
-    # Assembla il prompt finale
+    # Assemble the final prompt
     prompt_template = f"""
     ### TASK ###
     You are an expert AI assistant that writes a single, valid SQL query for a {db_name} database.
@@ -119,13 +128,13 @@ def create_sql_optimization_prompt(
         if df is None:
             continue
 
-        # --- RIGA CORRETTA ---
-        # Ho sostituito la list comprehension complessa con un approccio più chiaro e sicuro.
+        # --- CORRECTED LINE ---
+        # Replaced complex list comprehension with a clearer and safer approach.
         schema_parts = []
         for c, t in df.dtypes.items():
             clean_col = f'"{c}"' if ' ' in c else c
             schema_parts.append(f"  - {clean_col} (type: {t})")
-        # --- FINE CORREZIONE ---
+        # --- END CORRECTION ---
 
         schema_str = "\n".join(schema_parts)
         row_count = len(df)

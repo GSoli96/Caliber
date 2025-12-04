@@ -2,6 +2,13 @@ from __future__ import annotations
 
 
 class Icons:
+    """
+    Centralized icon repository for the application UI.
+    
+    Provides emoji icons for various UI elements, tabs, actions, metrics,
+    and status indicators. Icons can be accessed via class attributes or
+    the get_icon() method using human-readable keys.
+    """
     # App & Tabs
     APP_ICON = "🧭"
     TAB_DATASET = "📄"
@@ -9,7 +16,6 @@ class Icons:
     TAB_QUERY = "🧪"
     TAB_RACE = "🏁"
     TAB_DBMS = "🗄️"
-    TAB_HISTORY = "📜"
     TAB_SETTINGS = "⚙️"
 
     # LLM Adapters
@@ -101,7 +107,6 @@ class Icons:
     MONITORING = "📡"
     ALERTS = "🚨"
     NOTIFICATIONS = "🔔"
-    HISTORY_ICON = "🕰️"  # per non confondere con TAB_HISTORY
 
     # Trends / Comparison
     TREND_UP = "📈"
@@ -124,7 +129,6 @@ class Icons:
         "Query Tab": TAB_QUERY,
         "Race Tab": TAB_RACE,
         "DBMS Tab": TAB_DBMS,
-        "History Tab": TAB_HISTORY,
         "Settings Tab": TAB_SETTINGS,
 
         # LLM Adapters (etichette UI)
@@ -214,7 +218,6 @@ class Icons:
         "Monitoring": MONITORING,
         "Alerts": ALERTS,
         "Notifications": NOTIFICATIONS,
-        "History": HISTORY_ICON,
 
         # Trends / Comparison
         "Trend Up": TREND_UP,
@@ -235,7 +238,6 @@ class Icons:
         "TAB_QUERY": TAB_QUERY,
         "TAB_RACE": TAB_RACE,
         "TAB_DBMS": TAB_DBMS,
-        "TAB_HISTORY": TAB_HISTORY,
         "TAB_SETTINGS": TAB_SETTINGS,
         "WARNING": WARNING,
         "ERROR": ERROR,

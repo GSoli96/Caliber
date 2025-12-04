@@ -50,7 +50,13 @@ def load_db_tab(key):
                     st.session_state['db_name'] = dbms_parameters['db_name']
                     st.session_state["dataframes"]["DBMS"][db_name] = dumped
 
-            st_toast_temp(get_text("load_dataset", "dbms_success").format(db_name=db_name), 'success')
+            st_toast_temp(
+                get_text(
+                    "load_dataset",
+                     "dbms_success_download", 
+                     db_name=dbms_parameters['db_name'], 
+                     dbms_name=dbms_parameters['db_choice']
+                     ).format(db_name=db_name), 'success')
 
     if len(list(st.session_state["dataframes"]["DBMS"].keys())) > 0:
         dataset_tab_dbms(key)

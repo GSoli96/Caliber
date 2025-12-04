@@ -61,7 +61,7 @@ def _run_full_process_eval(result_holder, monitoring_data, user_question, all_lo
 
         # --- FASE 2: ESECUZIONE QUERY (DB) ---
         # Inizializza DB
-        db_init_result = db_adapters.initialize_database(db_choice=db_choice, connection_args=db_connection_args)
+        db_init_result = db_adapters.initialize_database(db_choice=db_choice, connection_args=db_connection_args, msg="riga 64 utils_gen_eval_query")
         db_engine = db_init_result.get('engine')
         if db_init_result.get('error'): raise Exception(db_init_result.get('error'))
 
@@ -166,7 +166,7 @@ def _run_greenefy_process(result_holder, monitoring_data, user_question, all_loa
              return
 
         # Esecuzione candidati
-        db_init_result = db_adapters.initialize_database(db_choice=db_choice, connection_args=db_connection_args)
+        db_init_result = db_adapters.initialize_database(db_choice=db_choice, connection_args=db_connection_args, msg="riga 135 utils_gen_eval_query")
         db_engine = db_init_result.get('engine')
         
         # Ricarica dati se necessario (come sopra)

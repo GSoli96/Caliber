@@ -15,8 +15,25 @@ from GUI.green_ai_race_tab import green_ai_race_tab
 
 # --- CO2 Monitoring Helper ---
 class CO2Monitor:
-    def __init__(self, operation_name="Operation"):
-        self.operation_name = operation_name
+    def __init__(self, operation_name=None):
+        """
+        Initializes the CO2Monitor instance.
+
+        Args:
+            operation_name (str, optional): The name of the operation being monitored.
+                                            If None, a default translated name will be used.
+
+        Variables:
+            self.operation_name (str): The name of the operation.
+            self.data_list (list): A list to store monitoring data points (CPU/GPU power, CO2).
+            self.stop_event (threading.Event): An event to signal the monitoring thread to stop.
+            self.monitor_thread (SystemMonitor or None): The thread responsible for system monitoring.
+            self.start_time (float or None): Timestamp when monitoring started.
+            self.end_time (float or None): Timestamp when monitoring ended.
+            self.total_co2_g (float): Total CO2 emissions in grams for the operation.
+            self.total_energy_wh (float): Total energy consumption in Watt-hours for the operation.
+        """
+        self.operation_name = operation_name if operation_name is not None else get_text("operation_default_name")
         self.data_list = []
         self.stop_event = threading.Event()
         self.monitor_thread = None
@@ -26,18 +43,50 @@ class CO2Monitor:
         self.total_energy_wh = 0.0
 
     def __enter__(self):
+        """
+        Context manager entry point.
+        Starts the system monitoring thread to collect CPU/GPU power and CO2 data.
+
+        Variables:
+            self.start_time (float): Records the current time as the start time.
+            self.data_list (list): Cleared to store new monitoring data.
+            self.stop_event (threading.Event): Cleared to allow the monitor thread to run.
+            emission_factor (float): Retrieved from Streamlit session state, used for CO2 calculation.
+            cpu_tdp (float): Retrieved from Streamlit session state, used for CPU power estimation.
+            self.monitor_thread (SystemMonitor): An instance of SystemMonitor started as a new thread.
+
+        Returns:
+            self: The CO2Monitor instance itself, allowing use in a 'with' statement.
+        """
         self.start_time = time.time()
         self.data_list = []
         self.stop_event.clear()
-        # Start monitoring thread
         emission_factor = st.session_state.get('emission_factor', 250.0)
         cpu_tdp = st.session_state.get('cpu_tdp', 65.0)
-        
+
         self.monitor_thread = SystemMonitor(self.data_list, self.stop_event, emission_factor, cpu_tdp)
         self.monitor_thread.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Context manager exit point.
+        Stops the system monitoring thread, calculates the total CO2 emissions and energy
+        consumption, and updates global Key Performance Indicators (KPIs).
+
+        Args:
+            exc_type (type or None): The type of exception that occurred, if any.
+            exc_val (Exception or None): The exception instance that occurred, if any.
+            exc_tb (traceback or None): A traceback object encapsulating the call stack at the point where the exception originally occurred.
+
+        Variables:
+            self.stop_event (threading.Event): Set to signal the monitor thread to stop.
+            self.monitor_thread (SystemMonitor): Joined to ensure the thread finishes before proceeding.
+            self.end_time (float): Records the current time as the end time.
+
+        Returns:
+            None
+        """
         self.stop_event.set()
         if self.monitor_thread:
             self.monitor_thread.join()
@@ -46,19 +95,32 @@ class CO2Monitor:
         self._update_global_kpi()
 
     def _calculate_totals(self):
+        """
+        Calculates the total CO2 emissions in grams and total energy consumption in Watt-hours
+        from the collected monitoring data points.
+
+        Variables:
+            total_co2 (float): Accumulator for total CO2 in grams.
+            total_energy_ws (float): Accumulator for total energy in Watt-seconds.
+            dt (float): The time interval (in seconds) between data samples, assumed to be 0.5s.
+            data (dict): Each monitoring data point from self.data_list.
+
+        Returns:
+            None. Updates self.total_co2_g and self.total_energy_wh.
+        """
         total_co2 = 0.0
-        total_energy_ws = 0.0 
-        
+        total_energy_ws = 0.0
+
         if not self.data_list:
             return
 
-        dt = 0.5 
-        
+        dt = 0.5
+
         for data in self.data_list:
             if 'cpu' in data:
                 total_co2 += data['cpu'].get('co2_gs_cpu', 0) * dt
                 total_energy_ws += data['cpu'].get('power_w', 0) * dt
-            
+
             if 'gpu' in data:
                 total_co2 += data['gpu'].get('co2_gs_gpu', 0) * dt
                 total_energy_ws += data['gpu'].get('power_w', 0) * dt
@@ -67,13 +129,24 @@ class CO2Monitor:
         self.total_energy_wh = total_energy_ws / 3600.0
 
     def _update_global_kpi(self):
+        """
+        Updates the global Key Performance Indicators (KPIs) stored in `st.session_state`
+        with the current operation's CO2 emissions, energy consumption, and duration.
+        It also appends the current operation's metrics to a history list.
+
+        Variables:
+            kpi (dict): A reference to the 'benchmarking_kpi' dictionary in st.session_state.
+
+        Returns:
+            None. Modifies st.session_state['benchmarking_kpi'].
+        """
         if 'benchmarking_kpi' not in st.session_state:
             st.session_state['benchmarking_kpi'] = {
                 'total_co2_g': 0.0,
                 'total_energy_wh': 0.0,
                 'history': []
             }
-        
+
         kpi = st.session_state['benchmarking_kpi']
         kpi['total_co2_g'] += self.total_co2_g
         kpi['total_energy_wh'] += self.total_energy_wh
@@ -86,6 +159,13 @@ class CO2Monitor:
         })
 
 def benchmark_tab():
+    """
+    Main benchmarking tab with sub-tabs for Green AI Race, NL2SQL, and DBMS execution benchmarks.
+    Initializes benchmarking state and renders global KPIs.
+    
+    Variables: benchmarking_state (dict) - Session state for LLM backend, model, CSV data
+    Returns: None
+    """
     if 'benchmarking_state' not in st.session_state:
         st.session_state['benchmarking_state'] = {
             'llm_backend': None,
@@ -101,29 +181,25 @@ def benchmark_tab():
     render_global_kpi()
 
     tab_names = [
-        "🏁 Green AI Race"
-        "LLM NL→SQL Benchmark",
-        "DBMS Execution Benchmark",
-        "LLM Quality Evaluation"
+        "🏁 Green AI Race",
+        "🧠 NL2SQL Benchmark",
+        "🗄️ LLM & DBMS Execution Benchmark",
     ]
     
     tabs = st.tabs(tab_names)
     
     # --- GREEN AI RACE ---
     with tabs[0]:
-        st.header("🏁 Green AI Race")
+        st.subheader("🏁 Green AI Race")
         green_ai_race_tab()
         
     with tabs[1]:
+        st.subheader("🧠 NL2SQL Benchmark")
         render_llm_nl_sql_tab()
 
     with tabs[2]:
+        st.subheader("🗄️ DBMS Execution Benchmark")
         render_dbms_execution_tab()
-
-    with tabs[2]:
-        render_llm_quality_eval_tab()
-
-
 
 def render_global_kpi():
     if 'benchmarking_kpi' in st.session_state:
@@ -194,127 +270,14 @@ def render_shared_setup(key_suffix=""):
                     if dbms_cols:
                         st.caption(f"Detected DBMS Ground Truth Columns: {', '.join(dbms_cols.keys())}")
 
-# def render_feature_benchmarking_tab():
-    
-#     st.markdown("#### Configuration")
-    
-#     # Descriptions for tooltips/captions
-#     scenario_desc = {
-#         "Baseline": "Standard performance test without specific load bias.",
-#         "Read-heavy": r"Simulates a workload with 90% SELECT operations.",
-#         "Write-heavy": r"Simulates a workload with 90% INSERT/UPDATE operations.",
-#         "Mixed": r"Balanced workload with 50% reads and 50% writes.",
-#         "CPU-bound": "Workload involving complex calculations and aggregations.",
-#         "IO-bound": "Workload involving large data retrieval and disk I/O."
-#     }
-    
-#     dataset_desc = {
-#         "10k": "Small dataset (~10MB), suitable for quick tests.",
-#         "100k": "Medium dataset (~100MB), good for general benchmarking.",
-#         "1M": "Large dataset (~1GB), tests system scalability.",
-#         "10M": "Very large dataset (~10GB), stress tests memory and I/O."
-#     }
-    
-#     feature_desc = {
-#         "HE Enabled": "Homomorphic Encryption: Secure computation on encrypted data.",
-#         "Compression": "Data Compression: Reduces storage but increases CPU usage.",
-#         "GPU Acceleration": "Uses GPU for query processing to speed up execution.",
-#         "Index Optimization": "Uses advanced indexing strategies for faster lookups."
-#     }
-
-#     col1, col2 = st.columns([3,3])
-#     with col1:
-#         scenario = st.selectbox("Scenario", ["Baseline", "Read-heavy", "Write-heavy", "Mixed", "CPU-bound", "IO-bound"])
-#         st.caption(scenario_desc.get(scenario, ""))
-
-#     with col2:
-#         features = st.multiselect("Features to Compare", ["HE Enabled", "Compression", "GPU Acceleration", "Index Optimization"])
-#         if features:
-#             for f in features:
-#                 st.caption(f"**{f}**: {feature_desc.get(f, '')}")
-#         else:
-#             st.caption("Select features to enable specific optimizations or overheads.")
-
-#     col1, col2, col3 = st.columns([2, 2, 2])
-#     with col1:
-#         dataset_size = st.select_slider("Dataset Size", options=["10k", "100k", "1M", "10M"])
-#         st.caption(dataset_desc.get(dataset_size, ""))
-        
-#     with col2:
-#         runs = st.slider("Runs", 1, 10, 3)
-#         st.caption(f"Execute {runs} iterations for statistical significance.")
-
-#     with col3:
-#         duration = st.slider("Duration per Run (s)", 5, 60, 10)
-#         st.caption(f"Each run will last {duration} seconds.")
-
-#     if st.button("🚀 Run Benchmark", type="primary"):
-#         st.session_state['feature_benchmark_results'] = pd.DataFrame({
-#             'run': [1, 2, 3],
-#             'scenario': ['Baseline'] * 3,
-#             'dataset_size': ['100k'] * 3,
-#             'features': ['None'] * 3,
-#             'latency_ms': [25.5, 24.8, 26.1],
-#             'throughput_ops': [2500, 2600, 2450],
-#             'co2_g': [0.0012, 0.0011, 0.0013],
-#             'energy_wh': [0.005, 0.0048, 0.0052]
-#         })
-#         st.toast("Example configuration loaded!")
-#         run_feature_benchmark(scenario, dataset_size, features, runs, duration)
-
-#     st.markdown("### Results")
-#     if 'feature_benchmark_results' in st.session_state:
-#         results = st.session_state['feature_benchmark_results']
-#         st.dataframe(results)
-        
-#         if not results.empty:
-#             fig = px.bar(results, x='run', y='latency_ms', title="Latency per Run")
-#             st.plotly_chart(fig, use_container_width=True)
-            
-#             fig2 = px.scatter(results, x='throughput_ops', y='co2_g', size='co2_g', title="Throughput vs CO₂")
-#             st.plotly_chart(fig2, use_container_width=True)
-#     else:
-#         st.info("Configure and run a benchmark to see results.")
-
-def run_feature_benchmark(scenario, dataset_size, features, runs, duration):
-    results = []
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    
-    for i in range(runs):
-        status_text.text(f"Running iteration {i+1}/{runs}...")
-        
-        with CO2Monitor(f"Feature Benchmark - Run {i+1}") as monitor:
-            time.sleep(duration) 
-            
-            import random
-            latency = random.uniform(10, 50) + (5 if "HE Enabled" in features else 0)
-            throughput = random.uniform(1000, 5000)
-        
-        results.append({
-            'run': i + 1,
-            'scenario': scenario,
-            'dataset_size': dataset_size,
-            'features': ", ".join(features),
-            'latency_ms': latency,
-            'throughput_ops': throughput,
-            'co2_g': monitor.total_co2_g,
-            'energy_wh': monitor.total_energy_wh
-        })
-        progress_bar.progress((i + 1) / runs)
-    
-    status_text.text("Benchmark Complete!")
-    st.session_state['feature_benchmark_results'] = pd.DataFrame(results)
-    st.rerun()
-
 def render_llm_nl_sql_tab():
-    st.subheader("LLM NL→SQL Benchmark")
+    st.subheader("LLM NL2SQL Benchmark")
     
     render_shared_setup(key_suffix="nl_sql")
     
     state = st.session_state['benchmarking_state']
     
-    if st.button("Load Example NL->SQL"):
+    if st.button("Load Example NL2SQL"):
         # Mock loading example data
         mock_df = pd.DataFrame({
             'nl_query': ['Show all users', 'Count orders', 'Find user by name'],
@@ -468,7 +431,7 @@ def run_dbms_execution(queries):
     
     engine = None
     try:
-        init_res = db_adapters.initialize_database(db_choice, db_connection_args)
+        init_res = db_adapters.initialize_database(db_choice, db_connection_args, 'RIGA 434 benchmarking')
         engine = init_res.get('engine')
     except:
         pass

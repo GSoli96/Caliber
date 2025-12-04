@@ -51,8 +51,7 @@ The application is not tied to a single model or service but offers an "adapter"
     - Tracks **cumulative emissions** throughout the entire generation and evaluation process, providing comparative charts for each phase.
 - **Comprehensive Reporting**: Each run generates a detailed report with charts on resource usage and CO₂ emissions, separating the LLM generation phase from the database execution phase.
 
-### 6. History and Settings
-- **Persistent History**: Saves every run to a local database (SQLite). The history includes the user's question, generated queries, results, execution times, error messages, and all monitoring data.
+### 6. Settings
 - **Configurable Settings**: Allows the user to customize key parameters such as the **CO₂ emission factor** and **CPU TDP** to make the estimates more accurate for their specific hardware and location.
 
 ## 🔧 Project Architecture
@@ -154,9 +153,5 @@ The application will automatically open in your web browser.
         - The execution results.
         - Comparative charts of performance and CO₂ consumption.
 
-4.  **Tab 📜 `History`**:
-    - Here you can review all past runs.
-    - Expand each entry to see the full details, including queries, results, errors, and consumption graphs.
-
-5.  **Tab ⚙️ `Settings`**:
+4.  **Tab ⚙️ `Settings`**:
     - Customize the CO₂ emission factor and your CPU's TDP to refine the sustainability estimates.

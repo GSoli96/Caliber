@@ -29,11 +29,11 @@ from utils.translations import get_text
 from utils.symbols import symbols
 import zipfile
 import io
+import pandas as pd
 import json
 import time
 from GUI.dataset_explore_gui import get_column_category, TYPE_INFO
 from llm_adapters.sensitive_entity import is_sensitive_column
-
 
 sep_options = symbols.sep_options
 
@@ -52,8 +52,6 @@ def db_analytics_tab():
 
                 st.header(f"📁 Database: {db_name}")
 
-                # 3. Recupera la configurazione specifica per *questo* database
-                #    Questo funziona grazie alle modifiche al prerequisito
                 config_dict = st.session_state.get('uploaded_dbms', {}).get(db_name)
 
                 with st.expander(get_text("load_dataset", "db_info"), expanded=True):
@@ -96,57 +94,54 @@ def db_analytics_tab():
         st.warning(get_text("load_dataset", "config_metadata_missing", db_name=db_name))
         return
 
-    with st.container(border=False):
+    #    Questo funziona grazie alle modifiche al prerequisito
+    if len(list(st.session_state["dataframes"]["DBMS"].keys())) > 0:
+        with st.container(border=False):
 
-        dbms_type = config_dict.get('db_choice')  # 'db_choice' è la chiave usata da upload_dbms
+            dbms_type = config_dict.get('db_choice')  # 'db_choice' è la chiave usata da upload_dbms
 
-        col1, col2, col3 = st.columns(3)
+            col1, col2, col3 = st.columns(3)
 
-        with col1:
-            st.metric(get_text("load_dataset", "dbms_type"), dbms_type or "N/A")
+            with col1:
+                st.metric(get_text("load_dataset", "dbms_type"), dbms_type or "N/A")
 
-        with col2:
-            st.metric(get_text("load_dataset", "tables_loaded"), len(tables_data))
+            with col2:
+                st.metric(get_text("load_dataset", "tables_loaded"), len(tables_data))
 
-        # --- Blocco per SQLite ---
-        if dbms_type == "SQLite":
-            # 'path_to_file' (Tab 2) o 'db_path' (Tab 1)
-            db_path = config_dict.get('path_to_file') or config_dict.get('db_path')
-            if db_path:
-                st.text_input(get_text("load_dataset", "db_path"), db_path, disabled=True,
-                              key=f"path_{db_name}_{key_alter}")
+            if dbms_type == "SQLite":
+                db_path = config_dict.get('path_to_file') or config_dict.get('db_path')
+                if db_path:
+                    st.text_input(get_text("load_dataset", "db_path"), db_path, disabled=True,
+                                key=f"path_{db_name}_{key_alter}")
 
-                # Prova a ottenere la dimensione del file
-                try:
-                    if os.path.exists(db_path):
-                        file_size_bytes = os.path.getsize(db_path)
-                        file_size_mb = file_size_bytes / (1024 * 1024)
-                        with col3:
-                            st.metric(get_text("load_dataset", "weight"), f"{file_size_mb:.2f} MB")
-                    else:
-                        st.caption(get_text("load_dataset", "file_moved"))
-                except Exception as e:
-                    st.caption(get_text("load_dataset", "calc_weight_error"))
+                    try:
+                        if os.path.exists(db_path):
+                            file_size_bytes = os.path.getsize(db_path)
+                            file_size_mb = file_size_bytes / (1024 * 1024)
+                            with col3:
+                                st.metric(get_text("load_dataset", "weight"), f"{file_size_mb:.2f} MB")
+                        else:
+                            st.caption(get_text("load_dataset", "file_moved"))
+                    except Exception as e:
+                        st.caption(get_text("load_dataset", "calc_weight_error"))
+                else:
+                    st.info(get_text("load_dataset", "sqlite_path_missing"))
+
+            # --- Blocco per altri DBMS (MySQL, ecc.) ---
             else:
-                st.info(get_text("load_dataset", "sqlite_path_missing"))
+                conn_str = config_dict.get('conn_str')
+                if conn_str:
+                    masked_str = re.sub(r"password=([^&@]+)", "password=********", conn_str, flags=re.IGNORECASE)
+                    st.text_input(get_text("load_dataset", "conn_string_label"), masked_str, disabled=True,
+                                key=f"conn_{db_name}_{dbms_type}_{key_alter}")
+                else:
+                    st.info(get_text("load_dataset", "conn_string_unavailable"))
 
-        # --- Blocco per altri DBMS (MySQL, ecc.) ---
-        else:
-            conn_str = config_dict.get('conn_str')  # 'conn_str' è la chiave usata da upload_dbms
-            if conn_str:
-                # Maschera la password per sicurezza
-                masked_str = re.sub(r"password=([^&@]+)", "password=********", conn_str, flags=re.IGNORECASE)
-                st.text_input(get_text("load_dataset", "conn_string_label"), masked_str, disabled=True,
-                              key=f"conn_{db_name}_{dbms_type}_{key_alter}")
+            tb_list_config = config_dict.get("table_list", [])
+            if isinstance(tb_list_config, list) and len(tb_list_config) > 0:
+                st.caption(get_text("load_dataset", "config_req_tables", n=len(tb_list_config)))
             else:
-                st.info(get_text("load_dataset", "conn_string_unavailable"))
-
-        # Mostra le tabelle che dovevano essere caricate (dalla config)
-        tb_list_config = config_dict.get("table_list", [])
-        if isinstance(tb_list_config, list) and len(tb_list_config) > 0:
-            st.caption(get_text("load_dataset", "config_req_tables", n=len(tb_list_config)))
-        else:
-            st.caption(get_text("load_dataset", "config_req_all"))
+                st.caption(get_text("load_dataset", "config_req_all"))
 
 def show_df_details(df, name, key_alter):
     """Displays detailed information about a dataframe in tabs."""
@@ -443,6 +438,56 @@ def show_df_details(df, name, key_alter):
                     key=f"intg_{key_alter}",  # chiave per questa sezione
                 )
 
+
+def _aggregate_metrics(metrics_data):
+    """
+    Aggregate resource monitoring metrics into a summary DataFrame.
+    
+    Args:
+        metrics_data: List of metric dicts from SystemMonitor
+    
+    Returns:
+        pandas.DataFrame with aggregated metrics or None
+    """
+    if not metrics_data:
+        return None
+    
+    try:
+        cpu_percents = [m.get('cpu', {}).get('percent', 0) for m in metrics_data]
+        gpu_percents = [m.get('gpu', {}).get('percent', 0) for m in metrics_data]
+        co2_gs_cpu = [m.get('cpu', {}).get('co2_gs_cpu', 0) for m in metrics_data]
+        co2_gs_gpu = [m.get('gpu', {}).get('co2_gs_gpu', 0) for m in metrics_data]
+        co2_total = [cpu + gpu for cpu, gpu in zip(co2_gs_cpu, co2_gs_gpu)]
+        
+        summary = {
+            'Metric': ['CPU %', 'GPU %', 'CO2 (g/s)'],
+            'Min': [
+                round(min(cpu_percents), 2) if cpu_percents else 0,
+                round(min(gpu_percents), 2) if any(gpu_percents) else 0,
+                round(min(co2_total), 6) if co2_total else 0
+            ],
+            'Max': [
+                round(max(cpu_percents), 2) if cpu_percents else 0,
+                round(max(gpu_percents), 2) if any(gpu_percents) else 0,
+                round(max(co2_total), 6) if co2_total else 0
+            ],
+            'Mean': [
+                round(sum(cpu_percents) / len(cpu_percents), 2) if cpu_percents else 0,
+                round(sum(gpu_percents) / len(gpu_percents), 2) if any(gpu_percents) else 0,
+                round(sum(co2_total) / len(co2_total), 6) if co2_total else 0
+            ],
+            'Total_CO2_g': [
+                0,  # N/A for CPU%
+                0,  # N/A for GPU%
+                round(sum(co2_total) * 0.5, 4)  # Total CO2 (0.5s sampling interval)
+            ]
+        }
+        
+        return pd.DataFrame(summary)
+    except Exception:
+        return None
+
+
 def export_analytics_zip(loaded_databases):
     """
     Genera un file ZIP contenente tutte le statistiche e i risultati del profiling
@@ -562,6 +607,26 @@ def export_analytics_zip(loaded_databases):
                     # Semantic
                     if "semantic" in results:
                         z.writestr(f"{db_name}/{table_name}/profiling/semantic.csv", results["semantic"].to_csv(index=False))
+                        
+                        # Export semantic resource metrics if available
+                        futures = st.session_state[prof_ss_key].get("futures", {})
+                        if "sem" in futures and futures["sem"].done():
+                            try:
+                                sem_res = futures["sem"].result()
+                                if isinstance(sem_res, dict) and "metrics" in sem_res:
+                                    metrics_data = sem_res["metrics"]
+                                    if metrics_data:
+                                        # Export raw metrics as JSON
+                                        z.writestr(f"{db_name}/{table_name}/profiling/semantic_resource_metrics.json", 
+                                                   json.dumps(metrics_data, default=str, indent=4))
+                                        
+                                        # Export aggregated metrics as CSV
+                                        metrics_df = _aggregate_metrics(metrics_data)
+                                        if metrics_df is not None:
+                                            z.writestr(f"{db_name}/{table_name}/profiling/semantic_resource_summary.csv", 
+                                                       metrics_df.to_csv(index=False))
+                            except:
+                                pass
                     
                     # Heatmap data
                     futures = st.session_state[prof_ss_key].get("futures", {})
@@ -579,7 +644,27 @@ def export_analytics_zip(loaded_databases):
                     results = st.session_state[intg_ss_key].get("results", {})
                     if "anomalies" in results:
                         z.writestr(f"{db_name}/{table_name}/profiling/anomalies.csv", results["anomalies"].to_csv(index=False))
-
+                        
+                        # Export anomalies resource metrics if available
+                        futures = st.session_state[intg_ss_key].get("futures", {})
+                        if "anom" in futures and futures["anom"].done():
+                            try:
+                                anom_res = futures["anom"].result()
+                                if isinstance(anom_res, dict) and "metrics" in anom_res:
+                                    metrics_data = anom_res["metrics"]
+                                    if metrics_data:
+                                        # Export raw metrics as JSON
+                                        z.writestr(f"{db_name}/{table_name}/profiling/anomalies_resource_metrics.json", 
+                                                   json.dumps(metrics_data, default=str, indent=4))
+                                        
+                                        # Export aggregated metrics as CSV
+                                        metrics_df = _aggregate_metrics(metrics_data)
+                                        if metrics_df is not None:
+                                            z.writestr(f"{db_name}/{table_name}/profiling/anomalies_resource_summary.csv", 
+                                                       metrics_df.to_csv(index=False))
+                            except:
+                                pass
+                            
                 # 5. Imputazione (missing_value_tab)
                 imp_key = f"{table_name}_{key_alter}"
                 queue_key = f'imputation_queue_{imp_key}'
