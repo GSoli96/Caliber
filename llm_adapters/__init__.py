@@ -87,3 +87,10 @@ def clear_cache_for(kind: str | None = None):
         _cached_list_models.clear()  # type: ignore[attr-defined]
     elif kind == "get_model_details":
         _cached_get_details.clear()  # type: ignore[attr-defined]
+
+def ensure_model_cached(model_id: str, backend: str = "Hugging Face", hf_token: str = None) -> str:
+    adapter = _adapter_for(backend)
+    fn = getattr(adapter, "ensure_model_cached", None)
+    if not fn:
+        raise ValueError(get_text("llm_adapters", "adapter_no_ensure_model_cached", backend=backend))
+    return fn(model_id=model_id, hf_token=hf_token)

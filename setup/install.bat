@@ -95,13 +95,80 @@ REM =========   PARTI COMUNI DOPO CONDA O VENV   ===========
 REM =========================================================
 :AFTER_ENV_SETUP
 echo.
+
 echo ============================================
 echo        LOGIN AUTOMATICO A HUGGINGFACE
 echo ============================================
-
+:: ⚠ Metti qui il tuo token HF (meglio NON committare questo file su Git)
 set HF_TOKEN=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
 huggingface-cli login --token %HF_TOKEN%
 echo Login completato.
+echo.
+
+echo ============================================
+echo   DOWNLOAD META-LLAMA-3-8B
+echo ============================================
+echo.
+
+:: ID del modello su Hugging Face
+set MODEL_ID=meta-llama/Meta-Llama-3-8B
+
+:: Cartella locale dove salvare il modello (accanto al .bat)
+set MODEL_DIR=%~dp0Meta-Llama-3-8B
+
+echo Verifica presenza di huggingface-cli...
+where huggingface-cli >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ERRORE: huggingface-cli non trovato. Installa con:
+    echo     pip install -U "huggingface_hub[cli]"
+    echo.
+    pause
+    exit /b 1
+)
+
+echo.
+echo Eseguo login su Hugging Face...
+huggingface-cli login --token %HF_TOKEN% --add-to-git-credential >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ERRORE: login fallito. Controlla il token HF.
+    echo.
+    pause
+    exit /b 1
+)
+
+echo Login completato con successo.
+echo.
+
+:: Controllo se il modello sembra gia' scaricato (presenza di tokenizer.model)
+if exist "%MODEL_DIR%\tokenizer.model" (
+    echo Il modello sembra gia' scaricato in:
+    echo   %MODEL_DIR%
+    echo (trovato tokenizer.model)
+    echo.
+) else (
+    echo Il modello non e' ancora presente in:
+    echo   %MODEL_DIR%
+    echo Avvio il download di %MODEL_ID% ...
+    echo.
+
+    huggingface-cli download %MODEL_ID% ^
+        --local-dir "%MODEL_DIR%" ^
+        --local-dir-use-symlinks False
+
+    if %errorlevel% neq 0 (
+        echo.
+        echo ERRORE: download del modello fallito.
+        echo - Hai i permessi sul repo %MODEL_ID%?
+        echo - Il token HF e' corretto?
+        echo.
+        pause
+        exit /b 1
+    )
+
+    echo.
+    echo Download completato con successo.
+)
+
 echo.
 
 

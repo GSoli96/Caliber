@@ -57,7 +57,6 @@ def create_power_gauge(current_power_w, max_power_w=200):
     
     return fig
 
-
 def create_co2_ticker(cumulative_co2_g):
     """
     Create an animated CO2 ticker display
@@ -92,7 +91,6 @@ def create_co2_ticker(cumulative_co2_g):
     
     return ticker_html
 
-
 def create_green_score_gauge(score):
     """
     Create a 0-100 Green Score gauge with color zones
@@ -121,7 +119,7 @@ def create_green_score_gauge(score):
         mode="gauge+number",
         value=score,
         domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': f"🌱 Green Score<br><span style='font-size:0.7em'>{zone_text}</span>", 
+        title={'text': f"🌱 Green Score", 
                'font': {'size': 20, 'color': '#FAFAFA'}},
         number={'font': {'size': 45, 'color': bar_color}},
         gauge={
@@ -149,7 +147,6 @@ def create_green_score_gauge(score):
     
     return fig
 
-
 def display_eco_dashboard(monitoring_data, show_live=True):
     """
     Display the complete real-time eco-dashboard
@@ -161,7 +158,7 @@ def display_eco_dashboard(monitoring_data, show_live=True):
     Returns:
         Dictionary of Streamlit empty containers for live updates
     """
-    st.markdown("### 🌿 Real-time Eco-Dashboard")
+    st.subheader("🌿 Real-time Eco-Dashboard")
     
     if not monitoring_data:
         st.info("⏳ Waiting for monitoring data...")
@@ -193,18 +190,19 @@ def display_eco_dashboard(monitoring_data, show_live=True):
         cumulative_co2 = 0
         green_score = 50
     
-    # Create dashboard layout
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.plotly_chart(create_power_gauge(total_power), use_container_width=True, key="power_gauge")
-    
-    with col2:
-        st.markdown(create_co2_ticker(cumulative_co2), unsafe_allow_html=True)
-    
-    with col3:
-        st.plotly_chart(create_green_score_gauge(green_score), use_container_width=True, key="green_score")
-    
+    with st.container(border=True):
+        # Create dashboard layout
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.plotly_chart(create_power_gauge(total_power), use_container_width=True, key="power_gauge")
+        
+        with col2:
+            st.markdown(create_co2_ticker(cumulative_co2), unsafe_allow_html=True)
+        
+        with col3:
+            st.plotly_chart(create_green_score_gauge(green_score), use_container_width=True, key="green_score")
+        
     # Return containers for live updates if needed
     if show_live:
         return {

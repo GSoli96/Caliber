@@ -55,18 +55,48 @@ def _get_neon_layout(title: str, xaxis_title: str, yaxis_title: str) -> dict:
         margin=dict(l=40, r=40, t=60, b=40)
     )
 
+# def _add_annotations(fig, annotations):
+#     """
+#     Adds vertical lines and text annotations to the chart.
+
+#     Args:
+#         fig (go.Figure): The Plotly figure to annotate.
+#         annotations (list of dict): A list of dictionaries, where each dictionary contains:
+#             - 'x': The timestamp or x-coordinate for the vertical line and annotation.
+#             - 'text': The label text to display.
+
+#     Returns:
+#         go.Figure: The annotated Plotly figure.
+#     """
+#     if not annotations:
+#         return fig
+
+#     for ann in annotations:
+#         fig.add_vline(
+#             x=ann['x'],
+#             line_width=2,
+#             line_dash="longdashdot",
+#             line_color="grey",
+#             fillcolor="grey"
+#         )
+#         fig.add_annotation(
+#             x=ann['x'],
+#             y=2,
+#             yref="paper",
+#             text=ann['text'],
+#             showarrow=False,
+#             textangle=-90,
+#             xanchor="right",
+#             yanchor="top",
+#             font=dict(size=10, color="grey")
+#         )
+#         print(ann['text'])
+
+#     return fig
 def _add_annotations(fig, annotations):
     """
-    Adds vertical lines and text annotations to the chart.
-
-    Args:
-        fig (go.Figure): The Plotly figure to annotate.
-        annotations (list of dict): A list of dictionaries, where each dictionary contains:
-            - 'x': The timestamp or x-coordinate for the vertical line and annotation.
-            - 'text': The label text to display.
-
-    Returns:
-        go.Figure: The annotated Plotly figure.
+    Aggiunge linee verticali e annotazioni al grafico.
+    annotations: list of dict {'x': timestamp, 'text': label}
     """
     if not annotations:
         return fig
@@ -87,7 +117,7 @@ def _add_annotations(fig, annotations):
             textangle=-90,
             xanchor="right",
             yanchor="top",
-            font=dict(size=10, color="gray")
+            font=dict(size=15, color="gray")
         )
     return fig
 
@@ -110,9 +140,17 @@ def generate_usage_chart(df: pd.DataFrame, annotations: List[Dict] = None):
 
     fig = go.Figure()
 
+    if df.shape[0] > 20:
+        df["cpu_smooth"] = df["cpu_util_percent"].rolling(window=20).mean()
+    else:
+        df["cpu_smooth"] = df["cpu_util_percent"]
+
+    if df.shape[0] == 1:
+        df = add_values_with_time(df)
+
     # Trace for CPU usage
     fig.add_trace(go.Scatter(
-        x=df['timestamp'], y=df['cpu_util_percent'],
+        x=df['timestamp'], y=df['cpu_smooth'],
         mode='lines', name=get_text("charts", "cpu_usage"),
         line=dict(color=NEON_COLORS['cpu'], width=2),
         fill='tozeroy', fillcolor='rgba(0, 255, 159, 0.1)'
@@ -120,8 +158,14 @@ def generate_usage_chart(df: pd.DataFrame, annotations: List[Dict] = None):
 
     # Trace for GPU usage (if available)
     if 'gpu_util_percent' in df.columns and not df['gpu_util_percent'].isnull().all():
+        if df.shape[0] > 20:
+            df["gpu_smooth"] = df["gpu_util_percent"].rolling(window=20).mean()
+        else:
+            df["gpu_smooth"] = df["gpu_util_percent"]
+        if df.shape[0] == 1:
+            df = add_values_with_time(df)
         fig.add_trace(go.Scatter(
-            x=df['timestamp'], y=df['gpu_util_percent'],
+            x=df['timestamp'], y=df['gpu_smooth'],
             mode='lines', name=get_text("charts", "gpu_usage"),
             line=dict(color=NEON_COLORS['gpu'], width=2),
             fill='tozeroy', fillcolor='rgba(255, 0, 255, 0.1)'
@@ -153,25 +197,38 @@ def generate_power_chart(df: pd.DataFrame, annotations: List[Dict] = None):
     if df.empty:
         return go.Figure()
 
+
     fig = go.Figure()
     max_power = 0
 
     # Trace for CPU power
     if 'cpu_power_w' in df.columns and not df['cpu_power_w'].isnull().all():
-        max_power = max(max_power, df['cpu_power_w'].max())
+        if df.shape[0] > 20:
+            df["cpu_power_smooth"] = df["cpu_power_w"].rolling(window=20).mean()
+        else:
+            df["cpu_power_smooth"] = df["cpu_power_w"]
+        if df.shape[0] == 1:
+            df = add_values_with_time(df)
+        max_power = max(max_power, df['cpu_power_smooth'].max())
         fig.add_trace(go.Scatter(
-            x=df['timestamp'], y=df['cpu_power_w'],
+            x=df['timestamp'], y=df['cpu_power_smooth'],
             mode='lines', name=get_text("charts", "cpu_power"),
-            line=dict(color=NEON_COLORS['cpu'], width=2, dash='dot')
+            line=dict(color=NEON_COLORS['cpu'], width=2, dash='dash')
         ))
 
     # Trace for GPU power (if available)
     if 'gpu_power_w' in df.columns and not df['gpu_power_w'].isnull().all():
-        max_power = max(max_power, df['gpu_power_w'].max())
+        if df.shape[0] > 20:
+            df["gpu_power_smooth"] = df["gpu_power_w"].rolling(window=20).mean()
+        else:
+            df["gpu_power_smooth"] = df["gpu_power_w"]
+        if df.shape[0] == 1:
+            df = add_values_with_time(df)
+        max_power = max(max_power, df['gpu_power_smooth'].max())
         fig.add_trace(go.Scatter(
-            x=df['timestamp'], y=df['gpu_power_w'],
+            x=df['timestamp'], y=df['gpu_power_smooth'],
             mode='lines', name=get_text("charts", "gpu_power"),
-            line=dict(color=NEON_COLORS['gpu'], width=2, dash='dot')
+            line=dict(color=NEON_COLORS['gpu'], width=2, dash='dash')
         ))
 
     layout = _get_neon_layout(get_text("charts", "power_consumption"), get_text("charts", "time"), get_text("charts", "power_w"))
@@ -205,9 +262,15 @@ def generate_co2_rate_chart(df: pd.DataFrame, annotations: List[Dict] = None):
 
     # CPU CO2 Rate
     if 'cpu.co2_gs_cpu' in df.columns:
-        max_val = max(max_val, df['cpu.co2_gs_cpu'].max())
+        if df.shape[0] > 20:
+            df["cpu_co2_smooth"] = df["cpu.co2_gs_cpu"].rolling(window=20).mean()
+        else:
+            df["cpu_co2_smooth"] = df["cpu.co2_gs_cpu"]
+        if df.shape[0] == 1:
+            df = add_values_with_time(df)
+        max_val = max(max_val, df['cpu_co2_smooth'].max())
         fig.add_trace(go.Scatter(
-            x=df['timestamp'], y=df['cpu.co2_gs_cpu'],
+            x=df['timestamp'], y=df['cpu_co2_smooth'],
             mode='lines', name=get_text("charts", "co2_cpu"),
             line=dict(color=NEON_COLORS['cpu'], width=2),
             fill='tozeroy', fillcolor='rgba(0, 255, 159, 0.1)'
@@ -215,9 +278,15 @@ def generate_co2_rate_chart(df: pd.DataFrame, annotations: List[Dict] = None):
 
     # GPU CO2 Rate
     if 'gpu.co2_gs_gpu' in df.columns and not df['gpu.co2_gs_gpu'].isnull().all():
-        max_val = max(max_val, df['gpu.co2_gs_gpu'].max())
+        if df.shape[0] > 20:
+            df["gpu_co2_smooth"] = df["gpu.co2_gs_gpu"].rolling(window=20).mean()
+        else:
+            df["gpu_co2_smooth"] = df["gpu.co2_gs_gpu"]
+        if df.shape[0] == 1:
+            df = add_values_with_time(df)
+        max_val = max(max_val, df['gpu_co2_smooth'].max())
         fig.add_trace(go.Scatter(
-            x=df['timestamp'], y=df['gpu.co2_gs_gpu'],
+            x=df['timestamp'], y=df['gpu_co2_smooth'],
             mode='lines', name=get_text("charts", "co2_gpu"),
             line=dict(color=NEON_COLORS['gpu'], width=2),
             fill='tozeroy', fillcolor='rgba(255, 0, 255, 0.1)'
@@ -256,7 +325,13 @@ def generate_cumulative_co2_chart(charts_data: List[Dict[str, pd.DataFrame]], ti
 
         if df is None or df.empty or 'cumulative_gco2' not in df.columns:
             continue
-            
+
+        if df.shape[0] > 20:
+            df["cumulative_gco2_smooth"] = df["cumulative_gco2"].rolling(window=20).mean()
+        else:
+            df["cumulative_gco2_smooth"] = df["cumulative_gco2"]
+        if df.shape[0] == 1:
+            df = add_values_with_time(df)
         color = NEON_COLORS['co2'] if i == 0 else NEON_COLORS['cpu'] # Fallback colors
 
         fig.add_trace(
@@ -291,12 +366,19 @@ def generate_phase_co2_comparison_chart(phases_data: List[Dict]):
         return go.Figure()
         
     df = pd.DataFrame(phases_data)
-    
+    if df.shape[0] > 20:
+        df["co2_smooth"] = df["co2"].rolling(window=20).mean()
+    else:
+        df["co2_smooth"] = df["co2"]
+
+    if df.shape[0] == 1:
+        df = add_values_with_time(df)
+
     fig = go.Figure(data=[
         go.Bar(
             x=df['phase'],
-            y=df['co2'],
-            text=df['co2'].apply(lambda x: f"{x:.4f} g"),
+            y=df['co2_smooth'],
+            text=df['co2_smooth'].apply(lambda x: f"{x:.4f} g"),
             textposition='auto',
             marker_color=[NEON_COLORS['cpu'], NEON_COLORS['gpu'], NEON_COLORS['co2'], '#AB63FA'][:len(df)]
         )
@@ -306,3 +388,41 @@ def generate_phase_co2_comparison_chart(phases_data: List[Dict]):
     layout['showlegend'] = False
     fig.update_layout(layout)
     return fig
+
+
+import pandas as pd
+
+def add_values_with_time(df, time_col: str = "timestamp"):
+    """
+    df: DataFrame con UNA sola riga.
+    time_col: nome della colonna timestamp (datetime64).
+    
+    Ritorna un nuovo df con:
+    - riga 0: tutti 1 tranne timestamp = -1s
+    - riga 1: riga originale
+    - riga 2: tutti 1 tranne timestamp = +1s
+    """
+    # prendo l'unica riga
+    row = df.iloc[0]
+
+    # creo le due nuove righe come copie della riga originale
+    before = row.copy()
+    after = row.copy()
+
+    # metto tutte le colonne a 0 tranne il timestamp
+    for col in df.columns:
+        if col == time_col:
+            continue
+        before[col] = 0
+        after[col] = 0
+
+    # aggiorno il timestamp: -1s e +1s
+    before[time_col] = row[time_col] - pd.Timedelta(seconds=1)
+    after[time_col] = row[time_col] + pd.Timedelta(seconds=1)
+
+    # trasformo in DataFrame e concateno
+    new_df = pd.concat(
+        [before.to_frame().T, df, after.to_frame().T],
+        ignore_index=True
+    )
+    return new_df

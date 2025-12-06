@@ -1,0 +1,105 @@
+import os
+import sys
+from pathlib import Path
+
+from huggingface_hub import login, snapshot_download
+from huggingface_hub import scan_cache_dir
+
+
+def main():
+    # ==========================================================
+    # CONFIGURAZIONE
+    # ==========================================================
+    # 1) Metodo consigliato: esporta HF_TOKEN come variabile d'ambiente
+    #    su Windows (cmd):
+    #       set HF_TOKEN=hf_....
+    #    su PowerShell:
+    #       $env:HF_TOKEN="hf_...."
+    #
+    # 2) In alternativa, puoi scrivere il token qui sotto (sconsigliato se usi Git):
+    #    HF_TOKEN = "hf_..."
+    # ==========================================================
+    HF_TOKEN='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'
+
+    if not HF_TOKEN:
+        print(
+            "[ERRORE] Nessun token trovato.\n"
+            " - Imposta la variabile d'ambiente HF_TOKEN con il tuo token, oppure\n"
+            " - modifica il file e assegna il token direttamente alla variabile HF_TOKEN.\n"
+        )
+        sys.exit(1)
+
+    MODEL_ID = "meta-llama/Meta-Llama-3-8B"
+
+    cache_info = scan_cache_dir()
+    model_ids = [(repo.repo_id, repo.repo_path) for repo in cache_info.repos if repo.repo_id == MODEL_ID][0]
+    
+    model_id = model_ids[0]
+    model_path = model_ids[1]
+    
+    # Cartella in cui salvare il modello (accanto a questo script)
+    MODEL_DIR = model_path
+
+    print("============================================")
+    print("  LOGIN A HUGGING FACE")
+    print("============================================")
+
+    try:
+        login(token=HF_TOKEN, add_to_git_credential=True)
+        print("[OK] Login completato.\n")
+    except Exception as e:
+        print("[ERRORE] Login fallito:", e)
+        sys.exit(1)
+
+    # Controllo se il modello e' gia' presente (tokenizer.model come indicatore)
+    tokenizer_path = MODEL_DIR / "tokenizer.model"
+    if tokenizer_path.exists():
+        print(f"[INFO] Modello già presente in: {MODEL_DIR}")
+        print(f"       (trovato: {tokenizer_path.name})\n")
+    else:
+        print("============================================")
+        print(f"  DOWNLOAD MODELLO: {MODEL_ID}")
+        print("============================================")
+        print(f"Scarico nella cartella: {MODEL_DIR}\n")
+
+        try:
+            snapshot_download(
+                repo_id=MODEL_ID,
+                local_dir=str(MODEL_DIR),
+                local_dir_use_symlinks=False,
+                token=HF_TOKEN,
+            )
+            print("\n[OK] Download completato.")
+        except HfHubHTTPError as e:
+            print("[ERRORE] Problema HTTP durante il download:")
+            print(" ", e)
+            print("\nPossibili cause:")
+            print(" - Non hai accettato i termini del modello sul sito Hugging Face.")
+            print(" - Il token non ha i permessi per accedere al repo.")
+            sys.exit(1)
+        except Exception as e:
+            print("[ERRORE] Download fallito:", e)
+            sys.exit(1)
+
+    # Verifica finale
+    print("\n============================================")
+    print("  VERIFICA FILE NECESSARI")
+    print("============================================")
+
+    missing = []
+    for fname in ["tokenizer.model", "config.json", "tokenizer_config.json"]:
+        if not (MODEL_DIR / fname).exists():
+            missing.append(fname)
+
+    if missing:
+        print("[ATTENZIONE] Alcuni file non sono stati trovati:")
+        for m in missing:
+            print(" -", m)
+        print("Il modello potrebbe comunque funzionare, ma controlla la cartella.")
+    else:
+        print("[OK] File principali trovati (tokenizer + config).")
+
+    print("[FINE] Setup completato.")
+
+if __name__ == "__main__":
+    main()

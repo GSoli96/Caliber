@@ -60,8 +60,7 @@ def _select_device_map_and_dtype():
         device_legacy = -1
 
     return device_map, torch_dtype, device_legacy
-
-
+    
 def list_models():
     """
     Scansiona la cache di Hugging Face e restituisce la lista dei modelli trovati.
@@ -76,7 +75,6 @@ def list_models():
         return model_ids
     except Exception as e:
         return {'error': get_text('llm_adapters', 'hf_scan_error', error=e)}
-
 
 def get_model_details(model_name: str):
     """
@@ -116,6 +114,78 @@ def get_model_details(model_name: str):
     except Exception as e:
         return {'error': get_text('llm_adapters', 'hf_details_error', model=model_name, error=e)}
 
+import os
+from pathlib import Path
+from huggingface_hub import snapshot_download, scan_cache_dir
+
+ESSENTIAL_FILES = [
+    "tokenizer.model",
+    "tokenizer.json",
+    "config.json",
+    "tokenizer_config.json",
+]
+
+
+def ensure_model_cached(model_id: str, hf_token: str = None) -> Path:
+    """
+    - Cerca il modello nella cache HF.
+    - Se esiste, verifica i file mancanti e li scarica.
+    - Se non esiste, scarica l'intero modello.
+    - Ritorna il percorso locale del modello.
+    """
+
+    # ----------------------------------------------------------
+    # 1. SCAN DELLA CACHE ESISTENTE
+    # ----------------------------------------------------------
+    cache_info = scan_cache_dir()
+
+    matching = [
+        repo for repo in cache_info.repos
+        if repo.repo_id == model_id
+    ]
+
+    if matching:
+        repo = matching[0]
+        model_dir = Path(repo.repo_path)
+
+        print(f"[INFO] Modello trovato in cache: {model_dir}")
+
+        # ------------------------------------------------------
+        # 2. CERCA FILE MANCANTI
+        # ------------------------------------------------------
+        missing = [f for f in ESSENTIAL_FILES if not (model_dir / f).exists()]
+
+        if missing:
+            print(f"[ATTENZIONE] Mancano alcuni file: {missing}")
+            print(f"[INFO] Scarico i file mancanti in {model_dir} ...")
+
+            snapshot_download(
+                repo_id=model_id,
+                local_dir=str(model_dir),
+                local_dir_use_symlinks=False,
+                token=hf_token,
+                resume_download=True,
+                )
+            print("[OK] File mancanti recuperati.")
+        else:
+            print("[OK] Tutti i file essenziali sono presenti.")
+    
+    else:
+        # ------------------------------------------------------
+        # 3. MODELLO NON PRESENTE → DOWNLOAD COMPLETO
+        # ------------------------------------------------------
+        print(f"[INFO] Modello '{model_id}' non trovato in cache.")
+        print("[INFO] Eseguo download completo...")
+
+        model_path = snapshot_download(
+            repo_id=model_id,
+            local_dir_use_symlinks=False,
+            token=hf_token,
+        )
+        model_dir = Path(model_path)
+        print(f"[OK] Download completato in: {model_dir}")
+
+    return model_dir
 
 def generate(prompt: str, model_name: str, max_tokens=128):
     """
@@ -131,7 +201,7 @@ def generate(prompt: str, model_name: str, max_tokens=128):
         return get_text('llm_adapters', 'transformers_not_installed')
 
     try:
-        config = AutoConfig.from_pretrained(model_name, local_files_only=True)
+        config = AutoConfig.from_pretrained(model_name)
 
         is_generative = bool(getattr(config, "is_encoder_decoder", False))
         if not is_generative:
@@ -152,7 +222,7 @@ def generate(prompt: str, model_name: str, max_tokens=128):
         device_map, torch_dtype, device_legacy = _select_device_map_and_dtype()
 
         try:
-            tok = AutoTokenizer.from_pretrained(model_name, local_files_only=True)
+            tok = AutoTokenizer.from_pretrained(model_name)
         except Exception as e:
             msg = str(e)
 

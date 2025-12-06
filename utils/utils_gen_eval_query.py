@@ -30,6 +30,7 @@ def get_all_loaded_dfs() -> Dict[str, pd.DataFrame]:
 
 def _run_full_process_eval(result_holder, monitoring_data, user_question, all_loaded_dfs, db_choice, db_connection_args,
                            llm_backend, llm_model, cpu_tdp, emission_factor):
+
     db_engine = None
     try:
         if not all_loaded_dfs:
@@ -57,7 +58,8 @@ def _run_full_process_eval(result_holder, monitoring_data, user_question, all_lo
             if isinstance(raw_llm_output, dict) and 'error' in raw_llm_output:
                 error_msg = f"{get_text('gen_eval', 'exec_error')} {raw_llm_output['error']}"
             result_holder['info']['error'] = error_msg
-            return
+            st.session_state.process_results = result_holder
+            return 
 
         # --- FASE 2: ESECUZIONE QUERY (DB) ---
         # Inizializza DB
@@ -86,13 +88,14 @@ def _run_full_process_eval(result_holder, monitoring_data, user_question, all_lo
 
         result_holder['info']['query_result'] = query_result
         result_holder['metrics'] = {"duration_s": duration_s_orig}
-
+        st.session_state.process_results = result_holder
     except Exception as e:
         traceback.print_exc()
         result_holder.setdefault('info', {})['error'] = str(e)
     finally:
         if db_engine:
             db_engine.dispose()
+        st.session_state.process_results = result_holder
 
 def run_full_process_eval(user_question):
     
@@ -236,7 +239,7 @@ def run_greenefy_process():
     st.rerun()
 
 
-def dataset_tab_geneval(key_alter="", loaded_databases=None):
+def dataset_tab_geneval(key_alter="", loaded_databases=None, show_dataset=True):
     """
     Visualizza i dettagli per TUTTI i database DBMS caricati in session_state.
     """
@@ -248,7 +251,7 @@ def dataset_tab_geneval(key_alter="", loaded_databases=None):
     with st.container(border=False):
         for db_name, tables_data in loaded_databases.items():
 
-            with st.expander(f"📁 Database: {db_name}", expanded=True):
+            with st.expander(f"📁 Database: {db_name}", expanded=show_dataset):
                 tab_names = []
                 tab_dfs = []
 

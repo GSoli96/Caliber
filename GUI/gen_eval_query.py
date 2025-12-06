@@ -43,6 +43,7 @@ LLM_ADAPTER_ICONS = Icons.ICONS
 UI_ICONS = Icons.ICONS
 
 def _display_results_eval():
+    
     results = st.session_state.get('process_results', {})
     info = results.get('info', {})
     timestamps = results.get('timestamps', {}) 
@@ -50,58 +51,59 @@ def _display_results_eval():
 
     # --- ERRORI PRINCIPALI ---
     if info.get('error'):
-        st.error(f"{get_text('gen_eval', 'exec_error')}\n\n{info['error']}")
+        st.error(f"{info['error']}")
         return
 
     generated_sql = info.get("generated_sql")
     query_res = info.get("query_result", {})
 
     # --- VISUALIZZAZIONE QUERY E RISULTATI (Restructured) ---
-    st.subheader(get_text("gen_eval", "original_results"))
+    st.subheader((f"##### {get_text('gen_eval', 'generated_sql')}"))
+    
+    with st.container(border=True):
+        # 3. Metriche: Tempo LLM e Metadati Dataset
+        col_time, col_dbms, col_rows = st.columns(3)
 
-    # 1. Query SQL Generata (Full Width)
-    st.markdown(f"##### {get_text('gen_eval', 'generated_sql')}")
-    st.code(generated_sql or "N/A", language="sql")
+        with col_time:
+            # Calcolo tempo generazione LLM
+            llm_duration_s = 0.0
+            if 'start_process' in timestamps and 'end_generation' in timestamps:
+                try:
+                    start = timestamps['start_process']
+                    end = timestamps['end_generation']
+                    if isinstance(start, str): start = pd.to_datetime(start)
+                    if isinstance(end, str): end = pd.to_datetime(end)
+                    llm_duration_s = (end - start).total_seconds()
+                except Exception:
+                    pass
+            st.metric("LLM Generation Time", f"{llm_duration_s:.2f} s")
 
-    # 2. Risultato Esecuzione (Messaggio Status)
-    if query_res.get('error'):
-        st.error(f"{get_text('gen_eval', 'db_error')} {query_res['error']}")
-    else:
-        st.success(get_text("gen_eval", "query_executed"))
+        with col_dbms:
+            # Metadati Dataset
+            db_choice = st.session_state.get('db_choice', 'Unknown DB')
+            st.metric("DBMS", f"{db_choice}")
 
-    # 3. Metriche: Tempo LLM e Metadati Dataset
-    col_time, col_meta = st.columns(2)
+        with col_rows:
+            # Metadati Dataset
+            rows_count = query_res.get('rows', 'N/A')
+            st.metric("Result Rows", f"{rows_count}")
 
-    with col_time:
-        # Calcolo tempo generazione LLM
-        llm_duration_s = 0.0
-        if 'start_process' in timestamps and 'end_generation' in timestamps:
-            try:
-                start = timestamps['start_process']
-                end = timestamps['end_generation']
-                if isinstance(start, str): start = pd.to_datetime(start)
-                if isinstance(end, str): end = pd.to_datetime(end)
-                llm_duration_s = (end - start).total_seconds()
-            except Exception:
-                pass
-        st.metric("LLM Generation Time", f"{llm_duration_s:.2f} s")
+        # 1. Query SQL Generata (Full Width)
+        st.code(generated_sql or "N/A", language="sql", line_numbers=True, wrap_lines=True, height=300)
 
-    with col_meta:
-        # Metadati Dataset
-        db_choice = st.session_state.get('db_choice', 'Unknown DB')
-        rows_count = query_res.get('rows', 'N/A')
-        cols_count = "N/A"
-        if 'data' in query_res and isinstance(query_res['data'], pd.DataFrame):
-            cols_count = query_res['data'].shape[1]
-        
-        st.markdown(f"**Dataset:** {db_choice}")
-        st.markdown(f"**Rows:** {rows_count} | **Cols:** {cols_count}")
+        # 2. Risultato Esecuzione (Messaggio Status)
+        if query_res.get('error'):
+            st.error(f"{get_text('gen_eval', 'db_error')} {query_res['error']}")
+        else:
+            st.toast(get_text("gen_eval", "query_executed"))
+
 
     # View Result Data Expander
-    if 'data' in query_res and isinstance(query_res['data'], pd.DataFrame):
-         with st.expander("View Result Data"):
-             st.dataframe(query_res['data'])
+    if 'dataframe' in query_res and isinstance(query_res['dataframe'], pd.DataFrame):
+         with st.expander("🎯 View Result Data"):
+             st.dataframe(query_res['dataframe'])
 
+    # st.json(query_res)
     # Prima dei plot consumi:
     st.markdown("---")
     display_eco_dashboard(monitoring_data, show_live=False)
@@ -148,8 +150,8 @@ def _display_results_eval():
                     with c2: st.plotly_chart(generate_co2_rate_chart(gen_df), use_container_width=True)
 
         # --- 3. ESECUZIONE DB ---
-        if 'start_db' in timestamps and 'end_db' in timestamps:
-            db_df = monitoring_df[(monitoring_df['timestamp'] >= timestamps['start_db']) & (monitoring_df['timestamp'] <= timestamps['end_db'])]
+        if 'end_generation' in timestamps and 'end_db' in timestamps:
+            db_df = monitoring_df[(monitoring_df['timestamp'] >= timestamps['end_generation']) & (monitoring_df['timestamp'] <= timestamps['end_db'])]
             if not db_df.empty:
                 with st.expander("DB Execution Phase", expanded=False):
                     c1, c2 = st.columns(2)
@@ -182,71 +184,54 @@ def _display_results_eval():
     if 'greenefy_results' in results:
         display_green_optimizer_results(results, info, query_res, timestamps, monitoring_data)
 
-    with st.container(border=False):
-        loaded_databases = st.session_state["dataframes"]["DBMS"]
+    st.divider()
 
-        if not loaded_databases:
-            st.info("Nessun database (da DBMS) è stato ancora caricato.")
-        else:
-            for db_name, tables_data in loaded_databases.items():
-                with st.expander(f"📁 Database: {db_name}", expanded=False):
-                    tab_names = []
-                    tab_dfs = []
-                    if not tables_data:
-                        st.warning(get_text("gen_eval", "no_table_found", db_name=db_name))
-                        continue
-                    for db_dict in tables_data:
-                        tab_names.append(db_dict["table_name"])
-                        tab_dfs.append(db_dict["table"])
-                    tabs = st.tabs(tab_names)
-                    for name, tab, df in zip(tab_names, tabs, tab_dfs):
-                        with tab:
-                            if df is not None and df.shape[0] > 0:
-                                st.write(get_text("gen_eval", "preview_dataset"))
-                                st.write(df.head(5))
-                            else:
-                                st.error(get_text("gen_eval", "table_not_found", name=name, db_name=db_name))
+    with st.container(border=True):
         
-    # Alla fine di _display_results_eval, aggiungere:
-    st.markdown("### 📊 Sustainability Metrics")
-    # Mostra metriche comprensibili
-    if monitoring_data:
-        try:
-            mon_df = pd.json_normalize(monitoring_data)
-            mon_df['timestamp'] = pd.to_datetime(mon_df['timestamp'])
-            mon_df['time_diff_s'] = mon_df['timestamp'].diff().dt.total_seconds().fillna(0)
-            mon_df['total_co2_gs'] = mon_df.get('cpu.co2_gs_cpu', 0).fillna(0)
-            if 'gpu.co2_gs_gpu' in mon_df.columns:
-                mon_df['total_co2_gs'] += mon_df['gpu.co2_gs_gpu'].fillna(0)
-            total_co2 = (mon_df['total_co2_gs'] * mon_df['time_diff_s']).sum()
-        except Exception:
-            total_co2 = 0.0
-        relatable = format_relatable_metrics(total_co2)
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("📱 Smartphones", relatable['smartphones'])
-        with col2:
-            st.metric("🚗 Car Distance", relatable['car_distance'])
-        with col3:
-            st.metric("💡 LED Hours", relatable['lightbulb_hours'])
-    # Bottone per scaricare certificato
-    if st.button("📊 Download Green Certificate", type="primary"):
-        session_data = calculate_session_metrics([monitoring_data])
-        pdf_bytes = generate_sustainability_certificate(session_data)
-        st.download_button(
-            label="📥 Download PDF",
-            data=pdf_bytes,
-            file_name=f"green_certificate_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-            mime="application/pdf"
-        )
+        # Alla fine di _display_results_eval, aggiungere:
+        st.markdown("### 📊 Sustainability Metrics")
+        # Mostra metriche comprensibili
+        if monitoring_data:
+            try:
+                mon_df = pd.json_normalize(monitoring_data)
+                mon_df['timestamp'] = pd.to_datetime(mon_df['timestamp'])
+                mon_df['time_diff_s'] = mon_df['timestamp'].diff().dt.total_seconds().fillna(0)
+                mon_df['total_co2_gs'] = mon_df.get('cpu.co2_gs_cpu', 0).fillna(0)
+                if 'gpu.co2_gs_gpu' in mon_df.columns:
+                    mon_df['total_co2_gs'] += mon_df['gpu.co2_gs_gpu'].fillna(0)
+                total_co2 = (mon_df['total_co2_gs'] * mon_df['time_diff_s']).sum()
+            except Exception:
+                total_co2 = 0.0
+            relatable = format_relatable_metrics(total_co2)
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("📱 Smartphones", relatable['smartphones']['value'])
+                st.write(relatable['smartphones']['text'])
+                
+            with col2:
+                st.metric("🚗 Car Distance", relatable['car_distance']['value'])
+                st.write(relatable['car_distance']['text'])
+            with col3:
+                st.metric("💡 LED Hours", relatable['lightbulb_hours']['value'])
+                st.write(relatable['lightbulb_hours']['text'])
+        # Bottone per scaricare certificato
+        if st.button("📊 Download Green Certificate", type="primary"):
+            session_data = calculate_session_metrics([monitoring_data])
+            pdf_bytes = generate_sustainability_certificate(session_data)
+            st.download_button(
+                label="📥 Download PDF",
+                data=pdf_bytes,
+                file_name=f"green_certificate_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                mime="application/pdf"
+            )
 
 def query_gen_eval_tab():
-    llm_state = st.session_state.get('llm', {})
+    llm_state = st.session_state.get('llm')
 
     if st.session_state['create_db_done'] == True:
         if len(list(st.session_state["dataframes"]["DBMS"].keys())) > 0:
-            dataset_tab_geneval("geneval", st.session_state["dataframes"]["DBMS"])
+            dataset_tab_geneval("geneval", st.session_state["dataframes"]["DBMS"], False)
     else:
         st.info(get_text("gen_eval", "please_load_dataset"))
 
@@ -268,8 +253,16 @@ def query_gen_eval_tab():
                 with st.container(border=True):
                     st.markdown(f"<div style='text-align:center;'><strong>{status_icon} {get_text('gen_eval', 'status')}</strong><br>{llm_state['status'].capitalize()}</div>", unsafe_allow_html=True)
 
-    user_prompt = st.text_area(get_text("gen_eval", "describe_request"), key="gen_prompt", height=120)
-    submit = (user_prompt != '' and st.session_state['create_db_done'] and llm_state['status'] != 'notLoad')
+    user_prompt = st.text_area(
+        get_text("gen_eval", "describe_request"), 
+        key="gen_prompt", 
+        height=120, 
+        placeholder="e.g., Show me the occupation and education distribution for people over 30 years old, including average age and hours worked per week",
+        value="Show me the occupation and education distribution for people over 30 years old, including average age and hours worked per week"
+    )
+    submit = (user_prompt != '' 
+    and st.session_state['create_db_done']
+     and llm_state['status'] != 'notLoad' and st.session_state.get('process_status') != 'done')
 
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -279,7 +272,7 @@ def query_gen_eval_tab():
 
         run_button = st.button(get_text("gen_eval", "generate_btn"), type="primary", disabled=disable)
     with c3:
-        run_spacy = st.button(get_text("gen_eval", "analyze_spacy"))
+        run_spacy = st.button(get_text("gen_eval", "analyze_spacy"), disabled= user_prompt == '' or user_prompt is None)
 
     if run_spacy and user_prompt.strip():
     # --- SPAcy: lasciata invariata (solo il controllo prompt corretto) ---
@@ -318,25 +311,24 @@ def query_gen_eval_tab():
     if run_button:
         run_full_process_eval(user_prompt)
 
+
     # --- GESTIONE STATO RUNNING ---
     if st.session_state.get('process_status') == 'running':
-        with output_placeholder.container():
-            st.info(get_text("gen_eval", "running_msg"))
+        with st.spinner(get_text("gen_eval", "running_msg")):
             # Visualizzazione live (opzionale, per ora semplificata)
-            
-        worker_thread = st.session_state.get('process_thread')
-        if worker_thread and not worker_thread.is_alive():
-            # Il thread principale è finito. 
-            # NON fermiamo il monitor se vogliamo che continui per Greenefy? 
-            # Ma Greenefy è su richiesta utente. Quindi fermiamo il monitor ora.
-            if st.session_state.get('stop_monitor_event'): st.session_state.stop_monitor_event.set()
-            if st.session_state.get('monitor_thread'): st.session_state.monitor_thread.join(timeout=1)
-            
-            st.session_state.process_status = 'done'
-            st.rerun()
-        else:
-            time.sleep(0.5)
-            st.rerun()
+            worker_thread = st.session_state.get('process_thread')
+            if worker_thread and not worker_thread.is_alive():
+                # Il thread principale è finito. 
+                # NON fermiamo il monitor se vogliamo che continui per Greenefy? 
+                # Ma Greenefy è su richiesta utente. Quindi fermiamo il monitor ora.
+                if st.session_state.get('stop_monitor_event'): st.session_state.stop_monitor_event.set()
+                if st.session_state.get('monitor_thread'): st.session_state.monitor_thread.join(timeout=1)
+                
+                st.session_state.process_status = 'done'
+                st.rerun()
+            else:
+                time.sleep(0.5)
+                st.rerun()
 
     # --- GESTIONE STATO GREENEFY RUNNING ---
     if st.session_state.get('greenefy_status') == 'running':
@@ -358,6 +350,7 @@ def query_gen_eval_tab():
 
     # --- VISUALIZZAZIONE RISULTATI FINALI ---
     if st.session_state.get('process_status') == 'done' or st.session_state.get('greenefy_status') == 'done':
+        st.balloons()
         with output_placeholder.container():
             _display_results_eval()
 

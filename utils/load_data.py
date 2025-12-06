@@ -109,6 +109,7 @@ def load_data_files(uploaded_files, separator_first):
                 return False
 
             if df is not None and not df.empty:
+                df = normalize_df_columns(df)
                 if db_name not in list(st.session_state['dataframes']['files'].keys()):
                     st.session_state['dataframes']['files'][db_name] = {
                         'df':df,
@@ -128,3 +129,41 @@ def load_data_files(uploaded_files, separator_first):
             return False
 
     return all_success
+
+
+import re
+import pandas as pd
+
+def normalize_column_name(col: str) -> str:
+    """
+    Normalizza un nome di colonna per DBMS SQL (SQLite, PostgreSQL, MySQL)
+    """
+    # lowercase
+    col = col.lower()
+
+    # sostituisci qualsiasi carattere non alfanumerico con underscore
+    col = re.sub(r'[^a-z0-9_]', '_', col)
+
+    # se inizia con numero, aggiungi prefisso
+    if re.match(r'^[0-9]', col):
+        col = "col_" + col
+
+    # rimuovi underscore multipli
+    col = re.sub(r'_+', '_', col)
+
+    # rimuovi underscore iniziale/finale
+    col = col.strip('_')
+
+    # se dopo la pulizia è vuoto
+    if col == "":
+        col = "col_unknown"
+
+    return col
+
+def normalize_df_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Restituisce un nuovo dataframe con nomi di colonna normalizzati
+    """
+    df = df.copy()
+    df.columns = [normalize_column_name(c) for c in df.columns]
+    return df

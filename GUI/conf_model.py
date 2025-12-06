@@ -126,10 +126,10 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
                     ollama_panel(host=host, key=f'{backend}_local')
             elif backend == "Hugging Face":
                 with c1:
-                    tok = st.text_input(f"{get_text('conf_model', 'hf_token_opt')}",
+                    token = st.text_input(f"{get_text('conf_model', 'hf_token_opt')}",
                                         value=cfg.get("token", get_HF_Token()),
                                         type="password", key=k(f"hf_token_{backend}"))
-                cfg.update(token=tok)
+                cfg.update(token=token)
             elif backend == "Spacy":
                 with st.container(border=True):
                     st.warning(get_text("conf_model", "spacy_warning"))
@@ -302,24 +302,48 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
                             with t3:
                                 ollama_panel(host=cfg.get("host", "http://localhost:11434"), key=f'local_tab3_{backend}')
 
-            col_set, col_sp = st.columns([3, 5])
-            with col_sp:
-                empty = st.empty()
-            with col_set:
-                if st.button(get_text("conf_model", "use_model"), key=k(f"set_active_{backend}")):
-                    st.session_state.setdefault('llm', {})
-                    st.session_state['llm'] = {
-                        'backend': backend,
-                        'model': sel if isinstance(sel, str) else str(sel),
-                        'status': 'loaded',  # per i backend locali/serviti lo consideriamo pronto
-                        'kwargs': dict(cfg)  # host/token/filter ecc. salvati sopra per quel backend
-                    }
-                    # per retro-compatibilità con codice esistente:
-                    st.session_state['llm_backend'] = backend
-                    st.session_state['llm_model'] = sel if isinstance(sel, str) else str(sel)
-                    empty.success(get_text("conf_model", "active_model", backend=backend, sel=sel))
-                    st_toast_temp(get_text("conf_model", "active_model", backend=backend, sel=sel), 'success')
+                col_set, col_sp, col_sp2 = st.columns([3, 5, 3])
+                with col_sp:
+                    empty = st.empty()
 
+                with col_set:
+                    if st.button(
+                        get_text("conf_model", "use_model"), 
+                        key=k(f"set_active_{backend}"), 
+                        type="primary", 
+                        disabled=st.session_state.get('llm').get('status') != 'notLoad'
+                    ):
+                        st.session_state['llm'] = {
+                            'backend': backend,
+                            'model': sel if isinstance(sel, str) else str(sel),
+                            'status': 'loaded',  # per i backend locali/serviti lo consideriamo pronto
+                            'kwargs': dict(cfg)  # host/token/filter ecc. salvati sopra per quel backend
+                        }
+
+                        if backend == "Hugging Face":
+                            with st.spinner('Checking model availability...'):
+                                model_dir = llm_adapters.ensure_model_cached(model_id = sel, backend = backend, hf_token = token)
+                                st.session_state['llm']['kwargs']['model_dir'] = model_dir
+                                st.session_state['llm']['kwargs']['hf_token'] = token
+                        
+                        # per retro-compatibilità con codice esistente:
+                        st.session_state['llm_backend'] = backend
+                        st.session_state['llm_model'] = sel if isinstance(sel, str) else str(sel)
+                        st_toast_temp(get_text("conf_model", "active_model", backend=backend, sel=sel), 'success')
+                        st.rerun()
+
+                with col_sp2:
+                    if st.button('↩️ Reset selection', key=k(f"reset_selection_{backend}"), type="secondary", disabled= st.session_state.get('llm').get('status') != 'loaded'):
+                        st.session_state.setdefault('llm', {
+                            'backend': None,  # "LM Studio" | "Ollama" | "Hugging Face" | "Local (Upload)"
+                            'model': None,  # string (nome/id del modello)
+                            'status': 'notLoad',  # "notLoad" | "selected" | "loaded"
+                            'kwargs': {}  # es. host/token/filter/... necessari per l'adapter
+                        })
+                        st.session_state['llm_backend'] = None
+                        st.session_state['llm_model'] = None
+                        st.rerun()
+            
 def configure_online_model(key_prefix):
     backend_display_options = list(llm_adapters.LLM_ADAPTERS.keys())
 
@@ -407,13 +431,26 @@ def configure_online_model(key_prefix):
                 if ready:
                     st.caption(get_text("conf_model", "local_cache", path=state.get('local_dir') or '—'))
 
-                col_set, col_sp = st.columns([3, 5])
+                col_set, col_sp, col_sp2= st.columns([3, 5, 3])
                 with col_sp:
                     empty = st.empty()
                 with col_set:
                     set_active = st.button(get_text("conf_model", "set_active_llm"),
                                            key=f"hf_set_active_{selected}",
                                            disabled=not ready)
+
+                with col_sp2:
+                    if st.button('↩️ Reset selection', key=k(f"reset_selection_online_{backend}"), type="secondary", disabled= st.session_state.get('llm').get('status') != 'loaded'):
+                        st.session_state.setdefault('llm', {
+                            'backend': None,  # "LM Studio" | "Ollama" | "Hugging Face" | "Local (Upload)"
+                            'model': None,  # string (nome/id del modello)
+                            'status': 'notLoad',  # "notLoad" | "selected" | "loaded"
+                        'kwargs': {}  # es. host/token/filter/... necessari per l'adapter
+                        })
+                        st.session_state['llm_backend'] = None
+                        st.session_state['llm_model'] = None
+                        st.rerun()
+
                 if set_active:
                     st.session_state['llm'] = {
                         'backend': "Hugging Face",
@@ -428,7 +465,7 @@ def configure_online_model(key_prefix):
                     st.session_state['llm_model'] = selected
                     empty.success(get_text("conf_model", "active_model", backend="Hugging Face", sel=selected))
                     st_toast_temp(get_text("conf_model", "active_model", backend="Hugging Face", sel=selected), 'success')
-
+                    st.rerun()
             else:
                 st.warning(get_text("conf_model", "item_not_found"))
 

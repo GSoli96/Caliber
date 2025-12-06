@@ -123,6 +123,14 @@ def activate_service():
         thread.start()
         threads.append(thread)
 
+    th = Thread(target=run_server_ollama)
+    th.start()
+    threads.append(th)
+
+    th = Thread(target=run_server_lmStudio)
+    th.start()
+    threads.append(th)
+
 def check_and_save_status(dbms):
     status = check_service_status(dbms)
     if 'DBMS_Sever' not in st.session_state:

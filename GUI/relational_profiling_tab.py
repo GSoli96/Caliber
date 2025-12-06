@@ -221,7 +221,7 @@ def _render_numeric_imputation(df, missing_cols, key):
                 st.session_state['db_choice'] = dbms_parameters['db_choice']
                 st.session_state['db_name'] = dbms_parameters['db_name']
                 st.session_state['create_db_done'] = True
-                st.session_state["dataframes"]["DBMS"][st.session_state["db_name"]] = target_df
+                st.session_state["dataframes"]["DBMS"][st.session_state["db_name"]].append(target_df)
 
 
 from db_adapters.DBManager import DBManager

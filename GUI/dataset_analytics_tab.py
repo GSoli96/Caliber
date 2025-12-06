@@ -94,8 +94,6 @@ def db_analytics_tab():
         st.warning(get_text("load_dataset", "config_metadata_missing", db_name=db_name))
         return
 
-    #    Questo funziona grazie alle modifiche al prerequisito
-    if len(list(st.session_state["dataframes"]["DBMS"].keys())) > 0:
         with st.container(border=False):
 
             dbms_type = config_dict.get('db_choice')  # 'db_choice' è la chiave usata da upload_dbms
@@ -142,7 +140,8 @@ def db_analytics_tab():
                 st.caption(get_text("load_dataset", "config_req_tables", n=len(tb_list_config)))
             else:
                 st.caption(get_text("load_dataset", "config_req_all"))
-
+    else:
+        st.info('Please load a dataset first.')
 def show_df_details(df, name, key_alter):
     """Displays detailed information about a dataframe in tabs."""
     st.markdown("""

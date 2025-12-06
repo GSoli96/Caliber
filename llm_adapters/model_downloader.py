@@ -149,7 +149,6 @@ def download_model_HF(
                         s["note"] = get_text("llm_adapters", "dl_check_cache")
                         try:
                             local_dir_off = snapshot_download(
-                                local_files_only=True,
                                 **{k: v for k, v in kwargs.items() if k != "progress_callback"}
                             )
                             s["local_dir"] = local_dir_off
