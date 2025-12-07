@@ -100,7 +100,7 @@ echo ============================================
 echo        LOGIN AUTOMATICO A HUGGINGFACE
 echo ============================================
 :: ⚠ Metti qui il tuo token HF (meglio NON committare questo file su Git)
-set HF_TOKEN=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
+set HF_TOKEN=
 huggingface-cli login --token %HF_TOKEN%
 echo Login completato.
 echo.

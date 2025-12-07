@@ -2,65 +2,64 @@ import os
 import sys
 from pathlib import Path
 
-from huggingface_hub import login, snapshot_download
-from huggingface_hub import scan_cache_dir
+from huggingface_hub import login, snapshot_download, scan_cache_dir
+from huggingface_hub.errors import HfHubHTTPError
 
 
 def main():
-    # ==========================================================
-    # CONFIGURAZIONE
-    # ==========================================================
-    # 1) Metodo consigliato: esporta HF_TOKEN come variabile d'ambiente
-    #    su Windows (cmd):
-    #       set HF_TOKEN=hf_....
-    #    su PowerShell:
-    #       $env:HF_TOKEN="hf_...."
+    # ============================
+    # CONFIGURATION
+    # ============================
+    # Preferred: set HF_TOKEN as an environment variable before running:
+    #   export HF_TOKEN=hf_...
     #
-    # 2) In alternativa, puoi scrivere il token qui sotto (sconsigliato se usi Git):
-    #    HF_TOKEN = "hf_..."
-    # ==========================================================
-    HF_TOKEN='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'
+    # Alternatively, you can hardcode the token here (not recommended for Git):
+    HF_TOKEN = os.environ.get("HF_TOKEN", "")
 
     if not HF_TOKEN:
         print(
-            "[ERRORE] Nessun token trovato.\n"
-            " - Imposta la variabile d'ambiente HF_TOKEN con il tuo token, oppure\n"
-            " - modifica il file e assegna il token direttamente alla variabile HF_TOKEN.\n"
+            "[ERROR] No token found.\n"
+            " - Set the HF_TOKEN environment variable with your token, or\n"
+            " - edit this file and assign the token directly to HF_TOKEN.\n"
         )
         sys.exit(1)
 
     MODEL_ID = "meta-llama/Meta-Llama-3-8B"
 
     cache_info = scan_cache_dir()
-    model_ids = [(repo.repo_id, repo.repo_path) for repo in cache_info.repos if repo.repo_id == MODEL_ID][0]
-    
+    model_ids = [
+        (repo.repo_id, repo.repo_path)
+        for repo in cache_info.repos
+        if repo.repo_id == MODEL_ID
+    ][0]
+
     model_id = model_ids[0]
     model_path = model_ids[1]
-    
-    # Cartella in cui salvare il modello (accanto a questo script)
-    MODEL_DIR = model_path
+
+    # Directory where the model is stored (from local cache)
+    MODEL_DIR = Path(model_path)
 
     print("============================================")
-    print("  LOGIN A HUGGING FACE")
+    print("  LOGIN TO HUGGING FACE")
     print("============================================")
 
     try:
         login(token=HF_TOKEN, add_to_git_credential=True)
-        print("[OK] Login completato.\n")
+        print("[OK] Login completed.\n")
     except Exception as e:
-        print("[ERRORE] Login fallito:", e)
+        print("[ERROR] Login failed:", e)
         sys.exit(1)
 
-    # Controllo se il modello e' gia' presente (tokenizer.model come indicatore)
+    # Check if the model is already present (tokenizer.model as an indicator)
     tokenizer_path = MODEL_DIR / "tokenizer.model"
     if tokenizer_path.exists():
-        print(f"[INFO] Modello già presente in: {MODEL_DIR}")
-        print(f"       (trovato: {tokenizer_path.name})\n")
+        print(f"[INFO] Model already present in: {MODEL_DIR}")
+        print(f"       (found: {tokenizer_path.name})\n")
     else:
         print("============================================")
-        print(f"  DOWNLOAD MODELLO: {MODEL_ID}")
+        print(f"  DOWNLOAD MODEL: {MODEL_ID}")
         print("============================================")
-        print(f"Scarico nella cartella: {MODEL_DIR}\n")
+        print(f"Downloading into folder: {MODEL_DIR}\n")
 
         try:
             snapshot_download(
@@ -69,21 +68,21 @@ def main():
                 local_dir_use_symlinks=False,
                 token=HF_TOKEN,
             )
-            print("\n[OK] Download completato.")
+            print("\n[OK] Download completed.")
         except HfHubHTTPError as e:
-            print("[ERRORE] Problema HTTP durante il download:")
+            print("[ERROR] HTTP problem during download:")
             print(" ", e)
-            print("\nPossibili cause:")
-            print(" - Non hai accettato i termini del modello sul sito Hugging Face.")
-            print(" - Il token non ha i permessi per accedere al repo.")
+            print("\nPossible causes:")
+            print(" - You have not accepted the model terms on Hugging Face.")
+            print(" - The token does not have permission to access the repo.")
             sys.exit(1)
         except Exception as e:
-            print("[ERRORE] Download fallito:", e)
+            print("[ERROR] Download failed:", e)
             sys.exit(1)
 
-    # Verifica finale
+    # Final check
     print("\n============================================")
-    print("  VERIFICA FILE NECESSARI")
+    print("  CHECK REQUIRED FILES")
     print("============================================")
 
     missing = []
@@ -92,14 +91,15 @@ def main():
             missing.append(fname)
 
     if missing:
-        print("[ATTENZIONE] Alcuni file non sono stati trovati:")
+        print("[WARNING] Some files were not found:")
         for m in missing:
             print(" -", m)
-        print("Il modello potrebbe comunque funzionare, ma controlla la cartella.")
+        print("The model may still work, but please check the folder.")
     else:
-        print("[OK] File principali trovati (tokenizer + config).")
+        print("[OK] Main files found (tokenizer + config).")
 
-    print("[FINE] Setup completato.")
+    print("[END] Setup completed.")
+
 
 if __name__ == "__main__":
     main()
