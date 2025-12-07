@@ -255,48 +255,51 @@ def render_shared_setup(key_suffix=""):
                     state['active_csv_df'] = pd.read_csv(uploaded_file)
                     st.toast("CSV Loaded!")
                 
-                if state['active_csv_df'] is not None:
-                    st.dataframe(state['active_csv_df'].head(3), height=100)
-                    
-                    cols = state['active_csv_df'].columns.tolist()
-                    nl_col = st.selectbox("Natural Language Query Column", [None] + cols, key=f"bench_nl_col_{key_suffix}")
-                    
-                    state['csv_mapping']['nl_query'] = nl_col
-                    
-                    dbms_cols = {}
-                    for db in ["MySQL", "SQLite", "PostgreSQL", "DuckDB", "SQL Server"]:
-                        if db in cols:
-                            dbms_cols[db] = db
-                    state['csv_mapping']['dbms_cols'] = dbms_cols
-                    
-                    if dbms_cols:
-                        st.caption(f"Detected DBMS Ground Truth Columns: {', '.join(dbms_cols.keys())}")
+        if state['active_csv_df'] is not None:
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.dataframe(state['active_csv_df'].head(3), height=100)
+            
+            with col2:
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Total Rows", len(state['active_csv_df']))
+                with col2:
+                    st.metric("Total Columns", len(state['active_csv_df'].columns))
+
+            cols = state['active_csv_df'].columns.tolist()
+            if len(cols) == 0:
+                st.warning("No columns found in the CSV file.")
+                return
+            elif len(cols) == 1:
+                nl_col = cols[0]
+            else:
+                nl_col = st.selectbox("Natural Language Query Column", [None] + cols, key=f"bench_nl_col_{key_suffix}")
+            
+            state['csv_mapping']['nl_query'] = nl_col
+            
+            dbms_cols = {}
+            for db in ["MySQL", "SQLite", "PostgreSQL", "DuckDB", "SQL Server"]:
+                if db in cols:
+                    dbms_cols[db] = db
+            state['csv_mapping']['dbms_cols'] = dbms_cols
+            
+            if dbms_cols:
+                st.caption(f"Detected DBMS Ground Truth Columns: {', '.join(dbms_cols.keys())}")
 
 def render_llm_nl_sql_tab():
-    st.subheader("LLM NL2SQL Benchmark")
     
     render_shared_setup(key_suffix="nl_sql")
     
     state = st.session_state['benchmarking_state']
-    
-    if st.button("Load Example NL2SQL"):
-        # Mock loading example data
-        mock_df = pd.DataFrame({
-            'nl_query': ['Show all users', 'Count orders', 'Find user by name'],
-            'MySQL': ['SELECT * FROM users', 'SELECT COUNT(*) FROM orders', 'SELECT * FROM users WHERE name = ?'],
-            'PostgreSQL': ['SELECT * FROM users', 'SELECT COUNT(*) FROM orders', 'SELECT * FROM users WHERE name = ?']
-        })
-        state['active_csv_df'] = mock_df
-        state['csv_mapping']['nl_query'] = 'nl_query'
-        state['csv_mapping']['dbms_cols'] = {'MySQL': 'MySQL', 'PostgreSQL': 'PostgreSQL'}
-        st.toast("Example Loaded (Mock Data)")
-        st.rerun()
-    
+
     if state['active_csv_df'] is not None and state['csv_mapping'].get('nl_query'):
-        st.divider()
-        st.markdown("### 🚀 Execution")
         
-        if st.button("Generate SQL for all rows", type="primary"):
+        with st.form("nl_sql_form", border=False):
+            generatesql = st.form_submit_button("Generate SQL for all rows", type="primary")
+
+        if generatesql:
             run_nl_sql_benchmark()
             
         if 'nl_sql_results' in st.session_state:
@@ -328,7 +331,7 @@ def run_nl_sql_benchmark():
     total_rows = len(df)
     
     all_loaded_dfs = get_all_loaded_dfs()
-    db_choice = st.session_state.get('db_choice', 'Unknown')
+    db_choice = st.session_state.get('db_choice')
     db_connection_args = st.session_state.get('db_connection_args', {})
 
     for i, row in df.iterrows():
@@ -347,14 +350,15 @@ def run_nl_sql_benchmark():
                     "prompt": full_prompt, 
                     "model_name": state['llm_model']
                 }
+
+                print(llm_args)
                 
-                if not state['llm_backend']:
-                    time.sleep(1)
-                    generated_sql = f"SELECT * FROM table WHERE description LIKE '%{nl_query}%'"
-                else:
+                if state['llm_backend']:
                     raw_output = llm_adapters.generate(**llm_args)
                     generated_sql = extract_sql_query(raw_output) if isinstance(raw_output, str) else "ERROR"
-                    
+                else:
+                    st.error("LLM Backend not selected")
+                    generated_sql = "ERROR: LLM Backend not selected"
             except Exception as e:
                 generated_sql = f"ERROR: {str(e)}"
         

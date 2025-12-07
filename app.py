@@ -64,7 +64,6 @@ def initialize_session_state():
         st.session_state.setdefault('submit_HF', None)
         st.session_state.setdefault('token_HF', '')
         st.session_state.setdefault('db_dir', "database")
-        st.session_state['server_ollama'] = False
         st.session_state['process_status'] = None
         if not os.path.exists(st.session_state.db_dir):
             os.makedirs(st.session_state.db_dir)
@@ -171,8 +170,6 @@ def activate_service():
         thread.start()
         threads.append(thread)
     
-    st_toast_temp(f"Started thread for all DBMS", "success")
-
     th = Thread(target=run_server_ollama)
     add_script_run_ctx(th)
     th.start()
@@ -191,8 +188,7 @@ def activate_service():
     add_script_run_ctx(th)
     th.start()
     threads.append(th)
-    st_toast_temp("Started thread for LLMs adapter", "success")
-    st_toast_temp("State variables initialized", "success")
+    st_toast_temp("Initializing DBMS and LLMs Server Completed!", "success")
 
 def check_and_save_status(dbms):
     status = check_service_status(dbms)

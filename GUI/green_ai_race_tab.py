@@ -264,25 +264,15 @@ def run_race_phase(model_name, backend, user_question, loaded_databases, display
                     start_exec_ts = datetime.now(timezone.utc)
                     
                     try:
-                        db_config = st.session_state.get('uploaded_dbms')[db_name]
-                        
+                        db_config = {"choice_DBMS": st.session_state['db_choice'], 
+                        'dfs_dict': st.session_state["dataframes"]["DBMS"]
+                        }
+
                         temp_state = {
                             "config_dict": db_config,
                         }
+                    
                         db_choice = db_config["choice_DBMS"]
-                        
-                        data = {
-                            "name": db_name,
-                            "type": "query",
-                            "uploaded_dbms": st.session_state.get('uploaded_dbms'),
-                            "config_dict": db_config,
-                            "choice_DBMS": db_choice,
-                            "loaded_databases": loaded_databases,
-                            "temp_state": temp_state,
-                        }
-
-                        with open("all_data.json", "w") as f:
-                            json.dump(data, f)
 
                         manager = DBManager(temp_state, type="query")
                         engine = manager._db_engine()
