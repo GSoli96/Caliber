@@ -9,6 +9,7 @@ from spacy.util import is_package
 from llm_adapters.spacy_adapter import (
     COMMON_SPACY_MODELS, model_details
 )
+from llm_adapters.huggingface_adapter import ensure_model_cached
 from GUI.message_gui import st_toast_temp
 from llm_adapters.lmstudio_adapter import lms_get_stream
 from llm_adapters.lmstudio_adapter import lmstudio_panel
@@ -18,7 +19,7 @@ from utils.load_config import get_HF_Token
 from llm_adapters.model_downloader import download_model_HF
 from llm_adapters.ollama_adapter import ollama_panel   # <— aggiungi
 from utils.translations import get_text
-
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 import time
 
 from utils.icons import Icons
@@ -47,7 +48,6 @@ def get_nonce(key_prefix: str) -> int:
     if k not in st.session_state:
         st.session_state[k] = 0
     return st.session_state[k]
-
 
 def do_reset(key_prefix: str):
     keys_to_drop = [k for k in list(st.session_state.keys()) if k.startswith(f"{key_prefix}_")]
@@ -322,7 +322,7 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
 
                         if backend == "Hugging Face":
                             with st.spinner('Checking model availability...'):
-                                model_dir = llm_adapters.ensure_model_cached(model_id = sel, backend = backend, hf_token = token)
+                                model_dir = ensure_model_cached(model_id = sel, backend = backend, hf_token = token)
                                 st.session_state['llm']['kwargs']['model_dir'] = model_dir
                                 st.session_state['llm']['kwargs']['hf_token'] = token
                         

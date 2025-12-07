@@ -1,6 +1,6 @@
 import os
 from threading import Thread
-
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 import streamlit as st
 
 from GUI.benchmarking_tab import benchmark_tab
@@ -16,7 +16,9 @@ from db_adapters.DBManager import check_service_status
 from llm_adapters.lmstudio_adapter import run_server_lmStudio
 from llm_adapters.ollama_adapter import run_server_ollama
 from utils.translations import get_text
-
+from llm_adapters.huggingface_adapter import ensure_model_cached
+from GUI.message_gui import st_toast_temp
+from utils.load_config import get_HF_Token  # se già lo importi altrove, lascia pure
 
 def initialize_session_state():
     if 'initialized' not in st.session_state:
@@ -90,6 +92,8 @@ def initialize_session_state():
 
         import spacy.util
 
+        
+
         st.session_state.setdefault('spacy_model',
                                     {'model': 'en_core_web_sm',
                                      'status': 'Load' if spacy.util.is_package("en_core_web_sm") else 'notLoad'}
@@ -110,26 +114,85 @@ def initialize_session_state():
         })
 
         st.session_state['widget_idx_counter'] = 0
+        st.session_state['widget_race_idx_counter'] = 0
         st.session_state.setdefault('show_welcome', True)  # Flag per mostrare il messaggio di benvenuto
+        
+        st.session_state.setdefault('race', {
+            'A':{
+            'backend': None,  # "LM Studio" | "Ollama" | "Hugging Face" | "Local (Upload)"
+            'model': None,  # string (nome/id del modello)
+            },
+            'B':{
+            'backend': None,  # "LM Studio" | "Ollama" | "Hugging Face" | "Local (Upload)"
+            'model': None,  # string (nome/id del modello)
+            },
+            'submit': False
+        })
+
+        st.session_state.setdefault('race_progress', 0)
+        st.session_state.setdefault('race_status', 'not_running')
+
+        if "tasks_A" not in st.session_state:
+            st.session_state.tasks_A = {
+                "Started": False,
+                "Start Monitoring": False,
+                "Construct prompt": False,
+                "Sending prompt": False,
+                "LLM has generated SQL query": False,
+                "Executing SQL query": False,
+                "SQL query executed": False,
+                "Saving results": False,
+                "Stopping Monitoring": False,
+                "End Challenge": False
+    }
+
+        if "tasks_B" not in st.session_state:
+            st.session_state.tasks_B = {
+                "Started": False,
+                "Start Monitoring": False,
+                "Construct prompt": False,
+                "Sending prompt": False,
+                "LLM has generated SQL query": False,
+                "Executing SQL query": False,
+                "SQL query executed": False,
+                "Saving results": False,
+                "Stopping Monitoring": False,
+                "End Challenge": False
+    }
+        st.session_state.setdefault('race_results', {})
         activate_service()
 
-def activate_service():
-    run_server_ollama()
-    run_server_lmStudio()
-    
+def activate_service():   
     threads = []
-    for dbms in ['MySQL', 'SQL Server', 'PostgreSQL']:
-        thread = Thread(target=check_and_save_status, args=(dbms,))
+    dbms = ['MySQL', 'SQL Server', 'PostgreSQL']
+    for dbm in dbms:
+        thread = Thread(target=check_and_save_status, args=(dbm,))
+        add_script_run_ctx(thread)
         thread.start()
         threads.append(thread)
+    
+    st_toast_temp(f"Started thread for all DBMS", "success")
 
     th = Thread(target=run_server_ollama)
+    add_script_run_ctx(th)
     th.start()
     threads.append(th)
 
     th = Thread(target=run_server_lmStudio)
+    add_script_run_ctx(th)
     th.start()
     threads.append(th)
+
+    backend = "Hugging Face"
+    model_id = "meta-llama/Meta-Llama-3-8B"
+    hf_token = get_HF_Token()
+
+    th = Thread(target=ensure_model_cached, args=(model_id, backend, hf_token))
+    add_script_run_ctx(th)
+    th.start()
+    threads.append(th)
+    st_toast_temp("Started thread for LLMs adapter", "success")
+    st_toast_temp("State variables initialized", "success")
 
 def check_and_save_status(dbms):
     status = check_service_status(dbms)

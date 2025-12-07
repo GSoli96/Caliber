@@ -304,16 +304,21 @@ def run_server_ollama(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
     res = start_server_background(host=host)
     if res.get("ok"):
         st.session_state['server_ollama'] = True
+        import streamlit as st
+        st.toast("Ollama server started!")
+        print(f"[INFO] Ollama server started")
         st_toast_temp(get_text("llm_adapters", "ollama_server_started"), 'success')
         if res.get("cmd"):
             st.code(res["cmd"], language="bash")
 
         get_ollama_status.clear()
         get_ollama_pid.clear()
-        st.rerun()
+        # st.rerun()
     else:
         st.session_state['server_ollama'] = False
         st_toast_temp(res.get("msg", get_text("llm_adapters", "ollama_server_error")), 'error')
+        import streamlit as st
+        st.toast("Ollama server error!")
 
 def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
     if st is None:
@@ -431,7 +436,7 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
                 else:
                     st.info(get_text("llm_adapters", "ollama_no_output"))
         else:
-            st_toast_temp(get_text("llm_adapters", "ollama_server_not_running"), 'warning')
+            st_toast_temp(get_text("llm_adapters", "server_not_running"), 'warning')
 
     # --- RUNNING MODELS ---
     if button_Ps:
@@ -440,7 +445,7 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
             with st.expander(get_text("llm_adapters", "ollama_ps_title")):
                 st.code(info.get("stdout") or "<vuoto>", language="bash")
         else:
-            st_toast_temp(get_text("llm_adapters", "ollama_server_not_running"), 'warning')
+            st_toast_temp(get_text("llm_adapters", "server_not_running"), 'warning')
 
 def _parse_size_bytes(s: str) -> int:
     if not s: return 0

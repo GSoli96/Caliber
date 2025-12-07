@@ -43,9 +43,9 @@ def _select_device_map_and_dtype():
     # Preferisci CUDA
     if torch is not None and torch.cuda.is_available():
         # device_map="auto" delega a accelerate l’allocazione su GPU
-        device_map = "auto"
+        device_map = "cuda"
         # dtype automatico (fp16/ bf16 se supportato)
-        torch_dtype = "auto"
+        torch_dtype = "cuda"
         device_legacy = 0  # fallback
     # Apple Silicon (Metal)
     elif torch is not None and hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
@@ -185,6 +185,8 @@ def ensure_model_cached(model_id: str, hf_token: str = None) -> Path:
         model_dir = Path(model_path)
         print(f"[OK] Download completato in: {model_dir}")
 
+    import streamlit as st
+    st.toast("Modello huggingface scaricato con successo!")
     return model_dir
 
 def generate(prompt: str, model_name: str, max_tokens=128):
@@ -250,7 +252,7 @@ def generate(prompt: str, model_name: str, max_tokens=128):
                 model=model_name,
                 tokenizer=tok,
                 device_map=device_map,
-                dtype=torch.float16 if torch_dtype == "auto" and torch and torch.cuda.is_available() else None,
+                dtype=torch.float16 if torch_dtype == "cuda" and torch and torch.cuda.is_available() else None,
             )
             # --- FINE BLOCCO CORRETTO ---
         except TypeError:

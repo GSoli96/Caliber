@@ -33,9 +33,7 @@ def get_lmstudio_status(host: str) -> Tuple[bool, int]:
         pass
     return False, 0
 
-
 # ================= helpers base =================
-
 def _which_lms() -> str | None:
     for name in ("lms", "lms.exe", "lms.cmd"):
         p = shutil.which(name)
@@ -66,14 +64,12 @@ def _which_lms() -> str | None:
             return p
     return None
 
-
 def _cmd_str(parts: list[str]) -> str:
     try:
         import shlex
         return shlex.join(parts)
     except Exception:
         return " ".join(parts)
-
 
 def _run(cmd: list[str], timeout: int | None = 15):
     t0 = time.time()
@@ -94,7 +90,6 @@ def _run(cmd: list[str], timeout: int | None = 15):
         return {"ok": False, "code": 1, "stdout": "", "stderr": get_text("llm_adapters", "error_generic", e=e),
                 "cmd_str": _cmd_str(cmd), "dur_s": round(time.time() - t0, 3)}
 
-
 # ================= CLI: ls =================
 def lms_ls_raw():
     lms = _which_lms()
@@ -102,7 +97,6 @@ def lms_ls_raw():
         return {"ok": False, "code": 127, "stdout": "", "stderr": get_text("llm_adapters", "cli_not_found"), "cmd_str": "lms ls"}
     cmd = (["cmd", "/c", lms, "ls"] if os.name == "nt" and lms.lower().endswith((".cmd", ".bat")) else [lms, "ls"])
     return _run(cmd, timeout=20)
-
 
 def list_models(host: str | None = None, filter: str | None = None):
     info = lms_ls_raw()
@@ -128,24 +122,19 @@ def list_models(host: str | None = None, filter: str | None = None):
         models = [m for m in models if f in m.lower()]
     return models
 
-
 # ================= Server: start/stop non-bloccanti =================
 
 _BG_STATE = {}
-
-
 def _set_pid(pid: int | None):
     if st is not None:
         st.session_state["lmstudio_server_pid"] = pid
     else:
         _BG_STATE["pid"] = pid
 
-
 def _get_pid() -> int | None:
     if st is not None:
         return st.session_state.get("lmstudio_server_pid")
     return _BG_STATE.get("pid")
-
 
 def start_server_background():
     """
@@ -166,7 +155,6 @@ def start_server_background():
         p = subprocess.Popen(cmd, start_new_session=True, close_fds=True)
     _set_pid(p.pid)
     return {"ok": True, "pid": p.pid, "cmd": _cmd_str(cmd)}
-
 
 def stop_server_background():
     """
@@ -194,7 +182,6 @@ def stop_server_background():
     info = _run(cmd, timeout=10)
     return {"ok": info["ok"], "msg": (info["stdout"] or info["stderr"] or "done").strip()}
 
-
 # ================= HTTP (facoltativo) =================
 def generate(prompt: str, model_name: str, max_tokens: int = 128, host: str = "http://localhost:1234"):
     try:
@@ -207,7 +194,6 @@ def generate(prompt: str, model_name: str, max_tokens: int = 128, host: str = "h
         return j["choices"][0]["message"]["content"]
     except Exception as e:
         return get_text("llm_adapters", "http_error", e=e)
-
 
 def _parse_lms_ls(stdout: str) -> dict:
     lines = stdout.splitlines()
@@ -243,7 +229,6 @@ def _parse_lms_ls(stdout: str) -> dict:
             (llm_rows if cur == "llm" else emb_rows).append(row)
     return {"llm": llm_rows, "embedding": emb_rows}
 
-
 def _pretty_size(s: str) -> str:
     s = s.strip()
     m = re.match(r"^\s*([\d\.]+)\s*([GMK]B)\s*$", s, flags=re.I)
@@ -254,7 +239,6 @@ def _pretty_size(s: str) -> str:
     num = f"{float(num):.2f}".rstrip("0").rstrip(".")
     unit = unit.upper()
     return f"{num} {unit}"
-
 
 def _get_model_details_core(model_name: str) -> dict:
     """
@@ -321,7 +305,6 @@ def _get_model_details_core(model_name: str) -> dict:
     info["explanations"] = _short_explanations(info)
     return info
 
-
 def _short_explanations(info: dict) -> dict:
     """
     Piccole spiegazioni didattiche, pensate per essere lette velocemente in UI.
@@ -380,7 +363,6 @@ def _short_explanations(info: dict) -> dict:
         get_text("llm_adapters", "ctx_col"): spieg_ctx,
     }
 
-
 def _enrich_from_name(name: str) -> dict:
     lower = name.lower()
     addestr = "Instruct/Chat" if re.search(r"\b(instruct|chat|sft|it)\b", lower) else "Base"
@@ -419,15 +401,22 @@ def _enrich_from_name(name: str) -> dict:
     }
 
 def run_server_lmStudio(host: str = "http://localhost:1234", key='lmstudo'):
+    import streamlit as st
+
     res = start_server_background()
     if res["ok"]:
         st.session_state['server_lmStudio'] = True
         st_toast_temp(get_text("llm_adapters", "started_background"), 'success')
         get_lmstudio_status.clear()
-        st.rerun()
+        print(f"[INFO] LM Studio server started")
+        st.toast("LM Studio server started!")
     else:
         st.session_state['server_lmStudio'] = False
         st_toast_temp(res["msg"], 'error')
+        st.toast("LM Studio server error!")
+    
+    # st.rerun()
+
 
 # ================= Pannello Streamlit snello (MODIFICATO) =================
 def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
@@ -542,7 +531,6 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
     elif list_model and not online:
         st_toast_temp(get_text("llm_adapters", "server_not_running"), 'warning')
 
-
 def parse_lmstudio_ls(text: str):
     """
     Parsifica l'output di `lmstudio ls` tipo:
@@ -607,7 +595,6 @@ def parse_lmstudio_ls(text: str):
             })
     return res
 
-
 def get_model_details(model_name: str):
     """
     Recupera i dettagli di un modello da LM Studio.
@@ -651,7 +638,6 @@ def get_model_details(model_name: str):
 
     return details
 
-
 # === LM Studio: helper "lms get" (CLI) ===
 def _which_lms_cli() -> str | None:
     # prova PATH standard
@@ -667,7 +653,6 @@ def _which_lms_cli() -> str | None:
         if p and os.path.isfile(p):
             return p
     return None
-
 
 def lms_get_stream(model_or_query: str, extra_args: list[str] | None = None):
     """

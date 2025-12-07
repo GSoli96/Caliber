@@ -6,6 +6,7 @@ import GPUtil as GPU
 import platform
 import os
 import streamlit as st
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 
 EMISSION_FACTOR = 250.0
 _CPU_TDP_W = 65.0

@@ -4,6 +4,7 @@ import random
 import socket
 import threading
 import time
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 
 import streamlit as st
 from huggingface_hub import snapshot_download, login
@@ -189,6 +190,7 @@ def download_model_HF(
         state["model_id"] = model_id
 
         state["thread"] = threading.Thread(target=_worker, args=(state,), daemon=True)
+        add_script_run_ctx(state["thread"])
         state["thread"].start()
         time.sleep(0.1)
         st.rerun()
@@ -236,6 +238,7 @@ def download_model_HF(
             # --- MODIFICA CHIAVE 4b: Riassegna il target ---
             state["model_id"] = model_id
             state["thread"] = threading.Thread(target=_worker, args=(state,), daemon=True)
+            add_script_run_ctx(state["thread"])
             state["thread"].start()
             st.rerun()
         return None

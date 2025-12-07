@@ -199,18 +199,29 @@ def render_dbms_input_for_loading(key_prefix, idx):
 
     # Show info message outside container if no databases found
     # Use st.empty() to maintain consistent spacing
+    flag_no_dbs = False
     info_placeholder = st.empty()
     available_dbs = st.session_state.get(f'available_dbs_{ret_item["db_choice"]}_{key_prefix}_{idx}', [])
     if not available_dbs:
         info_placeholder.info(
             get_text("load_dataset", "info_placeholder", db_choice=ret_item['db_choice'], tab_file_upload=get_text('load_dataset', 'tab_file_upload'))
         )
+        flag_no_dbs = True
 
     col1, col2, col3 = st.columns([2, 5, 2])
 
     with col1:
-        submitted = st.button(get_text("load_dataset", "load_db_btn"), key=f'button_DBMS_{key_prefix}_{idx}')
+        submitted = st.button(
+            get_text("load_dataset", "load_db_btn"), 
+            key=f'button_DBMS_{key_prefix}_{idx}',
+            disabled=flag_no_dbs
+        )
 
+    if flag_no_dbs:
+        ret_item['complete_state'] = False
+        ret_item['submitted'] = submitted
+        return ret_item
+    
     ret_item['complete_state'] = True
     ret_item['submitted'] = submitted
 

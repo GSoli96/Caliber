@@ -6,6 +6,7 @@ import threading
 import traceback
 from typing import Dict
 import sys
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 import db_adapters
 import llm_adapters
 from utils.prompt_builder import create_sql_prompt, create_sql_optimization_prompt
@@ -116,6 +117,7 @@ def run_full_process_eval(user_question):
     monitor = SystemMonitor(st.session_state.monitoring_data, st.session_state.stop_monitor_event,
                             st.session_state.get('emission_factor', 250.0), st.session_state.get('cpu_tdp', 65.0))
     st.session_state.monitor_thread = monitor
+    add_script_run_ctx(monitor)
     monitor.start()
 
     worker_thread = threading.Thread(
@@ -131,6 +133,7 @@ def run_full_process_eval(user_question):
         daemon=True
     )
     st.session_state.process_thread = worker_thread
+    add_script_run_ctx(worker_thread)
     worker_thread.start()
     st.rerun()
 
@@ -222,6 +225,7 @@ def run_greenefy_process():
             monitor = SystemMonitor(st.session_state.monitoring_data, st.session_state.stop_monitor_event,
                                 st.session_state.get('emission_factor', 250.0), st.session_state.get('cpu_tdp', 65.0))
             st.session_state.monitor_thread = monitor
+            add_script_run_ctx(monitor)
             monitor.start()
 
     worker_thread = threading.Thread(
@@ -235,6 +239,7 @@ def run_greenefy_process():
         daemon=True
     )
     st.session_state.greenefy_thread = worker_thread
+    add_script_run_ctx(worker_thread)
     worker_thread.start()
     st.rerun()
 

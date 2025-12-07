@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import sys
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 import threading
 import traceback
 from typing import Any, Dict, List, Optional, Tuple
@@ -198,16 +199,16 @@ class DBManager:
             )
 
             if result.returncode != 0:
-                print(f"[Service Check] Errore nel controllo del servizio {service_name}: {result.stderr}")
+                # print(f"[Service Check] Errore nel controllo del servizio {service_name}: {result.stderr}")
                 return False
 
             if "RUNNING" in result.stdout:
                 return True
             else:
-                print(f"[Service Check] Servizio {service_name} non è in esecuzione. Output:\n{result.stdout}")
+                # print(f"[Service Check] Servizio {service_name} non è in esecuzione. Output:\n{result.stdout}")
                 return False
         except Exception as e:
-            print(f"[Service Check] Eccezione durante il controllo del servizio {service_name}: {e}")
+            # print(f"[Service Check] Eccezione durante il controllo del servizio {service_name}: {e}")
             return False
 
     def load_df(self) -> Dict[str, pd.DataFrame]:
@@ -471,6 +472,7 @@ class DBManager:
         Returns:
             Engine: SQLAlchemy engine connected to the target database.
         """
+        print("[DBManager] self.choice_DBMS", self.choice_DBMS)
         if self.choice_DBMS == "SQLite":
             if not self.sqlite_db_path:
                 db_path = os.path.abspath(
@@ -617,7 +619,7 @@ class DBManager:
 
         # --- SQLite ---
         if self.choice_DBMS == "SQLite":
-            print(f"[DBManager Create] SQLite. dbname: {dbname}, sqlite_db_path: {self.sqlite_db_path}")
+            # print(f"[DBManager Create] SQLite. dbname: {dbname}, sqlite_db_path: {self.sqlite_db_path}")
             if self.sqlite_db_path:
                 if os.path.isabs(self.sqlite_db_path):
                     db_path = self.sqlite_db_path
@@ -626,7 +628,7 @@ class DBManager:
             else:
                 db_path = os.path.abspath(os.path.join(DB_DIR, f"{dbname}.db"))
             
-            print(f"[DBManager Create] Final db_path: {db_path}")
+            # print(f"[DBManager Create] Final db_path: {db_path}")
             if os.path.exists(db_path):
                 os.remove(db_path)
             return
@@ -766,7 +768,7 @@ class DBManager:
         def worker():
             # Check servizio (per i DBMS server-based)
             if not self._check_service_status(self.choice_DBMS):
-                print(f"[DBManager] Servizio {self.choice_DBMS} non attivo.")
+                # print(f"[DBManager] Servizio {self.choice_DBMS} non attivo.")
                 return
 
             self._create_database_if_needed()
@@ -797,6 +799,7 @@ class DBManager:
                         # Non rilanciamo l'eccezione perché siamo in un thread
 
         t = threading.Thread(target=worker, daemon=True)
+        add_script_run_ctx(t)
         t.start()
         t.join()
 
@@ -821,7 +824,7 @@ class DBManager:
         def worker():
             # Check servizio (per i DBMS server-based)
             if not self._check_service_status(self.choice_DBMS):
-                print(f"[DBManager] Servizio {self.choice_DBMS} non attivo.")
+                # print(f"[DBManager] Servizio {self.choice_DBMS} non attivo.")
                 return
 
             engine = self._db_engine()
@@ -848,6 +851,7 @@ class DBManager:
                     out_list.append({"table": df, "table_name": tbl_lower})
 
         t = threading.Thread(target=worker, daemon=True)
+        add_script_run_ctx(t)
         t.start()
         t.join()
 
@@ -1238,7 +1242,7 @@ class DBManager:
             # ALTER DATABASE [Old] MODIFY NAME = [New]
             # Requires single user mode usually
             try:
-                engine = self._db_engine(no_db=True)
+                engine = self._db_engine()
                 with engine.connect() as conn:
                     conn.execute(text(f"ALTER DATABASE [{old_name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE"))
                     conn.execute(text(f"ALTER DATABASE [{old_name}] MODIFY NAME = [{new_name}]"))
@@ -1251,7 +1255,7 @@ class DBManager:
             # ALTER DATABASE old RENAME TO new
             # Cannot be connected to the db being renamed
             try:
-                engine = self._db_engine(no_db=True) # Connect to default (postgres)
+                engine = self._db_engine() # Connect to default (postgres)
                 with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                     # Terminate connections
                     conn.execute(text(f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{old_name}'"))
@@ -1325,7 +1329,7 @@ class DBManager:
         else:
             # Server based DROP DATABASE
             try:
-                engine = self._db_engine(no_db=True)
+                engine = self._db_engine()
                 with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                     if self.choice_DBMS == "SQL Server":
                         conn.execute(text(f"DROP DATABASE [{db_name}]"))

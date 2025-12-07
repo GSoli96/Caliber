@@ -22,7 +22,6 @@ def initialize_database(db_choice: str, connection_args: dict, msg):
     Returns:
         dict: A dictionary containing the initialized engine key "engine" or an error message key "error".
     """
-    print(msg)
     try:
         engine = create_engine("sqlite:///:memory:")
         return {"engine": engine}
@@ -44,7 +43,7 @@ def execute_query(db_choice: str, conn, query: str):
         dict: A dictionary containing the result DataFrame and row count, or an error message.
     """
     # === DEBUGGING E CONTROLLO DI ROBUSTEZZA ===
-    print(f"\n[DEBUG-DB_ADAPTER] execute_query chiamata con:\n  - Query: '{query}'\n  - Tipo Query: {type(query)}\n")
+    # print(f"\n[DEBUG-DB_ADAPTER] execute_query chiamata con:\n  - Query: '{query}'\n  - Tipo Query: {type(query)}\n")
     if not isinstance(query, str) or not query.strip():
         return {"error": "La query ricevuta è vuota o non è una stringa."}
 

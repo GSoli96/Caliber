@@ -303,7 +303,7 @@ TRANSLATIONS = {
     "loading_models": {"en": "⏳ Loading models from {backend}…", "it": "⏳ Carico modelli da {backend}…"},
     "no_models_found": {"en": "❌ No models found.", "it": "❌ Nessun modello trovato."},
     "models_found": {"en": "📦 Found {n} models.", "it": "📦 Trovati {n} modelli."},
-    "server_not_running": {"en": "🚨 Server is not Running!", "it": "🚨 Il server non è in esecuzione!"},
+    "server_not_running": {"en": "Server is not Running!", "it": "Il server non è in esecuzione!"},
 
     "available_model": {"en": " Available Model", "it": "Modello disponibile"},
     "details": {"en": "🔍 Details", "it": "🔍 Dettagli"},
@@ -971,7 +971,6 @@ TRANSLATIONS = {
     "ollama_models_count": {"en": "🤖 Models (ollama list)", "it": "🤖 Modelli (ollama list)"},
     "ollama_total_size": {"en": "💾 Total size", "it": "💾 Spazio totale"},
     "ollama_no_output": {"en": "ℹ️ No models found in output.", "it": "ℹ️ Nessun modello trovato nell'output."},
-    "ollama_server_not_running": {"en": "⚠️ Server is not Running", "it": "⚠️ Il server non è in esecuzione"},
     "ollama_ps_title": {"en": "🚀 ollama ps", "it": "🚀 ollama ps"},
     "ollama_col_name": {"en": "Name", "it": "Nome"},
     "ollama_col_id": {"en": "ID", "it": "ID"},

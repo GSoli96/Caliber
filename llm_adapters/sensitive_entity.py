@@ -1,7 +1,7 @@
 import re
 import threading
 from typing import Dict, Any, List
-
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 # Set di etichette NER che consideriamo sensibili (spaCy standard)
 SENSITIVE_NER_LABELS = {
     "PERSON",   # nomi di persone

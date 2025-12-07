@@ -1,4 +1,3 @@
-# llm_adapters/__init__.py
 import inspect
 
 import streamlit as st
@@ -71,7 +70,6 @@ def get_model_details(backend: str, model_name: str, **kwargs):
 
 def generate(backend: str, prompt: str, **kwargs):
     adapter = _adapter_for(backend)
-    print("Adapter:", adapter)
     fn = getattr(adapter, "generate", None)
     if not fn:
         return {'error': get_text("llm_adapters", "adapter_no_generate", backend=backend)}

@@ -42,6 +42,7 @@ from sklearn.impute import IterativeImputer
 import llm_adapters
 # --- IMPORTS FOR RESOURCE MONITORING ---
 import threading
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 from utils.system_monitor_utilities import SystemMonitor, get_static_system_info, get_dynamic_system_info
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -556,6 +557,7 @@ def start_monitoring():
     emission_factor = st.session_state.get('emission_factor', 250.0)
     cpu_tdp = st.session_state.get('cpu_tdp', 65.0)
     monitor = SystemMonitor(data_list, stop_event, emission_factor, cpu_tdp)
+    add_script_run_ctx(monitor)
     monitor.start()
     return data_list, stop_event, monitor
 def stop_monitoring(data_list, stop_event, monitor_thread):

@@ -6,6 +6,7 @@ from datetime import datetime
 from utils.translations import get_text
 from utils.system_monitor_utilities import SystemMonitor, watt_to_co2_gs, co2_gs_to_co2_kgh
 import threading
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 import llm_adapters
 from utils.prompt_builder import create_sql_prompt
 from utils.query_cleaner import extract_sql_query
@@ -65,6 +66,7 @@ class CO2Monitor:
         cpu_tdp = st.session_state.get('cpu_tdp', 65.0)
 
         self.monitor_thread = SystemMonitor(self.data_list, self.stop_event, emission_factor, cpu_tdp)
+        add_script_run_ctx(self.monitor_thread)
         self.monitor_thread.start()
         return self
 

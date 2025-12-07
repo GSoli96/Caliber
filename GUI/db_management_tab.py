@@ -4,6 +4,7 @@ import time
 from db_adapters.DBManager import DBManager
 from utils.translations import get_text
 import sys
+from GUI.message_gui import st_toast_temp
 
 def db_management_tab():
     # 2. Tab per DBMS
@@ -115,18 +116,18 @@ def _render_dbms_tab(dbms_type):
         if dbms_type == 'SQL Server' and db in ['master' ,'model','msdb','tempdb']: continue
         filtered_dbs.append(db)
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         if not filtered_dbs:
             st.info(get_text('db_management', 'no_databases'))
         else:
             selected_db = st.selectbox(
                 get_text('db_management', 'select_database'), 
-                ['Choose a BDMS']+filtered_dbs, 
+                ['Choose a Database']+filtered_dbs, 
                 key=f"sel_db_{dbms_type}",
                 index=0)
     
-    if selected_db and selected_db != 'Choose a BDMS':
+    if selected_db and selected_db != 'Choose a Database':
         details = manager.get_db_details(selected_db)
 
         if "error" in details:
@@ -144,7 +145,15 @@ def _render_dbms_tab(dbms_type):
                 st.write("")
                 st.write("")
                 rename = st.button(get_text('db_management', 'btn_rename_db'), key=f"p_btn_ren_db_{dbms_type}")
+            with col5:
+                st.write("")
+                st.write("")
+                delete = st.button('Delete Database', key=f"p_btn_del_db_{dbms_type}", type="primary")
 
+            with col6:
+                st.write("")
+                st.write("")
+                delete_all = st.button('Delete All Databases', key=f"p_btn_del_all_db_{dbms_type}", type="primary")
             with st.container(border=True if rename else False):
                 c_ren, c_del = st.columns(2)
                 # Rename DB
@@ -174,7 +183,12 @@ def _render_dbms_tab(dbms_type):
                                 time.sleep(1)
                                 st.rerun()
                             else: st.toast(msg)
-
+            
+            if delete:
+                show_dialog(selected_db, dbms_type, details)
+            
+            if delete_all:
+                show_dialog(filtered_dbs, dbms_type, {}, all=True)
         if details['tables']:
             # --- TABELLE ---
             st.markdown(f"### {get_text('db_management', 'tables_header')}")
@@ -208,3 +222,106 @@ def _render_dbms_tab(dbms_type):
                         else:
                             st.error(msg)
 
+    else:
+        if not filtered_dbs:
+            return
+        else:
+            with col2:
+                st.write("")
+                st.write("")
+                delete_all = st.button('Delete All Databases', key=f"p_btn_del_all_db_{dbms_type}", type="primary")
+                if delete_all:
+                    show_dialog(filtered_dbs, dbms_type, {}, all=True)
+
+@st.dialog("🌱 Delete Database!", width="large")
+def show_dialog(selected_db, dbms_type, details, all=False):
+    if not all:
+        st.info(
+            f"Are you sure you want to delete the database **{selected_db}**?"
+        )
+        st.warning("This action is irreversible!")
+
+        with st.container(border=True):
+            st.subheader("Database Details")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Database", selected_db)
+            with col2:
+                st.metric("Size", details.get("size_mb", "N/A"))
+            with col3:
+                st.metric("DBMS", dbms_type)
+            with col4:
+                st.metric("Tables", len(details["tables"]))
+
+        col1, col2 = st.columns(2)
+
+        # --------------- YES DELETE --------------------
+        with col1:
+            if st.button("Yes, delete", type="primary"):
+                st.session_state["confirm_delete"] = True
+
+                temp_ss = st.session_state
+                temp_ss["config_dict"] = {
+                    "choice_DBMS": dbms_type,
+                    "db_name": selected_db,
+                    "connection_string": "",
+                    "dfs_dict": {"dummy": pd.DataFrame()},
+                }
+
+                manager = DBManager(temp_ss, type="status")
+                ok, msg = manager.delete_db(selected_db)
+                if ok:
+                    st_toast_temp(msg, 'success')
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st_toast_temp(msg, 'error')
+
+        # ---------------- CANCEL ------------------------
+        with col2:
+            if st.button("Cancel", type="secondary"):
+                st.session_state["confirm_delete"] = False
+                st_toast_temp("Operation cancelled", 'info')
+                st.rerun()
+    elif all:
+        st.info(
+            f"Are you sure you want to delete all databases?"
+        )
+        st.warning("This action is irreversible!")
+        
+        for db in selected_db:
+            st.write(db)
+            st.write(dbms_type)
+
+        col1, col2 = st.columns(2)
+
+        # --------------- YES DELETE --------------------
+        with col1:
+            if st.button("Yes, delete", type="primary"):
+                for db in selected_db:
+                    temp_ss = st.session_state
+                    temp_ss["config_dict"] = {
+                        "choice_DBMS": dbms_type,
+                        "db_name": db,
+                        "connection_string": "",
+                    "dfs_dict": {"dummy": pd.DataFrame()},
+                }
+
+                    manager = DBManager(temp_ss, type="status")
+                    ok, msg = manager.delete_db(db)
+                    if ok:
+                        st_toast_temp(f"Database {db} deleted successfully", 'success')
+                    else:
+                        st_toast_temp(f"Database {db} not deleted", 'error')
+                        st.warning(msg)
+                        st.info(ok)
+                st.session_state["confirm_delete"] = True
+                time.sleep(1)
+                st.rerun()
+
+        # ---------------- CANCEL ------------------------
+        with col2:
+            if st.button("Cancel", type="secondary"):
+                st.session_state["confirm_delete"] = False
+                st_toast_temp("Operation cancelled", 'info')
+                st.rerun()

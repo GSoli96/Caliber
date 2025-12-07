@@ -8,7 +8,7 @@ from utils.sustainability_report import (
     calculate_session_metrics,
     format_relatable_metrics
 )
-
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 from utils.utils_gen_eval_query import dataset_tab_geneval, run_full_process_eval, run_greenefy_process
 from GUI.green_ai_race_tab import green_ai_race_tab
 import threading
@@ -34,7 +34,6 @@ import traceback
 from utils.translations import get_text
 from utils import green_metrics
 from utils.icons import Icons
-
 
 # Icone per gli adapter LLM
 LLM_ADAPTER_ICONS = Icons.ICONS
@@ -96,7 +95,6 @@ def _display_results_eval():
             st.error(f"{get_text('gen_eval', 'db_error')} {query_res['error']}")
         else:
             st.toast(get_text("gen_eval", "query_executed"))
-
 
     # View Result Data Expander
     if 'dataframe' in query_res and isinstance(query_res['dataframe'], pd.DataFrame):
@@ -353,5 +351,3 @@ def query_gen_eval_tab():
         st.balloons()
         with output_placeholder.container():
             _display_results_eval()
-
-
