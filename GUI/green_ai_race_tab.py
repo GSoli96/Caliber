@@ -592,32 +592,6 @@ def green_ai_race_tab():
                 }
 
             st.session_state.race_progress = 0
-
-            st.session_state.tasks_A = {
-                    "Started": False,
-                    "Start Monitoring": False,
-                    "Construct prompt": False,
-                    "Sending prompt": False,
-                    "LLM has generated SQL query": False,
-                    "Executing SQL query": False,
-                    "SQL query executed": False,
-                    "Saving results": False,
-                    "Stopping Monitoring": False,
-                    "End Challenge": False
-        }
-
-            st.session_state.tasks_B = {
-                    "Started": False,
-                    "Start Monitoring": False,
-                    "Construct prompt": False,
-                    "Sending prompt": False,
-                    "LLM has generated SQL query": False,
-                    "Executing SQL query": False,
-                    "SQL query executed": False,
-                    "Saving results": False,
-                    "Stopping Monitoring": False,
-                    "End Challenge": False
-                }
             st.session_state['widget_race_idx_counter'] += 1
             st.toast("New race started", icon='✅')
             # st.rerun()

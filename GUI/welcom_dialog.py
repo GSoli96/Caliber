@@ -1,6 +1,8 @@
 # ============================================================================
 # WELCOME DIALOG
 # ============================================================================
+import streamlit as st
+from utils.translations import get_text
 
 @st.dialog(get_text("welcome", "title"), width="large")
 def show_welcome_dialog():
@@ -73,3 +75,5 @@ def show_welcome_dialog():
         if st.button(get_text("welcome", "start_button"), use_container_width=True, type="primary"):
             st.session_state['show_welcome'] = False
             st.rerun()
+
+

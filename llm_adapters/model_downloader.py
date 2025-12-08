@@ -31,11 +31,6 @@ def download_model_HF(
     Scarica un modello Hugging Face mostrando barra progresso + pulsante annulla.
     Tutta la UI è dentro questa funzione. Restituisce la pipeline quando pronta o None.
     """
-    # Ottieni lo stato. Assicurati che sia inizializzato in app.py!
-    if "hf_dl" not in st.session_state:
-        st.error(get_text("llm_adapters", "dl_state_error"))
-        return None
-
     state = st.session_state.hf_dl
 
     # --- MODIFICA CHIAVE 1: Controllo coerenza model_id ---

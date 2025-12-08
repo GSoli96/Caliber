@@ -76,25 +76,25 @@ class DBManager:
         """
         self.ss = dict_stato
         self.type = type
-        print("[DBManager] Type: ", self.type)
+        # print("[DBManager] Type: ", self.type)
 
         config_dict = self.ss.get("config_dict", {})
-        print("[DBManager] Config dict: ", config_dict)
+        # print("[DBManager] Config dict: ", config_dict)
         self.dfs_dict = config_dict.get("dfs_dict", {})
-        print("[DBManager] DFS dict: ", self.dfs_dict)
+        # print("[DBManager] DFS dict: ", self.dfs_dict)
 
         # Config globale (parametri server, ecc.)
         self.global_config = load_config()
-        print("[DBManager] Global config: ", self.global_config)
+        # print("[DBManager] Global config: ", self.global_config)
 
         if not config_dict:
             # Nessuna configurazione -> istanza "vuota"
-            print("[DBManager] Nessuna configurazione -> istanza \"vuota\"")
+            # print("[DBManager] Nessuna configurazione -> istanza \"vuota\"")
             return
 
         if not self.dfs_dict and self.type != "download":
             # Per create_db servono i DataFrame; per download_db no
-            print("[DBManager] Nessun DataFrame -> istanza \"vuota\"")
+            # print("[DBManager] Nessun DataFrame -> istanza \"vuota\"")
             return
 
         # --- Lettura parametri dalla GUI ---
@@ -105,21 +105,21 @@ class DBManager:
             or config_dict.get("conn_str")
             or ""
         )
-        print("[DBManager] Connection string: ", self.connection_string)
+        # print("[DBManager] Connection string: ", self.connection_string)
 
         # Nome database
         self.db_name: str = self._safe_db_name((config_dict.get("db_name", "").strip()).replace(" ", "_"))
-        print("[DBManager] DB Name: ", self.db_name)
+        # print("[DBManager] DB Name: ", self.db_name)
         # Lista tabelle / colonne
         tblist = config_dict.get("table_list", [])
         if tblist:
             self.table_list = [table.strip().replace(" ", "_") for table in tblist]
         else:
             self.table_list = "Load all tables"
-        print("[DBManager] Table list: ", self.table_list)
+        # print("[DBManager] Table list: ", self.table_list)
 
         self.load_all_tables: bool = bool(config_dict.get("load_all_tables", False))
-        print("[DBManager] Load all tables: ", self.load_all_tables)
+        # print("[DBManager] Load all tables: ", self.load_all_tables)
 
         # Scelta DBMS
         self.choice_DBMS: str = (
@@ -127,7 +127,7 @@ class DBManager:
             or config_dict.get("db_choice")
             or ""
         )
-        print("[DBManager] DBMS: ", self.choice_DBMS)
+        # print("[DBManager] DBMS: ", self.choice_DBMS)
 
         # Percorso file per SQLite / DuckDB
         self.sqlite_db_path: Optional[str] = None
@@ -137,18 +137,18 @@ class DBManager:
             # Se arriva solo il path, deriva il nome db dal file (come fa la GUI)
             if self.sqlite_db_path and not config_dict.get("db_name"):
                 self.db_name = os.path.splitext(os.path.basename(self.sqlite_db_path))[0]
-        print("[DBManager] SQLite DB Path: ", self.sqlite_db_path)
+        # print("[DBManager] SQLite DB Path: ", self.sqlite_db_path)
 
         # Carica i DataFrame solo se non siamo in modalità download
         if self.type != "download":
             self.db_to_load = self.load_df()
-            print("[DBManager] DataFrame loaded: ", self.db_to_load)
+            # print("[DBManager] DataFrame loaded: ", self.db_to_load)
         else:
             self.db_to_load = None
-            print("[DBManager] DataFrame not loaded")
+            # print("[DBManager] DataFrame not loaded")
 
         self.psw_conn = config_dict.get("psw_conn")
-        print("[DBManager] Password connection: ", self.psw_conn)
+        # print("[DBManager] Password connection: ", self.psw_conn)
 
     # ---------------------- Utility interne ----------------------
     def _normalize_db_path(self):
@@ -472,7 +472,7 @@ class DBManager:
         Returns:
             Engine: SQLAlchemy engine connected to the target database.
         """
-        print("[DBManager] self.choice_DBMS", self.choice_DBMS)
+        # print("[DBManager] self.choice_DBMS", self.choice_DBMS)
         if self.choice_DBMS == "SQLite":
             if not self.sqlite_db_path:
                 db_path = os.path.abspath(

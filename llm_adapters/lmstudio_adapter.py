@@ -409,11 +409,11 @@ def run_server_lmStudio(host: str = "http://localhost:1234", key='lmstudo'):
         st_toast_temp(get_text("llm_adapters", "started_background"), 'success')
         get_lmstudio_status.clear()
         print(f"[INFO] LM Studio server started")
-        st.toast("LM Studio server started!")
+        st_toast_temp("LM Studio server started!", 'success')
     else:
         st.session_state['server_lmStudio'] = False
         st_toast_temp(res["msg"], 'error')
-        st.toast("LM Studio server error!")
+        st_toast_temp("LM Studio server error!", 'error')
     
     # st.rerun()
 

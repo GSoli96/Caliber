@@ -2,7 +2,7 @@ import os
 from threading import Thread
 from streamlit.runtime.scriptrunner import add_script_run_ctx
 import streamlit as st
-
+import spacy.util
 from GUI.benchmarking_tab import benchmark_tab
 from GUI.conf_model import configure_local_model_tab, configure_online_model
 from GUI.dataset_analytics_tab import db_analytics_tab
@@ -18,59 +18,39 @@ from llm_adapters.ollama_adapter import run_server_ollama
 from utils.translations import get_text
 from llm_adapters.huggingface_adapter import ensure_model_cached
 from GUI.message_gui import st_toast_temp
-from utils.load_config import get_HF_Token  # se già lo importi altrove, lascia pure
+from utils.load_config import get_HF_Token 
+from GUI.welcom_dialog import show_welcome_dialog
 
 def initialize_session_state():
     if 'initialized' not in st.session_state:
-        st.session_state['dataframes'] = {'files': {}, 'DBMS': {}}
-        st.session_state['duplicate_files'] = []
-        st.session_state['uploaded_files'] = {}
-        st.session_state['initialized'] = True
-        st.session_state.setdefault('current_df', None)
+        st.session_state.setdefault('uploaded_files', {})
+        st.session_state.setdefault('initialized', True)
         st.session_state.setdefault('db_choice',"")
         st.session_state.setdefault('db_name', "")
         st.session_state.setdefault('db_connection_args', {})
-        st.session_state.setdefault('current_DBMS', None)
         st.session_state.setdefault('llm_backend', None)
-        # --- Contenitori per i risultati (in session_state per persistere tra i rerun) ---
         st.session_state.setdefault('process_results', {})
 
         st.session_state.setdefault('monitoring_data', [])
-        st.session_state.setdefault('open_tab', 'generate_query')
-
-        st.session_state.setdefault('upload_database_from',
-                                    None)  # Evento per capire da dove ha caricato i dati (CSV or DBMS)
-        st.session_state.setdefault('load_DBMS',
-                                    False)  # Evento per capire se ha inserito i dati nella sezione "Select Dataset"
-
-        # ----- Gestione Tab -------
-        st.session_state.setdefault('current_tab', 'Dashboard')  # Evento per capire quale TAB ha premuto
-        st.session_state.setdefault('selected_bar', 'Barra1')  # Barra sopra
 
         st.session_state.setdefault('dataframes', {'files': {}, 'DBMS': {}})
-        st.session_state.setdefault('uploaded_files', {})  # Scelta per capire quanti file ha caricato
         st.session_state.setdefault('uploaded_dbms', {})
-        st.session_state.setdefault('choice_files',
-                                    'None')  # Scelta per capire se (nel caso di duplicati) ha fatto una scelta
-        st.session_state.setdefault('duplicate_files', [])  # controllo file duplicati
-        # flag di edit per-tab
+        st.session_state.setdefault('choice_files','None')  
+        st.session_state.setdefault('duplicate_files', [])  
         st.session_state.setdefault('server_lmStudio', False)
         st.session_state.setdefault('server_ollama', False)
 
         st.session_state.setdefault("edit_sep_flags", {})  # dict: name -> bool
         st.session_state.setdefault('create_db_done', False)
-        st.session_state.setdefault('selected_bar', 'Barra1')
         st.session_state.setdefault('results_HF', {})
         st.session_state.setdefault('submit_HF', None)
         st.session_state.setdefault('token_HF', '')
         st.session_state.setdefault('db_dir', "database")
-        st.session_state['process_status'] = None
+        st.session_state.setdefault('process_status', None)
         if not os.path.exists(st.session_state.db_dir):
-            os.makedirs(st.session_state.db_dir)
+            os.makedirs(st.session_state.db_dir, exist_ok=True)
 
-        st.session_state["selected_by_backend_a"] = None
-        st.session_state["selected_by_backend_b"] = None
-        st.session_state["selected_by_backend"] = None
+        st.session_state.setdefault('selected_by_backend', None)
 
         st.session_state.setdefault('hf_dl', {
             "running": False,
@@ -88,10 +68,6 @@ def initialize_session_state():
             "thread": None,
             "model_id": None,  # <-- MODIFICA CHIAVE
         })
-
-        import spacy.util
-
-        
 
         st.session_state.setdefault('spacy_model',
                                     {'model': 'en_core_web_sm',
@@ -131,33 +107,6 @@ def initialize_session_state():
         st.session_state.setdefault('race_progress', 0)
         st.session_state.setdefault('race_status', 'not_running')
 
-        if "tasks_A" not in st.session_state:
-            st.session_state.tasks_A = {
-                "Started": False,
-                "Start Monitoring": False,
-                "Construct prompt": False,
-                "Sending prompt": False,
-                "LLM has generated SQL query": False,
-                "Executing SQL query": False,
-                "SQL query executed": False,
-                "Saving results": False,
-                "Stopping Monitoring": False,
-                "End Challenge": False
-    }
-
-        if "tasks_B" not in st.session_state:
-            st.session_state.tasks_B = {
-                "Started": False,
-                "Start Monitoring": False,
-                "Construct prompt": False,
-                "Sending prompt": False,
-                "LLM has generated SQL query": False,
-                "Executing SQL query": False,
-                "SQL query executed": False,
-                "Saving results": False,
-                "Stopping Monitoring": False,
-                "End Challenge": False
-    }
         st.session_state.setdefault('race_results', {})
         activate_service()
 
@@ -243,6 +192,9 @@ div[data-baseweb="tab-list"] {
     justify-content: space-between;
 }
 """
+
+if st.session_state['show_welcome'] == True:
+    show_welcome_dialog()
 
 tab_list = [get_text("app_home", "data_hub"),
     get_text("app_home", "data_insight"),

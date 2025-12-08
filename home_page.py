@@ -17,29 +17,34 @@ st.markdown("""
     
     /* Rimuovi padding superiore di Streamlit */
     .block-container {
-        padding-top: 0rem !important;
-        padding-bottom: 1rem !important;
+        padding: 0rem !important;
+        margin: 0rem !important;
     }
     
     /* Nascondi header Streamlit */
     header[data-testid="stHeader"] {
         display: none;
+        margin: 0rem !important;
+        padding: 0rem !important;
     }
     
     /* Rimuovi toolbar */
     #MainMenu, footer, header {
         visibility: hidden;
+        margin: 0rem !important;
+        padding: 0rem !important;
     }
     
     /* Container principale */
     .main-container {
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         align-items: center;
         justify-content: center;
         min-height: 0;
         text-align: center;
-        padding: 0rem 0rem;
+        padding: 0rem;
+        margin: 0rem !important;
     }
     
     /* Header container per logo + titolo */
@@ -47,19 +52,23 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 1.5rem;
+        gap: 1.0rem;
         margin-bottom: 0rem;
         padding-bottom: 0rem;
-        width: 100%;
+        width: 90%;
+        margin: 0rem !important;
     }
     
     /* Logo e titolo */
     .logo {
-        font-size: 130px;
+        font-size: 110px;
         animation: float 3s ease-in-out infinite;
         margin: 0rem;
         padding: 0rem;
-        margin-left: 9rem;
+        margin-left: 10rem;
+        align-items: center;
+        padding-bottom: 0rem;
+        margin-bottom: 0rem;
     }
     
     @keyframes float {
@@ -68,26 +77,26 @@ st.markdown("""
     }
     
     .app-title {
-        font-size: 15rem;
-        font-weight: 1000;
+        font-size: 12rem;
+        font-weight: 900; 
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        letter-spacing: 3px;
+        letter-spacing: 2px;
         text-shadow: 0 0 40px rgba(102, 126, 234, 0.3);
         margin: 0rem;
         padding: 0rem;
-        line-height: 1;
+        line-height: 0.5;
         text-align: center;
         animation: float 3s ease-in-out infinite;
     }
     
     .motto {
-        font-size: 2.5rem;
+        font-size: 2.0rem;
         color: #a8dadc;
         font-weight: 600;
-        margin-bottom: 1rem;
+        margin-bottom: 0.1rem;
         margin-top: 0rem;
         padding-top: 0rem;
         font-style: italic;
@@ -99,17 +108,17 @@ st.markdown("""
     .features-container {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 2rem;
+        gap: 1rem;
         max-width: 1200px;
         margin: 1rem auto;
-        padding: 0 2rem;
+        padding: 0 1rem;
     }
     
     .feature-card {
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(10px);
         border-radius: 15px;
-        padding: 2rem;
+        padding: 1rem;
         border: 1px solid rgba(255, 255, 255, 0.1);
         transition: all 0.3s ease;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -142,7 +151,7 @@ st.markdown("""
     /* Footer */
     .footer {
         margin: 0rem;
-        padding: 0.5rem;
+        padding: 0.2rem;
         text-align: center;
         color: #888;
         font-size: 1rem;
