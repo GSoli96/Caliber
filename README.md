@@ -150,3 +150,7 @@ Use this tab to run systematic tests against your dataset to evaluate different 
 
 ### 6. 🧬 Synthetic Data
 Generate new datasets based on the statistical properties of your loaded data. Useful for creating privacy-safe test environments.
+
+
+## Video Demo
+The video demonstration can be accessed via the following link: https://www.youtube.com/watch?v=WqILg1SoQ2g
