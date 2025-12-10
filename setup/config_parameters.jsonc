@@ -29,23 +29,23 @@
     "password": "root",
     "HOST": "127.0.0.1",
     "PORT": 3306,
-    "jdbc_url": "jdbc:mysql://127.0.0.1:3306/?user=root&password=root"
+    "jdbc_url": "jdbc:mysql://127.0.0.1:3306/?user=<your_username>&password=<your_password>"
   },
   // ============================
   // HuggingFace Credential
   // ============================
   "HF_Token": {
-    "token": "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"
+    "token": "<your_HF_Token>"
   },
   "POSTGRES": {
     "user": "postgres",
-    "password": "root!",
+    "password": "<your_password>",
     "HOST": "localhost",
     "PORT": 5432
   },
   "SQLSERVER": {
     "user": "sa",
-    "password": "root!",
+    "password": "<your_password>",
     "HOST": "localhost",
     "PORT": 1433
   }
