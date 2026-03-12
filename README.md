@@ -7,12 +7,8 @@
 
 ## 📄 Abstract
 
-The adoption of Large Language Models (LLMs) for translating natural language into SQL (NL2SQL) queries is becoming a standard practice for interacting with databases. While recent studies have focused almost exclusively on query correctness, the efficiency and carbon footprint of LLM-generated SQL have received little attention. 
-Semantically correct queries can still be highly inefficient, resulting in significantly higher execution times and energy consumption in real DBMSs.
-To this end, in this paper, we present CALIBER, an interactive framework for benchmarking the environmental impact of NL2SQL pipelines. 
-CALIBER allows users to submit natural language queries, generate SQL queries with LLMs, and execute them directly on multiple databases.
-Through four types of benchmarking, it measures both inference and execution energy of generated queries using hardware sensors, TDP estimates, and region-specific carbon intensity factors. The tool also includes automatic prompt-engineering techniques to drive the generation of greener queries.
-In this demo, we show how CALIBER enables direct comparison of LLM energy efficiency, sustainability trade-offs, and supports environmentally informed model selection for NL2SQL applications.
+Large Language Models (LLMs) are increasingly used to translate natural language (NL) into SQL queries (NL2SQL), enabling intuitive access to relational databases. However, existing benchmarks mainly evaluate query correctness while overlooking the environmental impact of generated queries. 
+We present CALIBER, an interactive web-based platform that generates SQL from natural language, executes queries across DBMSs, and visualizes their energy consumption and CO$_2$ emissions. The system also uses prompt engineering to rewrite queries into semantically equivalent but more energy-efficient SQL. By enabling systematic evaluation of the environmental cost of NL2SQL pipelines, CALIBER supports more sustainable data-access workflows.
 
 ---
 
