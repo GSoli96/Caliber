@@ -51,7 +51,7 @@ def get_connectionMySQL():
     Returns:
         dict: MySQL connection parameters from configuration.
     """
-    MYSQL = config.get("dtype_colors", {})
+    MYSQL = config.get("MYSQL", {})
     return MYSQL
 
 

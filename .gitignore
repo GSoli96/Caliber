@@ -1,3 +1,6 @@
+# Local secrets / credentials (use setup/config_parameters.example.jsonc as template)
+setup/config_parameters.jsonc
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

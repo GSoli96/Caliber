@@ -129,11 +129,10 @@ def activate_service():
     th.start()
     threads.append(th)
 
-    backend = "Hugging Face"
     model_id = "meta-llama/Meta-Llama-3-8B"
     hf_token = get_HF_Token()
 
-    th = Thread(target=ensure_model_cached, args=(model_id, backend, hf_token))
+    th = Thread(target=ensure_model_cached, args=(model_id, hf_token))
     add_script_run_ctx(th)
     th.start()
     threads.append(th)

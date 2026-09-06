@@ -24,28 +24,30 @@
   // ============================
   // DB Credential
   // ============================
+  // Copia questo file in "config_parameters.jsonc" (ignorato da git)
+  // e inserisci le tue credenziali reali.
   "MYSQL": {
     "user": "root",
-    "password": "root",
+    "password": "CHANGE_ME",
     "HOST": "127.0.0.1",
     "PORT": 3306,
-    "jdbc_url": "jdbc:mysql://127.0.0.1:3306/?user=<your_username>&password=<your_password>"
+    "jdbc_url": "jdbc:mysql://127.0.0.1:3306/?user=root&password=CHANGE_ME"
   },
   // ============================
   // HuggingFace Credential
   // ============================
   "HF_Token": {
-    "token": "<your_HF_Token>"
+    "token": "hf_your_token_here"
   },
   "POSTGRES": {
     "user": "postgres",
-    "password": "<your_password>",
+    "password": "CHANGE_ME",
     "HOST": "localhost",
     "PORT": 5432
   },
   "SQLSERVER": {
     "user": "sa",
-    "password": "<your_password>",
+    "password": "CHANGE_ME",
     "HOST": "localhost",
     "PORT": 1433
   }

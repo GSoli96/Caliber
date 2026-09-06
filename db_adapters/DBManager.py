@@ -173,44 +173,6 @@ class DBManager:
         # Altrimenti applica DB_DIR
         return os.path.abspath(os.path.join(DB_DIR, filename))
 
-    def _check_service_status(self, dbms_type: str) -> bool:
-        """
-        Checks if the DBMS service is running (only for server-based DBMS on Windows).
-        
-        For SQLite/DuckDB or unmapped DBMS types, always returns True.
-        
-        Args:
-            dbms_type (str): The type of DBMS (e.g., "MySQL", "PostgreSQL", "SQL Server").
-        
-        Returns:
-            bool: True if the service is running or not applicable, False otherwise.
-        """
-        service_name = self.SERVICE_MAP.get(dbms_type)
-        if not service_name:
-            # es. SQLite / DuckDB o DBMS non gestito a livello di servizio
-            return True
-
-        try:
-            result = subprocess.run(
-                ["sc", "query", service_name],
-                capture_output=True,
-                text=True,
-                check=False,  # non sollevare eccezione se il comando fallisce
-            )
-
-            if result.returncode != 0:
-                # print(f"[Service Check] Errore nel controllo del servizio {service_name}: {result.stderr}")
-                return False
-
-            if "RUNNING" in result.stdout:
-                return True
-            else:
-                # print(f"[Service Check] Servizio {service_name} non è in esecuzione. Output:\n{result.stdout}")
-                return False
-        except Exception as e:
-            # print(f"[Service Check] Eccezione durante il controllo del servizio {service_name}: {e}")
-            return False
-
     def load_df(self) -> Dict[str, pd.DataFrame]:
         """
         Extracts DataFrames from the session state dictionary.
@@ -262,86 +224,6 @@ class DBManager:
         return m.get(self.choice_DBMS, "sqlite")
 
     # ---------------------- DB disponibili ----------------------
-
-    def get_available_databases(self) -> List[str]:
-        """
-        Retrieves the list of available databases on the server or in the local directory
-        (depending on the chosen DBMS).
-        
-        For file-based databases (SQLite, DuckDB), lists files in the database directory.
-        For server-based databases, queries the server for available databases.
-        
-        Returns:
-            List[str]: List of available database names.
-        """
-        try:
-            if self.choice_DBMS == "SQLite":
-                if os.path.exists(DB_DIR):
-                    files = [f for f in os.listdir(DB_DIR) if f.endswith(".db")]
-                    return [os.path.splitext(f)[0] for f in files]
-                return []
-
-            elif self.choice_DBMS == "DuckDB":
-                if os.path.exists(DB_DIR):
-                    files = [f for f in os.listdir(DB_DIR) if f.endswith(".duckdb")]
-                    return [os.path.splitext(f)[0] for f in files]
-                return []
-
-            elif self.choice_DBMS == "MySQL":
-                conf = self.global_config.get("MYSQL", {})
-                default_db = ""
-                driver = "mysql+pymysql"
-                query = "SHOW DATABASES"
-
-            elif self.choice_DBMS == "PostgreSQL":
-                conf = self.global_config.get("POSTGRES", {})
-                default_db = "postgres"
-                driver = "postgresql+psycopg"
-                query = "SELECT datname FROM pg_database WHERE datistemplate = false;"
-
-            elif self.choice_DBMS == "SQL Server":
-                # Qui nel file originale c'era "MYSQLSERVER": è stato corretto in "SQLSERVER".
-                conf = self.global_config.get("SQLSERVER", {})
-                default_db = "master"
-                driver = "mssql+pyodbc"
-                query = "SELECT name FROM sys.databases"
-
-            else:
-                return []
-
-            user = conf.get("user")
-            password = conf.get("password")
-            host = conf.get("HOST")
-            port = conf.get("PORT")
-
-            if not user or not host:
-                return []
-
-            url = URL.create(
-                drivername=driver,
-                username=user,
-                password=password,
-                host=host,
-                port=port,
-                database=default_db,
-            )
-
-            if self.choice_DBMS == "SQL Server":
-                url = url.update_query_dict(
-                    {
-                        "driver": "ODBC Driver 17 for SQL Server",
-                        "TrustServerCertificate": "yes",
-                    }
-                )
-
-            engine = create_engine(url)
-            with engine.connect() as conn:
-                result = conn.execute(text(query))
-                return [row[0] for row in result]
-
-        except Exception as e:
-            print(f"Error listing databases: {e}")
-            return []
 
     # ---------------------- Connection URL helpers ----------------------
 
@@ -580,30 +462,6 @@ class DBManager:
                     conn.execute(drop_stmt)
                 except Exception as e:
                     print(f"Could not drop database {self.db_name}. It might not exist. Error: {e}")
-
-    def _safe_db_name(self, name: str) -> str:
-        """
-        Sanitizes a database name to ensure it's safe for use.
-        
-        Converts to lowercase, removes file extensions, avoids reserved keywords,
-        and replaces invalid characters with underscores.
-        
-        Args:
-            name (str): The original database name.
-        
-        Returns:
-            str: Sanitized database name.
-        """
-        name = name.strip().lower()
-        if name in self.RESERVED_KEYWORDS:
-            name = f"{name}_db"
-        # Rimuove l'estensione .db/.duckdb se presente prima di sanitizzare
-        if name.endswith(".db"):
-            name = name[:-3]
-        elif name.endswith(".duckdb"):
-            name = name[:-7]
-        
-        return re.sub(r"\W+", "_", name)
 
     def _create_database_if_needed(self) -> None:
         """
@@ -1042,8 +900,7 @@ class DBManager:
             return False, f"No service map for {self.choice_DBMS}"
 
         if action == 'status':
-            # Qui usiamo il NOME DEL SERVIZIO, non il nome logico del DBMS
-            is_running = self._check_service_status(service_name)
+            is_running = self._check_service_status(self.choice_DBMS)
             return True, "Running" if is_running else "Stopped"
 
         if action == 'start':
