@@ -189,7 +189,7 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
                     else:
                         models_by_backend[backend] = models
                         selected_by_backend[backend] = selected_by_backend.get(backend) or models[0]
-                        st.success(get_text("conf_model", "models_found", n=len(models)))
+                        # st.success(get_text("conf_model", "models_found", n=len(models)))
                 else:
                     st_toast_temp(get_text("conf_model", "server_not_running"), 'warning')
                     st.warning(get_text("conf_model", "server_not_running"))
@@ -234,25 +234,25 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
                             for z, sub in nested_part.items():
                                 rows.extend(_dict_to_table_rows(sub, section=z))
 
-                            df = pd.DataFrame(rows, columns=["Sezione", "Campo", "Valore"])
+                            df = pd.DataFrame(rows, columns=["Section", "Field", "Value"])
 
                             df = df[
-                                (~df["Valore"].apply(_is_empty_value)) &
-                                (~df["Valore"].apply(_is_complex_value))
+                                (~df["Value"].apply(_is_empty_value)) &
+                                (~df["Value"].apply(_is_complex_value))
                                 ].reset_index(drop=True)
 
                             # pulizia nomi "Campo"
                             df = _clean_campo_names(df)
 
                             # separa overview e spiegazioni
-                            overview_df = df[df["Sezione"] == "Overview"].drop(columns=["Sezione"])
-                            expl_df_full = df[df["Sezione"] != "Overview"]
+                            overview_df = df[df["Section"] == "Overview"].drop(columns=["Section"])
+                            expl_df_full = df[df["Section"] != "Overview"]
 
                             # memorizza i nomi delle sezioni PRIMA di droppare la colonna
-                            section_names = sorted(expl_df_full["Sezione"].unique()) if not expl_df_full.empty else []
+                            section_names = sorted(expl_df_full["Section"].unique()) if not expl_df_full.empty else []
 
                             # poi elimina la colonna
-                            expl_df = expl_df_full.drop(columns=["Sezione"])
+                            expl_df = expl_df_full.drop(columns=["Section"])
 
                             # ---- 1️⃣ TABELLONA OVERVIEW ----
                             st.markdown(f"### {get_text('conf_model', 'model_overview')}")
@@ -265,8 +265,8 @@ def configure_local_model_tab(key_prefix: str = "lm_selector"):
                                     tabs = st.tabs(section_names)
                                     for tab_i, sec in zip(tabs, section_names):
                                         with tab_i:
-                                            sec_df = expl_df_full[expl_df_full["Sezione"] == sec][
-                                                ["Campo", "Valore"]].reset_index(drop=True)
+                                            sec_df = expl_df_full[expl_df_full["Section"] == sec][
+                                                ["Field", "Value"]].reset_index(drop=True)
                                             st.table(sec_df)
 
                     if backend in ("Hugging Face", "LM Studio"):
@@ -341,9 +341,9 @@ def configure_online_model(key_prefix):
             st.info(get_text("conf_model", "set_filters_info"))
         elif not results and submitted is True:
             st.warning(get_text("conf_model", "no_models_criteria"))
-        elif results and submitted:
-            st.success(get_text("conf_model", "models_found_hf", n=len(results)))
-            st.subheader(get_text("conf_model", "models_found_header"))
+        # elif results and submitted:
+            # st.success(get_text("conf_model", "models_found_hf", n=len(results)))
+            # st.subheader(get_text("conf_model", "models_found_header"))
 
             # Se sono tanti, usa selectbox invece di tab infinite
             names = []
@@ -362,7 +362,7 @@ def configure_online_model(key_prefix):
                 st.warning(get_text("conf_model", "search_invalid_id"))
                 return
 
-            selected = st.selectbox(f"{ICONS['Select a Model']} {get_text('conf_model', 'select_model')}", names, key="hf_model_select")
+            selected = st.selectbox(f"{get_text('conf_model', 'select_model')}", names, key="hf_model_select")
 
             # dettaglio del selezionato
             m = next((x for x in results if (x.get('modelId') or x.get('id')) == selected), None)
@@ -383,7 +383,7 @@ def configure_online_model(key_prefix):
                 if lang:
                     st.caption(get_text("conf_model", "language", lang=lang))
 
-                load_model = st.button(f"{ICONS['Load Model']} {get_text('conf_model', 'load_model_btn')}", key="load_model_{}".format(selected))
+                load_model = st.button(f"{get_text('conf_model', 'load_model_btn')}", key="load_model_{}".format(selected))
 
                 # --- MODIFICA CHIAVE: Gestione dello stato al click ---
                 state = st.session_state.get('hf_dl', {})
@@ -539,8 +539,6 @@ def spacy_show_model(name):
                 st.error(get_text("conf_model", "install_failed", name=model_to_install, rc=rc))
                 st.session_state[installing_key] = False
 
-
-
 def _download_spacy_model(model_name: str, *, verbose: bool = True) -> int:
     cmd = [sys.executable, "-m", "spacy", "download", model_name]
     proc = subprocess.Popen(
@@ -587,7 +585,20 @@ def _download_spacy_model(model_name: str, *, verbose: bool = True) -> int:
     return rc
 
 def _render_model_tabs(details: Dict[str, Any]) -> None:
-    t_overview, t_pipeline, t_size = st.tabs([get_text("conf_model", "overview"), get_text("conf_model", "pipeline_task"), get_text("conf_model", "size_resources")])
+    st.markdown("""
+    <style>
+    .stTabs [data-baseweb="tab"] p {
+        font-weight: 700;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+    t_overview, t_pipeline, t_size = st.tabs([
+        get_text("conf_model", "overview"), 
+        get_text("conf_model", "pipeline_task"), 
+        get_text("conf_model", "size_resources")])
 
     with t_overview:
         col1, col2 = st.columns(2)
@@ -670,7 +681,7 @@ def show_tab_local_upload(key_prefix, name):
         if any(f.endswith(".onnx") for f in lower):
             return "ONNX"
 
-        return "Altro/Sconosciuto"
+        return "Other/Unknown"
 
     # Specifiche minime per formato (OR con “|”)
     def required_by_format(fmt: str) -> list[str]:
@@ -931,7 +942,7 @@ def hugging_face_tab():
                 st.session_state['token_HF'] = ''
                 st_toast_temp(get_text("conf_model", "no_models_found_retry"))
             else:
-                st_toast_temp(get_text("conf_model", "models_found_count", n=len(results)))
+                # st_toast_temp(get_text("conf_model", "models_found_count", n=len(results)))
                 st.session_state['results_HF'] = [res for res in results]
                 st.session_state['submit_HF'] = True
                 st.session_state['token_HF'] = use_token
@@ -942,10 +953,10 @@ def lmstudio_tab():
     # --- Sezione A: elenco modelli esposti dal server OpenAI-compatible ---
     col1, col2 = st.columns(2)
     with col1:
-        lm_host = st.text_input(f"{ICONS['Host']} " + get_text("conf_model", "host_lm_studio"), "http://localhost:1234",
+        lm_host = st.text_input(get_text("conf_model", "host_lm_studio"), "http://localhost:1234",
                                 help=get_text("conf_model", "lm_host_help"))
     with col2:
-        lm_filter = st.text_input(f"{ICONS['Filtro']} " + get_text("conf_model", "filter_contains"), "", placeholder="es. qwen, mistral, llama")
+        lm_filter = st.text_input(get_text("conf_model", "filter_contains"), "", placeholder="es. qwen, mistral, llama")
     # lm_host lo stai già ottenendo da st.text_input(...)
     lmstudio_panel(host=lm_host, key='online_tab')
 
@@ -953,7 +964,7 @@ def lmstudio_tab():
 
         cols_srv = st.columns([3, 1])
         with cols_srv[0]:
-            if st.button(f"{ICONS['Refresh']} " + get_text("conf_model", "refresh_cache"), help=get_text("conf_model", "refresh_cache_help")):
+            if st.button(get_text("conf_model", "refresh_cache"), help=get_text("conf_model", "refresh_cache_help")):
                 st.cache_data.clear()
 
         try:
@@ -1005,7 +1016,7 @@ def lmstudio_tab():
         st.divider()
 
         # --- Sezione B: scarica/aggiorna modelli tramite CLI "lms get" ---
-        st.subheader(f"{ICONS['Download Models']} " + get_text("conf_model", "download_lms_hub"))
+        st.subheader(get_text("conf_model", "download_lms_hub"))
         st.caption(get_text("conf_model", "download_lms_help"))
 
         with st.form(key="lms_get_form"):
@@ -1015,7 +1026,7 @@ def lmstudio_tab():
                 no_confirm = st.checkbox(get_text("conf_model", "no_confirm"), value=True, help=get_text("conf_model", "no_confirm_help"))
             with c2:
                 fresh = st.checkbox(get_text("conf_model", "force_install"), value=False, help=get_text("conf_model", "force_install_help"))
-            submit_get = st.form_submit_button(f"{ICONS['Download Models']} " + get_text("conf_model", "download_with_lms"))
+            submit_get = st.form_submit_button(get_text("conf_model", "download_with_lms"))
 
         if submit_get:
             if not q.strip():
@@ -1076,7 +1087,7 @@ def ollama_tab():
 
     colh1, colh2 = st.columns(2)
     with colh1:
-        ollama_host = st.text_input(f"{ICONS['Host']} " + get_text("conf_model", "host_ollama"), "http://localhost:11434",
+        ollama_host = st.text_input(get_text("conf_model", "host_ollama"), "http://localhost:11434",
                                     help=get_text("conf_model", "ollama_host_help"))
     with colh2:
         reg_query = st.text_input(f"{ICONS['Filtro']} " + get_text("conf_model", "repo_filter"), "",
@@ -1308,7 +1319,7 @@ def spacy_tab():
 
     colh1, colh2, colh3 = st.columns([3, 2, 3])
     with colh1:
-        filtro = st.text_input(f"{ICONS['Filtro']} " + get_text("conf_model", "filter_contains"), "",
+        filtro = st.text_input(get_text("conf_model", "filter_contains"), "",
                                placeholder="es. it_core, en_core, transformer")
     if src == get_text("conf_model", "common_models"):
         # lista filtrabile dei più comuni (anche se non installati)
@@ -1342,13 +1353,13 @@ def spacy_tab():
     pre = st.session_state['detailed_spacy'][candidate]
     # tabella orizzontale dei principali
     base = [{
-        "Modello": pre.get("model"),
-        "Lingua": f'{pre.get("language")} ({pre.get("lang_code")})',
-        "Versione": pre.get("version") or "N/D",
+        "Model": pre.get("model"),
+        "Language": f'{pre.get("language")} ({pre.get("lang_code")})',
+        "Version": pre.get("version") or "N/D",
         "Pipeline": ", ".join(pre.get("pipeline") or []) or "—",
-        "Task attesi": ", ".join(pre.get("tasks") or []) or "—",
-        "Vettori": pre.get("vectors") or "—",
-        "Installato": "Sì" if pre.get("installed") else "No",
+        "Task expected": ", ".join(pre.get("tasks") or []) or "—",
+        "Vectors": pre.get("vectors") or "—",
+        "Installed": "Yes" if pre.get("installed") else "No",
         "Size hint": pre.get("size_hint") or "N/D",
     }]
     st.dataframe(pd.DataFrame(base), hide_index=True, width='stretch')
@@ -1386,14 +1397,14 @@ def spacy_tab():
                 vec_dim = int(getattr(nlp.vocab, "vectors_length", 0) or 0)
                 vec_keys = int(getattr(getattr(nlp.vocab, "vectors", None), "n_keys", 0) or 0)
                 full = {
-                    "Modello": meta.get("name", candidate),
-                    "Lingua": meta.get("lang", getattr(nlp, "lang", "N/A")),
-                    "Versione": meta.get("version", "N/A"),
+                    "Model": meta.get("name", candidate),
+                    "Language": meta.get("lang", getattr(nlp, "lang", "N/A")),
+                    "Version": meta.get("version", "N/A"),
                     "Pipeline": ", ".join(pipe_names) or "—",
-                    "Vettori (dim)": vec_dim,
-                    "Vettori (keys)": vec_keys,
-                    "Descrizione": meta.get("description", "—"),
-                    "spaCy compatibile": meta.get("spacy_version", "—"),
+                    "Vectors (dim)": vec_dim,
+                    "Vectors (keys)": vec_keys,
+                    "Description": meta.get("description", "—"),
+                    "spaCy compatible": meta.get("spacy_version", "—"),
                 }
                 st.dataframe(pd.DataFrame([full]), hide_index=True, width='stretch')
             except Exception as e:
@@ -1515,9 +1526,9 @@ def build_legend_html(ents, nlp):
         desc = NER_LABEL_INFO.get(l, "Entità spaCy")
         stats = sens.get(l, {"count": 0, "sens_count": 0, "examples": []})
         if stats["sens_count"] > 0:
-            tag = f"🔒 sensibile ({stats['sens_count']}/{stats['count']})"
+            tag = f"🔒 sensitive ({stats['sens_count']}/{stats['count']})"
         else:
-            tag = f"🟢 non sensibile ({stats['count']})"
+            tag = f"🟢 non sensitive ({stats['count']})"
         examples = f" — es.: {', '.join(stats['examples'])}" if stats["examples"] else ""
         items.append(
             f"<div style='margin:4px 0;'>"
@@ -1565,15 +1576,15 @@ def _dict_to_table_rows(d: dict, section: str | None = None):
             # appiattisci di un livello (es. "Spiegazioni")
             for k2, v2 in v.items():
                 rows.append({
-                    "Sezione": k if section is None else f"{section} / {k}",
-                    "Campo": k2,
-                    "Valore": str(v2),
+                    "Section": k if section is None else f"{section} / {k}",
+                    "Field": k2,
+                    "Value": str(v2),
                 })
         else:
             rows.append({
-                "Sezione": section or "Overview",
-                "Campo": k,
-                "Valore": str(v)
+                "Section": section or "Overview",
+                "Field": k,
+                "Value": str(v)
             })
     return rows
 
@@ -1600,21 +1611,21 @@ def _clean_campo_names(df: pd.DataFrame) -> pd.DataFrame:
     - se esiste solo (nome (dal nome)) -> rinomina in 'nome'
     """
     import re
-    campi = df["Campo"].tolist()
-    base_names = [re.sub(r"\s*\(dal nome\)\s*$", "", c).strip() for c in campi]
-    df["Campo_base"] = base_names
+    campi = df["Field"].tolist()
+    base_names = [re.sub(r"\s*\(by name\)\s*$", "", c).strip() for c in campi]
+    df["Field_base"] = base_names
 
     # identifica duplicati base
-    duplicates = df["Campo_base"].duplicated(keep=False)
+    duplicates = df["Field_base"].duplicated(keep=False)
 
-    # 1️⃣ se duplicato, tieni solo la versione senza "(dal nome)"
-    df_clean = df[~((duplicates) & (df["Campo"].str.contains(r"\(dal nome\)", case=False)))]
+    # 1️⃣ se duplicato, tieni solo la versione senza "(by name)"
+    df_clean = df[~((duplicates) & (df["Field"].str.contains(r"\(by name\)", case=False)))]
 
-    # 2️⃣ se non duplicato ma contiene "(dal nome)", rinomina rimuovendo la parte finale
-    df_clean.loc[df_clean["Campo"].str.contains(r"\(dal nome\)", case=False), "Campo"] = \
-        df_clean.loc[df_clean["Campo"].str.contains(r"\(dal nome\)", case=False), "Campo_base"]
+    # 2️⃣ se non duplicato ma contiene "(by name)", rinomina rimuovendo la parte finale
+    df_clean.loc[df_clean["Field"].str.contains(r"\(by name\)", case=False), "Field"] = \
+        df_clean.loc[df_clean["Field"].str.contains(r"\(by name\)", case=False), "Field_base"]
 
     # 3️⃣ rimuovi colonna ausiliaria
-    df_clean = df_clean.drop(columns=["Campo_base"])
+    df_clean = df_clean.drop(columns=["Field_base"])
 
     return df_clean.reset_index(drop=True)

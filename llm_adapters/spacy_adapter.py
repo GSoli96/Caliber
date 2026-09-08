@@ -22,14 +22,14 @@ COMMON_SPACY_MODELS = [
 ]
 
 LANG_NAMES = {
-    "it": "Italiano",
-    "en": "Inglese",
-    "es": "Spagnolo",
-    "de": "Tedesco",
-    "fr": "Francese",
-    "pt": "Portoghese",
-    "nl": "Olandese",
-    "xx": "Multilingua",
+    "it": "Italian",
+    "en": "English",
+    "es": "Spanish",
+    "de": "German",
+    "fr": "French",
+    "pt": "Portuguese",
+    "nl": "Dutch",
+    "xx": "Multilingual",
 }
 
 def suffix_of(model: str) -> str:
@@ -45,11 +45,11 @@ def _size_hint(suffix: str) -> str:
     if suffix == "sm":
         return "Piccolo (~15–30 MB), senza vettori"
     if suffix == "md":
-        return "Medio (~50–200 MB), vettori di dimensione media"
+        return "Medium (~50–200 MB), medium vectors"
     if suffix == "lg":
-        return "Grande (~300–900+ MB), vettori di alta qualità"
+        return "Large (~300–900+ MB), high quality vectors"
     if suffix == "trf":
-        return "Transformer (centinaia di MB), richiede PyTorch/transformers"
+        return "Transformer (hundreds of MB), requires PyTorch/transformers"
     return "N/D"
 
 def _default_pipeline(suffix: str, lang: str) -> Dict[str, Any]:
@@ -61,17 +61,17 @@ def _default_pipeline(suffix: str, lang: str) -> Dict[str, Any]:
     if suffix == "trf":
         base = ["transformer", "tagger", "morphologizer", "lemmatizer", "parser", "ner"]
     tasks = [
-        "Tokenizzazione",
+        "Tokenization",
         "POS tagging",
-        "Morfologia/lemmatizzazione",
-        "Parsing di dipendenza",
-        "Riconoscimento entità (NER)",
-        "Fraseamento (senter)",
+        "Morphology/lemmatization",
+        "Dependency parsing",
+        "Entity recognition (NER)",
+        "Sentence boundary detection (senter)",
     ]
     if suffix in ("md", "lg"):
-        tasks.append("Similarità semantica (vettori)")
+        tasks.append("Semantic similarity (vectors)")
     if suffix == "trf":
-        tasks.append("Rappresentazioni Transformer")
+        tasks.append("Transformer representations")
     return {"pipeline": base, "tasks": tasks}
 
 import importlib.util
@@ -146,10 +146,10 @@ def model_details(model_name: str) -> Dict[str, Any]:
             v = installed_meta["vectors"]
             if isinstance(v, dict):
                 n_keys = v.get("keys") or v.get("vectors") or v.get("nlp_vectors")
-                details["vectors"] = f"presenti ({n_keys} chiavi)" if n_keys else "presenti"
+                details["vectors"] = f"Found ({n_keys} keys)" if n_keys else "Found"
         # qualche nota simpatica
         if suffix == "trf":
-            details["notes"].append("Usa un backbone Transformer; può richiedere CUDA per velocità adeguate.")
+            details["notes"].append("Uses a Transformer backbone; may require CUDA for adequate speed.")
 
     # Fallback sensato
     if details["pipeline"] is None:
@@ -161,25 +161,25 @@ def model_details(model_name: str) -> Dict[str, Any]:
         tasks = []
         pset = set(details["pipeline"])
         if {"tagger", "morphologizer", "lemmatizer"} & pset:
-            tasks.append("POS tagging & morfologia/lemmatizzazione")
+            tasks.append("POS tagging & morphology/lemmatization")
         if "parser" in pset:
-            tasks.append("Parsing di dipendenza")
+            tasks.append("Dependency parsing")
         if "ner" in pset:
-            tasks.append("Riconoscimento entità (NER)")
+            tasks.append("Entity recognition (NER)")
         if "senter" in pset:
-            tasks.append("Fraseamento (senter)")
+            tasks.append("Sentence boundary detection")
         if "transformer" in pset:
-            tasks.append("Rappresentazioni Transformer")
-        details["tasks"] = tasks or ["(pipeline personalizzata)"]
+            tasks.append("Transformer representations")
+        details["tasks"] = tasks or ["(custom pipeline)"]
 
     # Vettori: inferisci dal suffisso se non noto
     if details["vectors"] is None:
         if suffix in ("md", "lg"):
-            details["vectors"] = "presenti"
+            details["vectors"] = "Found"
         elif suffix == "sm":
-            details["vectors"] = "assenti"
+            details["vectors"] = "Not found"
         elif suffix == "trf":
-            details["vectors"] = "non applicabile (usa embeddings dal transformer)"
+            details["vectors"] = "Not applicable (uses embeddings from transformer)"
 
     return details
 
@@ -225,27 +225,27 @@ def _spacy_list_installed_models() -> List[str]:
 
 def list_spacy_models() -> List[str] | Dict[str, Any]:
     if not SPACY_AVAILABLE:
-        return {"error": "Libreria 'spacy' non installata. Esegui: pip install spacy"}
+        return {"error": "'spacy' not installed. Run: pip install spacy"}
     try:
         models = _spacy_list_installed_models()
         if not models:
-            return {"error": "Nessun modello spaCy trovato. Installa, ad es.: python -m spacy download it_core_news_sm"}
+            return {"error": "No spaCy models found. Install, e.g.: python -m spacy download it_core_news_sm"}
         return models
     except Exception as e:
-        return {"error": f"Errore durante la scansione dei modelli spaCy: {e}"}
+        return {"error": f"Error during spaCy models scan: {e}"}
 
 def get_spacy_model_details(model_name: str) -> Dict[str, Any]:
     if not SPACY_AVAILABLE:
-        return {"error": "Libreria 'spacy' non disponibile."}
+        return {"Error": "'spacy' not installed."}
     try:
         if DEBUG_VAR:
             return {
-                "Modello": model_name,
-                "Lingua": "debug",
-                "Versione": "debug",
+                "Model": model_name,
+                "Language": "debug",
+                "Version": "debug",
                 "Pipeline": ["tok2vec", "tagger", "morphologizer", "parser", "ner"],
-                "Descrizione": "",
-                "Vettori": {"dim": 0, "n_keys": 0},
+                "Description": "",
+                "Vectors": {"dim": 0, "n_keys": 0},
                 "Has_TextCat": False,
                 "Has_Transformer": False,
             }
@@ -257,17 +257,17 @@ def get_spacy_model_details(model_name: str) -> Dict[str, Any]:
         vec_keys = int(getattr(getattr(nlp.vocab, "vectors", None), "n_keys", 0) or 0)
 
         return {
-            "Modello": meta.get("name", model_name),
-            "Lingua": meta.get("lang", getattr(nlp, "lang", "N/A")),
-            "Versione": meta.get("version", "N/A"),
+            "Model": meta.get("name", model_name),
+            "Language": meta.get("lang", getattr(nlp, "lang", "N/A")),
+            "Version": meta.get("version", "N/A"),
             "Pipeline": pipe_names,
-            "Descrizione": meta.get("description", ""),
-            "Vettori": {"dim": vec_dim, "n_keys": vec_keys},
+            "Description": meta.get("description", ""),
+            "Vectors": {"dim": vec_dim, "n_keys": vec_keys},
             "Has_TextCat": ("textcat" in pipe_names) or ("textcat_multilabel" in pipe_names),
             "Has_Transformer": ("transformer" in pipe_names),
         }
     except Exception as e:
-        return {"error": f"Errore nel recuperare i dettagli del modello spaCy '{model_name}': {e}"}
+        return {"Error": f"Error getting spaCy model details '{model_name}': {e}"}
 
 def spacy_process(
     text: str,
@@ -284,16 +284,16 @@ def spacy_process(
     if DEBUG_VAR:
         time.sleep(0.2)
         return {
-            "ents": [{"text": "Milano", "label": "LOC"}],
-            "pos": [{"text": "Ciao", "pos": "INTJ"}],
+            "ents": [{"text": "Tampere", "label": "LOC"}],
+            "pos": [{"text": "Hello", "pos": "INTJ"}],
             "dep": [],
-            "noun_chunks": ["la rete neurale"],
-            "sents": ["Ciao mondo."],
+            "noun_chunks": ["Hello Tampere."],
+            "sents": ["Hello Tampere."],
             "textcat": []
         }
 
     if not SPACY_AVAILABLE:
-        return "Libreria 'spacy' non installata. Esegui 'pip install spacy' e il relativo modello (es. it_core_news_sm)."
+        return "'spacy' not installed. Run: pip install spacy and the relative model (e.g. it_core_news_sm)."
 
     try:
         nlp = spacy.load(model_name)
@@ -343,17 +343,12 @@ def spacy_process(
 
         return result
     except Exception as e:
-        return f"Errore durante l'elaborazione con spaCy '{model_name}': {e}"
+        return f"Error during processing with spaCy '{model_name}': {e}"
 
 # --------- API attesa da llm_adapters ---------
-def list_models(**kwargs) -> List[str]:
+def list_models(**kwargs) -> List[str] | Dict[str, Any]:
     """Usata da llm_adapters.list_models('Spacy', **kwargs)."""
-    models = list_spacy_models()
-    if isinstance(models, dict) and "error" in models:
-        # llm_adapters si aspetta una lista; qui restituiamo lista vuota,
-        # il messaggio verrà gestito a livello UI.
-        return []
-    return models  # type: ignore[return-value]
+    return list_spacy_models()
 
 def get_model_details(model_name: str, **kwargs) -> Dict[str, Any]:
     return get_spacy_model_details(model_name)

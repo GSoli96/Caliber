@@ -293,18 +293,18 @@ def _get_model_details_core(model_name: str) -> dict:
     lms = _which_lms()
     if not lms:
         info = {
-            "Nome": model_name, "Tipo": "Sconosciuto",
-            "Parametri": "—", "Architettura": "—", "Dimensione su disco": "—",
+            "Model Name": model_name, "Type": "Unknown",
+            "Parameters": "—", "Architecture": "—", "Size on Disk": "—",
         }
         info.update(_enrich_from_name(model_name))
-        info["Spiegazioni"] = _short_explanations(info)
+        info["Explanations"] = _short_explanations(info)
         return info
 
     try:
         p = subprocess.run([lms, "ls"], capture_output=True, text=True, timeout=10)
         stdout = p.stdout or ""
     except Exception as e:
-        return {"Errore": f"Impossibile eseguire `lms ls`: {e}"}
+        return {"Error": f"Unable to run `lms ls`: {e}"}
 
     parsed = _parse_lms_ls(stdout)
 
@@ -326,21 +326,21 @@ def _get_model_details_core(model_name: str) -> dict:
 
     if row:
         info = {
-            "Nome": row["name"],
-            "Tipo": tipo,
-            "Parametri": row["params"] or "—",
-            "Architettura": row["arch"] or "—",
-            "Dimensione su disco": row["size"] or "—",
+            "Model Name": row["name"],
+            "Type": tipo,
+            "Parameters": row["params"] or "—",
+            "Architecture": row["arch"] or "—",
+            "Size on Disk": row["size"] or "—",
         }
     else:
         info = {
-            "Nome": model_name, "Tipo": "Sconosciuto",
-            "Parametri": "—", "Architettura": "—", "Dimensione su disco": "—",
+            "Model Name": model_name, "Type": "Unknown",
+            "Parameters": "—", "Architecture": "—", "Size on Disk": "—",
         }
 
-    info.update(_enrich_from_name(info["Nome"]))
-    info["Addestramento"] = "Instruct/Chat" if "instruct" in info["Nome"].lower() else "Base"
-    info["Spiegazioni"] = _short_explanations(info)
+    info.update(_enrich_from_name(info["Model Name"]))
+    info["Training"] = "Instruct/Chat" if "instruct" in info["Model Name"].lower() else "Base"
+    info["Explanations"] = _short_explanations(info)
     return info
 
 
@@ -348,43 +348,43 @@ def _short_explanations(info: dict) -> dict:
     """
     Piccole spiegazioni didattiche, pensate per essere lette velocemente in UI.
     """
-    tipo = info.get("Tipo", "—")
+    tipo = info.get("Type", "—")
     spieg_tipo = (
-        "LLM: modello generativo di linguaggio, capace di comprendere e produrre testo."
+        "LLM: language model, capable of understanding and generating text."
         if tipo == "LLM"
-        else "Embedding: trasforma testi in vettori numerici per ricerca semantica, clustering e RAG."
+        else "Embedding: transforms text into numeric vectors for semantic search, clustering, and RAG."
         if tipo == "Embedding"
-        else "Tipo non riconosciuto direttamente da `lms ls`."
+        else "Type not recognized directly by `lms ls`."
     )
-    params = info.get("Parametri", "—")
+    params = info.get("Parameters", "—")
     spieg_params = (
-        f"Parametri ≈ {params}: i pesi del modello. Più parametri ⇒ più capacità, ma servono più memoria e calcoli."
+        f"Parameters ≈ {params}: the model's weights. More parameters ⇒ more capacity, but need more memory and calculations."
         if params != "—" else
-        "Parametri non rilevati: dipendono dal modello (es. 7B=7 miliardi di pesi)."
+        "Parameters not detected: depends on the model (e.g. 7B=7 billion parameters)."
     )
-    arch = info.get("Architettura", "—")
+    arch = info.get("Architecture", "—")
     spieg_arch = (
-        f"Architettura {arch}: la 'famiglia' (Llama, Mistral, Gemma…). Cambia struttura e abilità del modello."
+        f"Architecture {arch}: the 'family' (Llama, Mistral, Gemma…). Changes model structure and capabilities."
         if arch != "—" else
-        "Architettura non specificata."
+        "Architecture not specified."
     )
-    size = info.get("Dimensione su disco", "—")
+    size = info.get("Size on Disk", "—")
     spieg_size = (
-        f"Occupa ~{size} su disco: dipende da quantizzazione e formato (GGUF/FP16…)."
+        f"Occupies ~{size} on disk: depends on quantization and format (GGUF/FP16…)."
         if size != "—" else
-        "Dimensione su disco non disponibile."
+        "Size on disk not available."
     )
-    addestr = info.get("Addestramento", "—")
+    addestr = info.get("Training", "—")
     spieg_add = (
         "Instruct/Chat: fine-tuning per seguire istruzioni in linguaggio naturale."
         if addestr.startswith("Instruct") else
         "Base: modello 'fundation' non specializzato per dialogo; utile per finetuning o compiti generici."
     )
-    quant = info.get("Quantizzazione", "—")
+    quant = info.get("Quantization", "—")
     spieg_quant = (
-        f"Quantizzazione {quant}: riduce precisione per diminuire memoria e aumentare velocità, con un po' di perdita qualitativa."
+        f"Quantization {quant}: reduces precision for smaller memory and faster speed, at the cost of some quality loss."
         if quant != "—" else
-        "Quantizzazione non rilevata nel nome (esempi: Q4_K_M, Q5_0, INT8, BF16)."
+        "Quantization not detected in the name (examples: Q4_K_M, Q5_0, INT8, BF16)."
     )
     ctx = info.get("Context window (stima)", "—")
     spieg_ctx = (
@@ -393,12 +393,12 @@ def _short_explanations(info: dict) -> dict:
         "Finestra di contesto non deducibile dal nome (tipico 4k–128k token)."
     )
     return {
-        "Tipo": spieg_tipo,
-        "Parametri": spieg_params,
-        "Architettura": spieg_arch,
-        "Dimensione su disco": spieg_size,
-        "Addestramento": spieg_add,
-        "Quantizzazione": spieg_quant,
+        "Type": spieg_tipo,
+        "Parameters": spieg_params,
+        "Architecture": spieg_arch,
+        "Size on Disk": spieg_size,
+        "Training": spieg_add,
+        "Quantization": spieg_quant,
         "Context window": spieg_ctx,
     }
 
@@ -439,11 +439,11 @@ def _enrich_from_name(name: str) -> dict:
     v = re.search(r"\bv(\d+(?:\.\d+)*)\b", lower)
     if v: ver = v.group(1)
     return {
-        "Addestramento (dal nome)": addestr,
-        "Quantizzazione": quant or "—",
-        "Formato file": fmt or "—",
-        "Context window (stima)": ctx or "—",
-        "Versione (stima)": ver or "—",
+        "Training": addestr,
+        "Quantization": quant or "—",
+        "File format": fmt or "—",
+        "Context window": ctx or "—",
+        "Version": ver or "—",
     }
 
 def run_server_lmStudio(host: str = "http://localhost:1234", key='lmstudo'):
@@ -491,7 +491,7 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
             res = start_server_background()
             if res["ok"]:
                 st.session_state['server_lmStudio'] = True
-                st_toast_temp("Avviato in background.", 'success')
+                st_toast_temp("Started in background.", 'success')
                 get_lmstudio_status.clear()
                 st.rerun()
             else:
@@ -516,9 +516,9 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
     list_model = False
     with c3:
         if online:
-            list_model = st.button("📚 Lista modelli", key=key + '_lms')
+            list_model = st.button("📚 List models", key=key + '_lms')
         elif st.session_state.get(init_key, False):
-            st.warning("🚨 Avviare il server!")
+            st.warning("🚨 Start the server!")
 
     cols_status = st.columns([2, 2, 3])
     with cols_status[0]:
@@ -527,7 +527,7 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
             value="🟢 ONLINE" if online else "🔴 OFFLINE"
         )
     with cols_status[1]:
-        st.metric("📦 # Modelli", count)
+        st.metric("📦 Models", count)
     with cols_status[2]:
         st.caption(f"🔗 Endpoint: {host.rstrip('/')}/v1/models")
 
@@ -551,7 +551,7 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
                 st.code(stderr if primary_label == "📤 STDOUT" else stdout, language="bash")
 
         if info.get("ok"):
-            st.success("✅ Comando eseguito con successo.")
+            st.success("✅ Command executed successfully.")
 
             parsed = parse_lmstudio_ls(primary)
 
@@ -560,9 +560,9 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
             siz = parsed.get("summary", {}).get("total_size", "—")
             c1, c2 = st.columns(2)
             with c1:
-                st.metric("🤖 Modelli totali", tot)
+                st.metric("🤖 Total models", tot)
             with c2:
-                st.metric("💾 Spazio su disco", siz)
+                st.metric("💾 Disk space", siz)
 
             # tabella LLM
             if parsed["llms"]:
@@ -575,7 +575,7 @@ def lmstudio_panel(host: str = "http://localhost:1234", key='lmstudo'):
                 st.table(pd.DataFrame(parsed["embeddings"]))
 
         else:
-            st.error("❌ Comando fallito.")
+            st.error("❌ Command failed.")
     elif list_model and not online:
         st_toast_temp("⚠️ Server is not Running", 'warning')
 
@@ -628,7 +628,7 @@ def parse_lmstudio_ls(text: str):
             else:
                 continue
             res["llms"].append({
-                "Modello": name, "Parametri": params, "Architettura": arch, "Dimensione": size
+                "Model": name, "Parameters": params, "Architecture": arch, "Size": size
             })
         elif section == "emb":
             if len(parts) >= 4:
@@ -638,7 +638,7 @@ def parse_lmstudio_ls(text: str):
             else:
                 continue
             res["embeddings"].append({
-                "Embedding": name, "Parametri": params, "Architettura": arch, "Dimensione": size
+                "Embedding": name, "Parameters": params, "Architecture": arch, "Size": size
             })
     return res
 
@@ -655,16 +655,16 @@ def get_model_details(model_name: str):
 
     # prepara i campi principali
     fields = [
-        ("Nome", details.get("Nome")),
-        ("Tipo", details.get("Tipo")),
-        ("Parametri", details.get("Parametri")),
-        ("Architettura", details.get("Architettura")),
-        ("Dimensione su disco", details.get("Dimensione su disco")),
-        ("Addestramento", details.get("Addestramento")),
-        ("Quantizzazione", details.get("Quantizzazione")),
-        ("Formato file", details.get("Formato file")),
-        ("Context window", details.get("Context window (stima)")),
-        ("Versione", details.get("Versione (stima)")),
+        ("Model", details.get("Model")),
+        ("Type", details.get("Type")),
+        ("Parameters", details.get("Parameters")),
+        ("Architecture", details.get("Architecture")),
+        ("Size on Disk", details.get("Size on Disk")),
+        ("Training", details.get("Training")),
+        ("Quantization", details.get("Quantization")),
+        ("File format", details.get("File format")),
+        ("Context window", details.get("Context window")),
+        ("Version", details.get("Version")),
     ]
 
     # filtra solo i valori significativi
@@ -683,10 +683,10 @@ def get_model_details(model_name: str):
     details["dataframe"] = df
 
     # aggiungi anche eventuale DataFrame con spiegazioni
-    exp = details.get("Spiegazioni", {})
+    exp = details.get("Explanations", {})
     if exp:
         exp_df = pd.DataFrame(
-            [{"Parametro": k, "Descrizione": v} for k, v in exp.items() if v and v.strip()]
+            [{"Parameter": k, "Description": v} for k, v in exp.items() if v and v.strip()]
         )
         details["explanations_df"] = exp_df
 
@@ -720,7 +720,7 @@ def lms_get_stream(model_or_query: str, extra_args: list[str] | None = None):
     """
     lms = _which_lms_cli()
     if not lms:
-        yield "[errore] CLI 'lms' non trovata nel PATH. Apri LM Studio e usa 'Install CLI'."
+        yield "[error] CLI 'lms' not found in PATH. Open LM Studio and use 'Install CLI'."
         return 127
 
     # Costruisci comando cross-platform, supportando .cmd su Windows
@@ -739,10 +739,10 @@ def lms_get_stream(model_or_query: str, extra_args: list[str] | None = None):
             bufsize=1, universal_newlines=True
         )
     except FileNotFoundError:
-        yield "[errore] Impossibile eseguire la CLI 'lms'."
+        yield "[error] Unable to execute CLI 'lms'."
         return 127
     except Exception as e:
-        yield f"[errore] Avvio fallito: {e}"
+        yield f"[error] Start failed: {e}"
         return 1
 
     # stream delle righe

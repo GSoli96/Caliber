@@ -10,7 +10,7 @@ echo Scegli il tipo di ambiente da creare:
 echo   1) Conda environment
 echo   2) Python venv
 echo.
-set /p CHOICE="Inserisci 1 o 2: "
+set /p CHOICE="Insert 1 o 2: "
 
 REM ---------------------------------------------------------
 REM  PATH BASE & FILE LOCALI
@@ -22,7 +22,7 @@ set "VENV_DIR=%PARENT_DIR%\Demo_EDBT"
 set "CONDA_ENV_DIR=%PARENT_DIR%\Demo_EDBT"
 
 set "OLLAMA_EXE=%SCRIPT_DIR%OllamaSetup.exe"
-set "LMSTUDIO_EXE=%SCRIPT_DIR%LM-Studio-0.3.31-7-x64.exe"
+set "LMSTUDIO_EXE=%SCRIPT_DIR%LM-Studio-0.4.6-1-x64.exe"
 
 echo.
 echo Cartella script : %SCRIPT_DIR%

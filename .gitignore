@@ -184,6 +184,9 @@ cython_debug/
 .cursorindexingignore
 .idea/
 
-.exe
-setup/OllamaSetup.exe
-setup/LM-Studio-0.3.31-7-x64.exe
+# Model runtime installers (too large for git / exceed GitHub's 100MB file limit)
+*.exe
+*.dmg
+
+# Google Drive sync noise (Desktop is Drive-synced, adds these everywhere)
+desktop.ini

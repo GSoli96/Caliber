@@ -95,8 +95,8 @@ def _cli(args: list[str]):
     ollama = _which_ollama()
     if not ollama:
         return {"ok": False, "code": 127, "stdout": "", "stderr": "CLI 'ollama' non trovata nel PATH",
-                "cmd_str": "ollama list"}
-    cmd = (["cmd", "/c", ollama, "list"] if os.name == "nt" and ollama.lower().endswith((".cmd", ".bat")) else [ollama,"list"])
+                "cmd_str": "ollama " + " ".join(args)}
+    cmd = (["cmd", "/c", ollama, *args] if os.name == "nt" and ollama.lower().endswith((".cmd", ".bat")) else [ollama, *args])
     return _run(cmd, timeout=20)
 
 def cli_list_raw():
@@ -168,9 +168,8 @@ def start_server_background(host: str = DEFAULT_HOST):
     if is_online(host):
         return {"ok": True, "msg": "Server già ONLINE", "pid": _discover_pid_on_port(11434)}
 
-    info = _cli(["serve"])
-    # `ollama serve` è un processo long-running → dobbiamo staccarlo.
-    # Rilanciamo *detached* perché _cli usa run() bloccante:
+    # `ollama serve` è un processo long-running → va lanciato *detached*,
+    # non tramite _cli() che usa run() bloccante e aspetterebbe la sua uscita:
     oll = _which_ollama()
     if not oll:
         return {"ok": False, "msg": "CLI 'ollama' non trovata"}
@@ -257,7 +256,7 @@ def get_model_details(model_name: str, host: str | None = None):
             r.raise_for_status()
             data = r.json()
         except Exception as e:
-            return {"error": f"Impossibile ottenere dettagli: {e}"}
+            return {"error": f"Failed to get details: {e}"}
 
     # Normalizzazione campi (robusta su versioni diverse)
     det = data.get("details", {}) if isinstance(data, dict) else {}
@@ -270,12 +269,12 @@ def get_model_details(model_name: str, host: str | None = None):
     arch  = det.get("arch") or det.get("architecture") or "—"
 
     out = {
-        "Nome": str(data.get("name", model_name)),
-        "Famiglia": ", ".join(families) if families else "—",  # Già str
-        "Dimensione su disco": humanize.naturalsize(size_bytes) if size_bytes else "—",  # Già str
-        "Parametri": str(params),  # Cast a str
-        "Architettura": str(arch),  # Cast a str
-        "Quantizzazione": str(quant),  # Cast a str
+        "Name": str(data.get("name", model_name)),
+        "Family": ", ".join(families) if families else "—",  # Già str
+        "Disk size": humanize.naturalsize(size_bytes) if size_bytes else "—",  # Già str
+        "Parameters": str(params),  # Cast a str
+        "Architecture": str(arch),  # Cast a str
+        "Quantization": str(quant),  # Cast a str
         "Modelfile": str(data.get("modelfile") or "—"),  # Cast a str
         "Raw": data,  # Questo rimane un dict, gestito correttamente da conf_model.py
     }
@@ -297,13 +296,13 @@ def generate(prompt: str, model_name: str, max_tokens: int = 1024, host: str = D
         j = r.json()
         return j.get("response", "")
     except Exception as e:
-        return f"Errore HTTP: {e}"
+        return f"HTTP error: {e}"
 
 def run_server_ollama(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
     res = start_server_background(host=host)
     if res.get("ok"):
         st.session_state['server_ollama'] = True
-        st_toast_temp("Avviato in background.", 'success')
+        st_toast_temp("Server started in background.", 'success')
         if res.get("cmd"):
             st.code(res["cmd"], language="bash")
 
@@ -312,13 +311,13 @@ def run_server_ollama(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
         st.rerun()
     else:
         st.session_state['server_ollama'] = False
-        st_toast_temp(res.get("msg", "Errore"), 'error')
+        st_toast_temp(res.get("msg", "Error starting server"), 'error')
 
 def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
     if st is None:
-        raise RuntimeError("Streamlit non disponibile")
+        raise RuntimeError("Streamlit is not available")
 
-    st.subheader("🦙 Ollama — controllo CLI")
+    st.subheader("🦙 Ollama CLI")
     init_key = f"{key}_initialized"
 
     if init_key not in st.session_state:
@@ -344,7 +343,7 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
             res = start_server_background(host=host)
             if res.get("ok"):
                 st.session_state['server_ollama'] = True
-                st_toast_temp("Avviato in background.", 'success')
+                st_toast_temp(" Server started in background.", 'success')
                 if res.get("cmd"):
                     st.code(res["cmd"], language="bash")
 
@@ -381,7 +380,7 @@ def ollama_panel(host: str = DEFAULT_HOST, key: str = "ollama_panel"):
             value="🟢 ONLINE" if online else "🔴 OFFLINE"
         )
     with c2:
-        st.metric("📦 # Modelli", count)
+        st.metric("📦 Models", count)
     with c3:
         st.caption(f"🔗 Endpoint: {API(host)}/tags")
 

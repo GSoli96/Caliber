@@ -65,3 +65,31 @@ def calculate_green_score(co2_g: float, rows_returned: int, execution_time_s: fl
     score = ((log_val - min_log) / (max_log - min_log)) * 100
     
     return max(0, min(100, int(score)))
+
+
+
+def co2_to_led_bulbs_on(co2_g: float,
+                        hours_on: float = 0.10,
+                        bulb_watt: float = 9.0,
+                        emission_factor_g_per_kwh: float = 226.4) -> float:
+    """
+    Converts CO2 grams to an equivalent number of LED bulbs (on) for a given time.
+
+    Interpretation:
+    - Result = how many LED bulbs of 'bulb_watt' you could keep ON
+      for 'hours_on' hours, emettendo la stessa CO2.
+
+    Defaults:
+    - bulb_watt = 9 W (LED ≈ 60 W incandescenza)
+    - emission_factor_g_per_kwh = 226.4 g CO2/kWh (media UE 2021)
+    """
+    if co2_g <= 0 or hours_on <= 0:
+        return 0.0
+
+    # kWh consumati da *una* lampadina accesa per 'hours_on' ore
+    kwh_per_bulb = (bulb_watt / 1000.0) * hours_on
+
+    # CO2 emessa da una lampadina per 'hours_on' ore
+    co2_per_bulb = kwh_per_bulb * emission_factor_g_per_kwh  # ≈ 2.04 g/ora per 9 W
+
+    return co2_g / co2_per_bulb

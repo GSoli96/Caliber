@@ -248,31 +248,70 @@ def info_dataset(df, key):
         # ====================
         #     NUMERICHE
         # ====================
-        st.markdown("### 🔢 Colonne numeriche")
         if numeric_cols:
+            st.markdown("### 🔢 Numeric Features")
             stats = df[numeric_cols].describe()
 
             # Arrotondamenti
             stats.loc["mean"] = stats.loc["mean"].round(2)
             stats.loc["std"] = stats.loc["std"].round(2)
-
+            stats = stats.T
             # Stile tabella
             st.dataframe(
                 stats.style.format("{:.2f}")
                 .set_table_styles([
                     {"selector": "th", "props": [("background-color", "#f0f2f6"), ("font-weight", "bold")]},
                     {"selector": "tbody tr:hover", "props": [("background-color", "#f5f5f5")]}
-                ])
+                ]),  
+                column_config={
+                    "mean": st.column_config.TextColumn(
+                        "mean",
+                        help="Mean",
+                        width="small",
+                    ),
+                    "std": st.column_config.TextColumn(
+                        "std",
+                        help="Standard Deviation",
+                        width="small",
+                    ),
+                    "min": st.column_config.TextColumn(
+                        "min",
+                        help="Minimum",
+                        width="small",
+                    ),
+                    "max": st.column_config.TextColumn(
+                        "max",
+                        help="Maximum",
+                        width="small",
+                    ),
+                    "count": st.column_config.TextColumn(
+                        "count",
+                        help="Count",
+                        width="small",
+                    ),
+                    "25%": st.column_config.TextColumn(
+                        "25%",
+                        help="First Quartile",
+                        width="small",
+                    ),
+                    "50%": st.column_config.TextColumn(
+                        "50%",
+                        help="Second Quartile",
+                        width="small",
+                    ),
+                    "75%": st.column_config.TextColumn(
+                        "75%",
+                        help="Third Quartile",
+                        width="small",
+                    ),
+                },
             )
-        else:
-            st.info("Nessuna colonna numerica trovata.")
 
         # ====================
         #     TESTUALI
         # ====================
-        st.markdown("### 📝 Colonne testuali")
-
         if text_cols:
+            st.markdown("### 📝 Textual Features")
             df_text = df[text_cols].copy()
 
             # Tabella delle statistiche testuali
@@ -287,14 +326,39 @@ def info_dataset(df, key):
                 .set_table_styles([
                     {"selector": "th", "props": [("background-color", "#f0f2f6"), ("font-weight", "bold")]},
                     {"selector": "tbody tr:hover", "props": [("background-color", "#f9f9f9")]}
-                ])
+                ]), column_config={
+                    "count": st.column_config.TextColumn(
+                        "count",
+                        help="count",
+                        width="small",
+                    ),
+                    "unique": st.column_config.TextColumn(
+                        "unique",
+                        help="unique",
+                        width="small",
+                    ),
+                    "top": st.column_config.TextColumn(
+                        "top",
+                        help="top",
+                        width="small",
+                    ),
+                    "freq": st.column_config.TextColumn(
+                        "freq",
+                        help="freq",
+                        width="small",
+                    ),
+                    "avg_len": st.column_config.TextColumn(
+                        "avg_len",
+                        help="avg_len",
+                        width="small",
+                    ),
+                },
             )
-        else:
-            st.info("Nessuna colonna testuale trovata.")
+
 
     # ---------- CORRELAZIONI ----------
     with tab3:
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns([2, 1])
 
 
 
@@ -324,7 +388,23 @@ def info_dataset(df, key):
 
             with col2:
                 st.markdown(f"#### {get_text('load_dataset', 'top_corr_pairs')}")
-                st.dataframe(corr_pairs.head(10), hide_index=True, width='stretch')
+                st.dataframe(corr_pairs.head(10), hide_index=True, width='stretch', column_config={
+                    "Colonna A": st.column_config.TextColumn(
+                        "Colonna A",
+                        help="Colonna A",
+                        width="small",
+                    ),
+                    "Colonna B": st.column_config.TextColumn(
+                        "Colonna B",
+                        help="Colonna B",
+                        width="small",
+                    ),
+                    "|corr|": st.column_config.TextColumn(
+                        "|corr|",
+                        help="|corr|",
+                        width="small",
+                    ),
+                })
         else:
             st.info(get_text("load_dataset", "no_num_cols"))
 

@@ -1,16 +1,15 @@
-import sys
 import os
-import re
+import sys
+
 import streamlit as st
-from itertools import count
+
 import db_adapters
-from GUI.dataset_explore_gui import info_dataset
+from GUI.message_gui import st_toast_temp
 from db_adapters.DBManager import DBManager
 from utils.load_data import load_data_files
-# from GUI.relational_profiling_app import ui_profiling_relazionale, ui_integrita_dataset, ui_export
-from GUI.message_gui import st_toast_temp
-from utils.translations import get_text
 from utils.symbols import symbols
+from utils.translations import get_text
+
 sep_options = symbols.sep_options
 # ============================================================================
 # CONSTANTS AND INITIALIZATION
@@ -407,7 +406,24 @@ def dataset_tab(name):
                 help=get_text("load_dataset", "rows_to_show_help"),
                 key=f'numberInput_preview_{name}'
             )
-            st.write(df.head(rows_to_show))
+
+            df_show = df.head(rows_to_show)
+
+            styled = (
+                df_show
+                .style
+                .set_table_styles([
+                    {
+                        "selector": "th.col_heading",      # celle dell'header
+                        "props": "font-weight: bold;"
+                    }
+                ])
+            )
+
+            st.write(styled)
+
+
+
     else:
         st.error(get_text("load_dataset", "dataset_not_found", name=name))
 

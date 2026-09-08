@@ -97,10 +97,10 @@ def get_model_details(model_name: str):
             last_modified_str = last_modified_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
         details = {
-            "Nome (Repo ID)": repo_info.repo_id,
-            "Dimensione su Disco": humanize.naturalsize(repo_info.size_on_disk),
-            "Percorso Cache": str(repo_info.repo_path),
-            "Ultima Modifica": last_modified_str
+            "Repo ID": repo_info.repo_id,
+            "Size on Disk": humanize.naturalsize(repo_info.size_on_disk),
+            "Cache Path": f".cache{(repo_info.repo_path).split('.cache')[1]}",
+            "Last Modified": last_modified_str
         }
 
         config_file = Path(repo_info.repo_path) / "config.json"
@@ -108,8 +108,8 @@ def get_model_details(model_name: str):
             with open(config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
             archs = config.get("architectures", [])
-            details["Architettura"] = archs[0] if archs else "N/A"
-            details["Tipo Modello"] = config.get("model_type", "N/A")
+            details["Architecture"] = archs[0] if archs else "N/A"
+            details["Model Type"] = config.get("model_type", "N/A")
 
         return details
     except Exception as e:
@@ -127,7 +127,7 @@ def generate(prompt: str, model_name: str, max_tokens=128):
 
 
     if not TRANSFORMERS_AVAILABLE:
-        return "Libreria 'transformers' non installata. Esegui 'pip install transformers torch'."
+        return "Error: The 'transformers' library is not installed. Run 'pip install transformers torch'."
 
     try:
         config = AutoConfig.from_pretrained(model_name, local_files_only=True)
@@ -145,7 +145,7 @@ def generate(prompt: str, model_name: str, max_tokens=128):
                 is_generative = True
 
         if not is_generative:
-            error_msg = f"ERRORE: Il modello '{model_name}' non è generativo (CausalLM o Encoder-Decoder)."
+            error_msg = f"Error: The model '{model_name}' is not generative (CausalLM or Encoder-Decoder)."
             return error_msg
 
         device_map, torch_dtype, device_legacy = _select_device_map_and_dtype()
@@ -157,9 +157,9 @@ def generate(prompt: str, model_name: str, max_tokens=128):
 
             if "SentencePiece" in msg or "tokenizer.model" in msg:
                 return (
-                    f"Errore: il tokenizer di '{model_name}' richiede il file "
-                    "'tokenizer.model' (SentencePiece) ma non è presente nella cache locale. "
-                    "Scarica il modello completo oppure disabilita local_files_only."
+                    f"Error: The tokenizer of '{model_name}' requires the file "
+                    "'tokenizer.model' (SentencePiece) but it is not present in the local cache. "
+                    "Download the full model or disable local_files_only."
                 )
 
             # fallback: prova a scaricare i file mancanti
@@ -209,7 +209,7 @@ def generate(prompt: str, model_name: str, max_tokens=128):
             full_text = None
 
         if not full_text:
-            return "Errore: L'output del modello era vuoto o malformato."
+            return "Error: The model output was empty or malformed."
 
         generated_text = full_text
         p = prompt.strip()
@@ -222,10 +222,10 @@ def generate(prompt: str, model_name: str, max_tokens=128):
     except RuntimeError as rte:
         msg = str(rte)
         if "CUDA out of memory" in msg or "out of memory" in msg.lower():
-            return ("Errore: memoria GPU esaurita durante la generazione. "
-                    "Riduci max_new_tokens/batch o usa un modello più piccolo. "
-                    "In alternativa forza l'uso della CPU.")
-        return f"Errore runtime durante la generazione con '{model_name}': {rte}"
+            return ("Error: GPU memory exhausted during generation. "
+                    "Reduce max_new_tokens/batch or use a smaller model. "
+                    "Alternatively force CPU usage.")
+        return f"Error: Runtime error during generation with '{model_name}': {rte}"
 
     except Exception as e:
-        return f"Errore durante la generazione con il modello '{model_name}': {e}"
+        return f"Error: An error occurred during generation with the model '{model_name}': {e}"

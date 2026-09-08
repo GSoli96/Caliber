@@ -38,8 +38,8 @@ def settings_tab():
     with st.container(border=True, horizontal=False):
         language = st.selectbox(
             get_text("settings", "select_language"),
-            ["Italiano", "English"],
-            index=0 if st.session_state.get("language", "Italiano") == "Italiano" else 1,
+            ["English" ,"Italiano"],
+            index=0 if st.session_state.get("language", "English") == "English" else 1,
             key="language_select",
             on_change=lambda: st.session_state.update({"language": st.session_state.language_select})
         )

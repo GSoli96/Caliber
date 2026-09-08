@@ -124,7 +124,7 @@ def generate_sustainability_certificate(session_data: Dict) -> bytes:
         ['Comparison', 'Equivalent'],
         ['Smartphones Charged', f"{smartphones:.4f} devices"],
         ['Car Distance', f"{car_meters:.2f} meters"],
-        ['LED Lightbulb Hours', f"{total_co2 * 100:.2f} hours (est.)"]
+        ['LED Lightbulb Hours', f"{green_metrics.co2_to_led_bulbs_on(total_co2):.2f} hours (est.)"]
     ]
     
     relatable_table = Table(relatable_data, colWidths=[3*inch, 2*inch])
@@ -231,7 +231,7 @@ def format_relatable_metrics(co2_g: float) -> Dict[str, str]:
         Dictionary of formatted relatable metrics
     """
     return {
-        'smartphones': f"{green_metrics.co2_to_smartphones(co2_g):.4f} smartphones charged",
-        'car_distance': f"{green_metrics.co2_to_car_km(co2_g) * 1000:.2f} meters driven by car",
-        'lightbulb_hours': f"{co2_g * 100:.2f} hours of LED lightbulb (est.)"
+        'smartphones': {'value': f"{green_metrics.co2_to_smartphones(co2_g):.2f}", 'text': 'smartphones charged'},
+        'car_distance': {'value': f"{green_metrics.co2_to_car_km(co2_g) * 1000:.2f}", 'text': 'meters driven by car'},
+        'lightbulb_hours': {'value': f"{green_metrics.co2_to_led_bulbs_on(co2_g):.2f}", 'text': 'hours of LED lightbulb'}
     }

@@ -1,39 +1,19 @@
-import numpy as np
-import streamlit as st
-
-from GUI.relational_profiling_tab import ui_profiling_relazionale, ui_integrita_dataset, missing_value_tab
-from utils.translations import get_text
-from utils.symbols import symbols
-import sys
-import os
-import re
-import streamlit as st
-import numpy as np
-import streamlit as st
-
-from GUI.relational_profiling_tab import ui_profiling_relazionale, ui_integrita_dataset, missing_value_tab
-from utils.translations import get_text
-from utils.symbols import symbols
-import sys
-import os
-import re
-import streamlit as st
-from itertools import count
-import db_adapters
-from GUI.dataset_explore_gui import info_dataset
-from db_adapters.DBManager import DBManager
-from utils.load_data import load_data_files
-# from GUI.relational_profiling_app import ui_profiling_relazionale, ui_integrita_dataset, ui_export
-from GUI.message_gui import st_toast_temp
-from utils.translations import get_text
-from utils.symbols import symbols
-import zipfile
 import io
 import json
+import os
+import re
 import time
-from GUI.dataset_explore_gui import get_column_category, TYPE_INFO
-from llm_adapters.sensitive_entity import is_sensitive_column
+import zipfile
 
+import numpy as np
+import streamlit as st
+
+from GUI.dataset_explore_gui import get_column_category
+from GUI.dataset_explore_gui import info_dataset
+from GUI.relational_profiling_tab import ui_profiling_relazionale, ui_integrita_dataset, missing_value_tab
+from llm_adapters.sensitive_entity import is_sensitive_column
+from utils.symbols import symbols
+from utils.translations import get_text
 
 sep_options = symbols.sep_options
 
@@ -213,7 +193,7 @@ def show_df_details(df, name, key_alter):
                     help=get_text("load_dataset", "rows_to_show_help"),
                     key=f'numberInput_preview_{key_alter}',
                 )
-                st.write(df.head(rows_to_to_show))
+                st.write(df.head(rows_to_show))
 
             st.subheader(get_text("load_dataset", "dataset_specs"))
             info_dataset(df, key=f'Info_db_{name}')
@@ -221,7 +201,7 @@ def show_df_details(df, name, key_alter):
 
         with tab4_missing_profiling:
             tab4_profiling, t_missing, tab5_integrita = st.tabs([
-                get_text("load_dataset", "tab_profiling"),
+                get_text("profiling", "semantic_profiling"),
                 get_text("load_dataset", "missing_values"),
                 get_text("load_dataset", "tab_integrity"),])
 
@@ -243,6 +223,7 @@ def show_df_details(df, name, key_alter):
                     name=name,
                     related_tables=None,
                 )
+        loaded_databases = st.session_state["dataframes"]["DBMS"]
         if not loaded_databases:
             st.info(get_text("load_dataset", "no_db_loaded"))
             return
@@ -357,15 +338,15 @@ def _display_db_info(config_dict, db_name, tables_data):
                 st.info(get_text("load_dataset", "sqlite_path_missing"))
 
         # --- Blocco per altri DBMS (MySQL, ecc.) ---
-        else:
-            conn_str = config_dict.get('conn_str')  # 'conn_str' è la chiave usata da upload_dbms
-            if conn_str:
-                # Maschera la password per sicurezza
-                masked_str = re.sub(r"password=([^&@]+)", "password=********", conn_str, flags=re.IGNORECASE)
-                st.text_input(get_text("load_dataset", "conn_string_label"), masked_str, disabled=True,
-                              key=f"conn_{db_name}_{dbms_type}_{key_alter}")
-            else:
-                st.info(get_text("load_dataset", "conn_string_unavailable"))
+        # else:
+        #     conn_str = config_dict.get('conn_str')  # 'conn_str' è la chiave usata da upload_dbms
+        #     if conn_str:
+        #         # Maschera la password per sicurezza
+        #         masked_str = re.sub(r"password=([^&@]+)", "password=********", conn_str, flags=re.IGNORECASE)
+        #         st.text_input(get_text("load_dataset", "conn_string_label"), masked_str, disabled=True,
+        #                       key=f"conn_{db_name}_{dbms_type}_{key_alter}")
+        #     else:
+        #         st.info(get_text("load_dataset", "conn_string_unavailable"))
 
         # Mostra le tabelle che dovevano essere caricate (dalla config)
         tb_list_config = config_dict.get("table_list", [])
@@ -430,7 +411,6 @@ def show_df_details(df, name, key_alter):
 
             st.subheader(get_text("load_dataset", "dataset_specs"))
             info_dataset(df, key=f'Info_db_{name}')
-
 
         with tab4_missing_profiling:
             tab4_profiling, t_missing, tab5_integrita = st.tabs([

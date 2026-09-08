@@ -119,38 +119,6 @@ class DBManager:
 
     # ---------------------- Utility interne ----------------------
 
-    def _check_service_status(self, dbms_type: str) -> bool:
-        """
-        Controlla se il servizio del DBMS è attivo (solo per DBMS server-based su Windows).
-
-        Per SQLite/DuckDB o DBMS non mappati ritorna sempre True.
-        """
-        service_name = self.SERVICE_MAP.get(dbms_type)
-        if not service_name:
-            # es. SQLite / DuckDB o DBMS non gestito a livello di servizio
-            return True
-
-        try:
-            result = subprocess.run(
-                ["sc", "query", service_name],
-                capture_output=True,
-                text=True,
-                check=False,  # non sollevare eccezione se il comando fallisce
-            )
-
-            if result.returncode != 0:
-                print(f"[Service Check] Errore nel controllo del servizio {service_name}: {result.stderr}")
-                return False
-
-            if "RUNNING" in result.stdout:
-                return True
-            else:
-                print(f"[Service Check] Servizio {service_name} non è in esecuzione. Output:\n{result.stdout}")
-                return False
-        except Exception as e:
-            print(f"[Service Check] Eccezione durante il controllo del servizio {service_name}: {e}")
-            return False
-
     def load_df(self) -> Dict[str, pd.DataFrame]:
         """
         La GUI passa self.dfs_dict con la struttura:
@@ -180,82 +148,6 @@ class DBManager:
             "DuckDB": "duckdb",
         }
         return m.get(self.choice_DBMS, "sqlite")
-
-    # ---------------------- DB disponibili ----------------------
-
-    def get_available_databases(self) -> List[str]:
-        """
-        Recupera la lista dei database disponibili sul server o nella directory locale
-        (a seconda del DBMS scelto).
-        """
-        try:
-            if self.choice_DBMS == "SQLite":
-                if os.path.exists(DB_DIR):
-                    files = [f for f in os.listdir(DB_DIR) if f.endswith(".db")]
-                    return [os.path.splitext(f)[0] for f in files]
-                return []
-
-            elif self.choice_DBMS == "DuckDB":
-                if os.path.exists(DB_DIR):
-                    files = [f for f in os.listdir(DB_DIR) if f.endswith(".duckdb")]
-                    return [os.path.splitext(f)[0] for f in files]
-                return []
-
-            elif self.choice_DBMS == "MySQL":
-                conf = self.global_config.get("MYSQL", {})
-                default_db = ""
-                driver = "mysql+pymysql"
-                query = "SHOW DATABASES"
-
-            elif self.choice_DBMS == "PostgreSQL":
-                conf = self.global_config.get("POSTGRES", {})
-                default_db = "postgres"
-                driver = "postgresql+psycopg"
-                query = "SELECT datname FROM pg_database WHERE datistemplate = false;"
-
-            elif self.choice_DBMS == "SQL Server":
-                # Qui nel file originale c'era "MYSQLSERVER": è stato corretto in "SQLSERVER".
-                conf = self.global_config.get("SQLSERVER", {})
-                default_db = "master"
-                driver = "mssql+pyodbc"
-                query = "SELECT name FROM sys.databases"
-
-            else:
-                return []
-
-            user = conf.get("user")
-            password = conf.get("password")
-            host = conf.get("HOST")
-            port = conf.get("PORT")
-
-            if not user or not host:
-                return []
-
-            url = URL.create(
-                drivername=driver,
-                username=user,
-                password=password,
-                host=host,
-                port=port,
-                database=default_db,
-            )
-
-            if self.choice_DBMS == "SQL Server":
-                url = url.update_query_dict(
-                    {
-                        "driver": "ODBC Driver 17 for SQL Server",
-                        "TrustServerCertificate": "yes",
-                    }
-                )
-
-            engine = create_engine(url)
-            with engine.connect() as conn:
-                result = conn.execute(text(query))
-                return [row[0] for row in result]
-
-        except Exception as e:
-            print(f"Error listing databases: {e}")
-            return []
 
     # ---------------------- Connection URL helpers ----------------------
 
@@ -493,17 +385,6 @@ class DBManager:
                 except Exception as e:
                     print(f"Could not drop database {self.db_name}. It might not exist. Error: {e}")
 
-    def _safe_db_name(self, name: str) -> str:
-        name = name.strip().lower()
-        if name in self.RESERVED_KEYWORDS:
-            name = f"{name}_db"
-        # Rimuove l'estensione .db/.duckdb se presente prima di sanitizzare
-        if name.endswith(".db"):
-            name = name[:-3]
-        elif name.endswith(".duckdb"):
-            name = name[:-7]
-        return re.sub(r"\W+", "_", name)
-
     def _create_database_if_needed(self) -> None:
         """
         Crea (da zero) il database target, cancellandolo se esiste già.
@@ -643,8 +524,14 @@ class DBManager:
             items = final_items
         else:
             items = list(self.db_to_load.items())
+        
+        result = [(self._sanitize_table_name(k), df) for k, df in items]
 
-        return [(self._sanitize_table_name(k), df) for k, df in items]
+        res = []
+        for k, df in result:
+            df.rename(columns=lambda x: x.replace("-", "_"), inplace=True)
+            res.append((k, df))
+        return res
 
     # ---------------------- Metodo 1: create_db ----------------------
     def create_db(self):
@@ -669,7 +556,9 @@ class DBManager:
             items = self._pick_tables_to_load()
 
             with engine.begin() as conn:
+
                 for table_name, df in items:
+                    print("table_name: ", table_name)
                     if not isinstance(df, pd.DataFrame):
                         continue
                     try:
@@ -696,7 +585,7 @@ class DBManager:
         t.join()
 
         results_store[self._safe_db_name(self.db_name)] = out_list
-        return out_list, True
+        return (out_list, True) if out_list else (None, False)
 
     # ---------------------- Metodo 2: download_db ----------------------
 
@@ -771,8 +660,16 @@ class DBManager:
         return None
 
     def _safe_db_name(self, db_name: str) -> str:
-        """Sanitizes the database name."""
-        return db_name.strip().replace(" ", "_")
+        """
+        Sanitizes a database/table name for safe use both as a filename and as a
+        SQL identifier interpolated into raw f-string statements. Whitelist-only:
+        anything that isn't a letter, digit or underscore is replaced with '_',
+        which also rules out quote/backtick/semicolon based SQL injection.
+        """
+        name = re.sub(r"[^A-Za-z0-9_]", "_", (db_name or "").strip())
+        if not name:
+            raise ValueError("Invalid database/table name.")
+        return name
 
     def _check_service_status(self, dbms_type: str) -> bool:
         """Checks if the service for the given DBMS is running using connection attempts."""
@@ -886,8 +783,7 @@ class DBManager:
             return False, f"No service map for {self.choice_DBMS}"
 
         if action == 'status':
-            # Qui usiamo il NOME DEL SERVIZIO, non il nome logico del DBMS
-            is_running = self._check_service_status(service_name)
+            is_running = self._check_service_status(self.choice_DBMS)
             return True, "Running" if is_running else "Stopped"
 
         if action == 'start':
@@ -943,34 +839,64 @@ class DBManager:
             # traceback.print_exc()
         return dbs
 
+    def _compute_db_size_mb(self, db_name: str) -> Optional[float]:
+        """
+        Calcola la dimensione del database indicato, in MB. Ritorna None se non calcolabile.
+        """
+        if self.choice_DBMS in ["SQLite", "DuckDB"]:
+            filename = db_name
+            if not filename.lower().endswith((".db", ".duckdb")):
+                filename += ".db" if self.choice_DBMS == "SQLite" else ".duckdb"
+            db_path = os.path.join(DB_DIR, filename)
+            if os.path.exists(db_path):
+                return os.path.getsize(db_path) / (1024 * 1024)
+            return None
+
+        old_db_name = self.db_name
+        self.db_name = db_name
+        try:
+            engine = self._db_engine()
+            with engine.connect() as conn:
+                if self.choice_DBMS == "MySQL":
+                    size_bytes = conn.execute(text(
+                        "SELECT SUM(data_length + index_length) "
+                        "FROM information_schema.tables WHERE table_schema = DATABASE()"
+                    )).scalar()
+                    return (size_bytes / (1024 * 1024)) if size_bytes else 0.0
+                elif self.choice_DBMS == "PostgreSQL":
+                    size_bytes = conn.execute(text(
+                        "SELECT pg_database_size(current_database())"
+                    )).scalar()
+                    return (size_bytes / (1024 * 1024)) if size_bytes else 0.0
+                elif self.choice_DBMS == "SQL Server":
+                    size_mb = conn.execute(text(
+                        "SELECT SUM(size) * 8.0 / 1024 FROM sys.database_files"
+                    )).scalar()
+                    return float(size_mb) if size_mb else 0.0
+        except Exception as e:
+            print(f"Error computing size for {db_name}: {e}")
+            return None
+        finally:
+            self.db_name = old_db_name
+        return None
+
+    def get_db_size(self, db_name: str) -> str:
+        """
+        Restituisce la dimensione del database come stringa formattata (es. '12.34 MB'), o 'N/A'.
+        """
+        size_mb = self._compute_db_size_mb(db_name)
+        return f"{size_mb:.2f} MB" if size_mb is not None else "N/A"
+
     def get_db_details(self, db_name: str) -> Dict[str, Any]:
         """
         Retrieves details for a specific database: size, tables, columns, rows, preview.
         """
         details = {
             "name": db_name,
-            "size_mb": "N/A",
+            "size_mb": self.get_db_size(db_name),
             "tables": []
         }
 
-        # ===== 1. File size for SQLite / DuckDB =====
-        if self.choice_DBMS in ["SQLite", "DuckDB"]:
-            # Costruisco percorso file
-            # Per sicurezza aggiungo estensione se manca
-            filename = db_name
-            if not filename.lower().endswith((".db", ".duckdb")):
-                if self.choice_DBMS == "SQLite":
-                    filename += ".db"
-                else:
-                    filename += ".duckdb"
-
-            db_path = os.path.join(DB_DIR, filename)
-
-            if os.path.exists(db_path):
-                size_bytes = os.path.getsize(db_path)
-                details["size_mb"] = f"{size_bytes / (1024 * 1024):.2f} MB"
-
-        # ===== 2. Estraggo tabelle tramite SQLAlchemy =====
         old_db_name = self.db_name
         self.db_name = db_name
 
@@ -1058,24 +984,24 @@ class DBManager:
             # ALTER DATABASE [Old] MODIFY NAME = [New]
             # Requires single user mode usually
             try:
-                engine = self._db_engine(no_db=True)
+                engine = self._get_admin_engine()
                 with engine.connect() as conn:
-                    conn.execute(text(f"ALTER DATABASE [{old_name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE"))
-                    conn.execute(text(f"ALTER DATABASE [{old_name}] MODIFY NAME = [{new_name}]"))
-                    conn.execute(text(f"ALTER DATABASE [{new_name}] SET MULTI_USER"))
+                    conn.execute(text(f"ALTER DATABASE [{safe_old}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE"))
+                    conn.execute(text(f"ALTER DATABASE [{safe_old}] MODIFY NAME = [{safe_new}]"))
+                    conn.execute(text(f"ALTER DATABASE [{safe_new}] SET MULTI_USER"))
                 return True, "Database renamed"
             except Exception as e:
                 return False, str(e)
-                
+
         elif self.choice_DBMS == "PostgreSQL":
             # ALTER DATABASE old RENAME TO new
             # Cannot be connected to the db being renamed
             try:
-                engine = self._db_engine(no_db=True) # Connect to default (postgres)
+                engine = self._get_admin_engine() # Connect to default (postgres)
                 with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                     # Terminate connections
-                    conn.execute(text(f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{old_name}'"))
-                    conn.execute(text(f"ALTER DATABASE \"{old_name}\" RENAME TO \"{new_name}\""))
+                    conn.execute(text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :dbname"), {"dbname": safe_old})
+                    conn.execute(text(f"ALTER DATABASE \"{safe_old}\" RENAME TO \"{safe_new}\""))
                 return True, "Database renamed"
             except Exception as e:
                 return False, str(e)
@@ -1091,19 +1017,21 @@ class DBManager:
         """
         old_db_name = self.db_name
         self.db_name = db_name
-        
+        safe_old_table = self._safe_db_name(old_table_name)
+        safe_new_table = self._safe_db_name(new_table_name)
+
         try:
             engine = self._db_engine()
             with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                 if self.choice_DBMS == "SQL Server":
                     # sp_rename
-                    conn.execute(text(f"EXEC sp_rename '{old_table_name}', '{new_table_name}'"))
+                    conn.execute(text(f"EXEC sp_rename '{safe_old_table}', '{safe_new_table}'"))
                 elif self.choice_DBMS == "MySQL":
-                    conn.execute(text(f"RENAME TABLE `{old_table_name}` TO `{new_table_name}`"))
+                    conn.execute(text(f"RENAME TABLE `{safe_old_table}` TO `{safe_new_table}`"))
                 elif self.choice_DBMS == "PostgreSQL":
-                    conn.execute(text(f"ALTER TABLE \"{old_table_name}\" RENAME TO \"{new_table_name}\""))
+                    conn.execute(text(f"ALTER TABLE \"{safe_old_table}\" RENAME TO \"{safe_new_table}\""))
                 else: # SQLite / DuckDB
-                    conn.execute(text(f"ALTER TABLE \"{old_table_name}\" RENAME TO \"{new_table_name}\""))
+                    conn.execute(text(f"ALTER TABLE \"{safe_old_table}\" RENAME TO \"{safe_new_table}\""))
             return True, "Table renamed"
         except Exception as e:
             return False, str(e)
@@ -1114,8 +1042,10 @@ class DBManager:
         """
         Deletes a database.
         """
+        safe_name = self._safe_db_name(db_name)
+
         if self.choice_DBMS in ("SQLite", "DuckDB"):
-            db_path = os.path.join(DB_DIR, db_name)
+            db_path = os.path.join(DB_DIR, safe_name)
             try:
                 if os.path.exists(db_path):
                     os.remove(db_path)
@@ -1126,16 +1056,16 @@ class DBManager:
         else:
             # Server based DROP DATABASE
             try:
-                engine = self._db_engine(no_db=True)
+                engine = self._get_admin_engine()
                 with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                     if self.choice_DBMS == "SQL Server":
-                        conn.execute(text(f"DROP DATABASE [{db_name}]"))
+                        conn.execute(text(f"DROP DATABASE [{safe_name}]"))
                     elif self.choice_DBMS == "MySQL":
-                         conn.execute(text(f"DROP DATABASE `{db_name}`"))
+                         conn.execute(text(f"DROP DATABASE `{safe_name}`"))
                     elif self.choice_DBMS == "PostgreSQL":
                         # Terminate connections first
-                        conn.execute(text(f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}'"))
-                        conn.execute(text(f"DROP DATABASE \"{db_name}\""))
+                        conn.execute(text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :dbname"), {"dbname": safe_name})
+                        conn.execute(text(f"DROP DATABASE \"{safe_name}\""))
                 return True, "Database deleted"
             except Exception as e:
                 return False, str(e)

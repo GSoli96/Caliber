@@ -306,11 +306,12 @@ TRANSLATIONS = {
     "filter_contains": {"en": "🔎 Filter (contains)", "it": "🔎 Filtro (contiene)"},
     "host_ollama": {"en": "🌐 Ollama Host", "it": "🌐 Host Ollama"},
     "hf_token_opt": {"en": "🔑 HF Token (opt.)", "it": "🔑 HF token (opz.)"},
+"spacy_warning": {
+  "en": "⚠️ Note:**spaCy models are _not_ generative models.** They are used only for **linguistic analysis** (e.g., tokenization, part-of-speech tagging, named entity recognition) and for **detecting potentially sensitive information (PII)** in your data or natural-language prompts.\n\nAll processing runs **locally on your machine**; however, **you remain responsible** for ensuring that any personal or confidential data is handled in compliance with your own policies and applicable regulations.\n\nDetected entities may be **incomplete or contain errors** and should always be **manually reviewed** before use.",
+  "it": "⚠️ Nota:I modelli **spaCy non sono modelli generativi.** Vengono utilizzati esclusivamente per **l’analisi linguistica** (ad es. tokenizzazione, part-of-speech tagging, named entity recognition) e per **individuare potenziali informazioni sensibili (PII)** nei dati o nei prompt in linguaggio naturale.\n\nL’elaborazione avviene **localmente sulla tua macchina**; tuttavia, **resta tua responsabilità** garantire che eventuali dati personali o confidenziali siano gestiti in conformità alle tue policy e alle normative vigenti.\n\nLe entità rilevate possono essere **incomplete o contenere errori** e dovrebbero sempre essere **verificate manualmente** prima dell’uso."
+},
 
-    "spacy_warning": {
-        "en": "⚠️ Note: **spaCy** models are *not* generative models...",
-        "it": "⚠️ Nota: i modelli **spaCy** *non* sono modelli generativi..."
-    },
+
 
     "load_list": {"en": "📥 Load List", "it": "📥 Carica elenco"},
     "clear_list": {"en": "🗑️ Clear", "it": "🗑️ Svuota"},
@@ -319,7 +320,7 @@ TRANSLATIONS = {
 
     "loading_models": {"en": "⏳ Loading models from {backend}…", "it": "⏳ Carico modelli da {backend}…"},
     "no_models_found": {"en": "❌ No models found.", "it": "❌ Nessun modello trovato."},
-    "models_found": {"en": "📦 Found {n} models.", "it": "📦 Trovati {n} modelli."},
+    # "models_found": {"en": "📦 Found {n} models.", "it": "📦 Trovati {n} modelli."},
     "server_not_running": {"en": "🚨 Server is not Running!", "it": "🚨 Il server non è in esecuzione!"},
 
     "available_model": {"en": " Available Model", "it": "Modello disponibile"},
@@ -344,8 +345,8 @@ TRANSLATIONS = {
     "active_model": {"en": "🎯 Active Model: {backend} / {sel}", "it": "🎯 Modello attivo: {backend} / {sel}"},
     "set_filters_info": {"en": "🔎 Set filters and start a search.", "it": "🔎 Imposta i filtri e avvia una ricerca."},
     "no_models_criteria": {"en": "❌ No models found with these criteria.", "it": "❌ Nessun modello trovato con questi criteri."},
-    "models_found_hf": {"en": "📦 Found {n} models", "it": "📦 Trovati {n} modelli"},
-    "models_found_header": {"en": "📦 Models Found", "it": "📦 Modelli Trovati"},
+    # "models_found_hf": {"en": "📦 Found {n} models", "it": "📦 Trovati {n} modelli"},
+    # "models_found_header": {"en": "📦 Models Found", "it": "📦 Modelli Trovati"},
     "search_invalid_id": {"en": "❗ Search returned items without valid ID.", "it": "❗ La ricerca ha restituito elementi senza id valido."},
     "select_model": {"en": "🎯Select a model", "it": "🎯Seleziona un modello"},
     "language": {"en": "Language: {lang}", "it": "Lingua: {lang}"},
@@ -431,12 +432,12 @@ TRANSLATIONS = {
 "sort_by": {"en": "Sort by", "it": "Ordina per"},
 "search_placeholder": {"en": "🔎 Search in name or description", "it": "🔎 Cerca nel nome o nella descrizione"},
 "max_results": {"en": "Max results", "it": "Numero massimo di risultati"},
-"hf_token_help": {"en": "🔑 HF token (optional, for private models)", "it": "🔑 HF token (opzionale, per modelli privati)"},
-"search_btn": {"en": "🔍 Search models", "it": "🔍 Cerca modelli"},
+"hf_token_help": {"en": "HF token (optional, for private models)", "it": "HF token (opzionale, per modelli privati)"},
+"search_btn": {"en": "Search models", "it": "Cerca modelli"},
 "insert_author": {"en": "✏️ Please insert the author.", "it": "✏️ Please insert the author."},
 "insert_author_token": {"en": "🔑 Please insert the author and your HF token.", "it": "🔑 Please insert the author and your HF token."},
 "no_models_found_retry": {"en": "❌ No models found, change filters and retry!", "it": "❌ Nessun modello trovato, cambia i filtri e riprova!"},
-"models_found_count": {"en": "📦 Found {n} models", "it": "📦 Trovati {n} modelli"},
+# "models_found_count": {"en": "📦 Found {n} models", "it": "📦 Trovati {n} modelli"},
 
 "lm_studio_title": {"en": "🧪 LM Studio", "it": "🧪 LM Studio"},
 "lm_host_help": {"en": "Local OpenAI-compatible server (e.g. http://localhost:1234)", "it": "Server locale OpenAI-compatible (es. http://localhost:1234)"},
@@ -483,9 +484,9 @@ TRANSLATIONS = {
 "repo_filter": {"en": "Repository filter", "it": "Filtro repository"},
 
 "registry_browse": {"en": "🌐 Online Registry (browse & pull)", "it": "🌐 Registry online (browse & pull)"},
-"search_registry": {"en": "🔍 Search in registry", "it": "🔍 Cerca nel registry"},
-"search_repo_contains": {"en": "🔎 Search repository (contains)", "it": "🔎 Cerca repository (contiene)"},
-"refresh_registry": {"en": "🔄 Refresh registry list", "it": "🔄 Aggiorna elenco registry"},
+"search_registry": {"en": "Search in registry", "it": "Cerca nel registry"},
+"search_repo_contains": {"en": "Search repository (contains)", "it": "Cerca repository (contiene)"},
+"refresh_registry": {"en": "Refresh registry list", "it": "Aggiorna elenco registry"},
 
 "manual_pull_info": {
     "en": "You can still manually enter `model:tag` below to pull.",
@@ -535,7 +536,7 @@ TRANSLATIONS = {
 
 "details_no_download": {"en": "📘 Model details (without downloading)", "it": "📘 Dettagli modello (senza scaricare)"},
 
-"download_update": {"en": "⬇️ Download / Update", "it": "⬇️ Scarica / Aggiorna"},
+"download_update": {"en": "Download / Update", "it": "Scarica / Aggiorna"},
 "show_details_after": {"en": "Show full details after download", "it": "Mostra dettagli completi dopo il download"},
 
 "downloading_candidate": {"en": "⬇️ Downloading `{candidate}`…", "it": "⬇️ Download di `{candidate}` in corso…"},
@@ -660,6 +661,91 @@ TRANSLATIONS = {
     "imputation_complete": {"en": "🎉 Imputation review complete.", "it": "🎉 Revisione imputazione completata."},
 
     "confirm_apply": {"en": "💾 Apply Accepted Changes to Dataset", "it": "💾 Applica Modifiche Accettate al Dataset"}
+},
+"welcome": {
+    "title": {"en": "🌳 Welcome to CALIBER", "it": "🌳 Benvenuto in CALIBER"},
+    "subtitle": {"en": "### 🌍 Green AI-Powered SQL Query Generation & Optimization", "it": "### 🌍 Green AI-Powered SQL Query Generation & Optimization"},
+    "intro": {
+        "en": "**CALIBER** (Carbon-Aware LLM-Integrated Benchmarking and Eco-friendly Rewriting) is a comprehensive tool for SQL query generation via artificial intelligence, with real-time CO₂ emissions monitoring and green query optimization.",
+        "it": "**CALIBER** (Carbon-Aware LLM-Integrated Benchmarking and Eco-friendly Rewriting) è uno strumento completo per la generazione di query SQL tramite intelligenza artificiale, con monitoraggio in tempo reale delle emissioni di CO₂ e ottimizzazione green delle query."
+    },
+    "features_header": {"en": "### 📋 Features Overview", "it": "### 📋 Panoramica delle Funzionalità"},
+    
+    "data_hub_title": {"en": "#### 📊 Data Hub", "it": "#### 📊 Data Hub"},
+    "data_hub_desc": {
+        "en": "Load data from local files (CSV, Parquet, HDF5) or connect to existing databases (MySQL, PostgreSQL, SQLite, DuckDB). Configure LLM models for query generation.",
+        "it": "Carica dati da file locali (CSV, Parquet, HDF5) o connettiti a database esistenti (MySQL, PostgreSQL, SQLite, DuckDB). Configura i modelli LLM per la generazione di query."
+    },
+    
+    "data_insights_title": {"en": "#### 📈 Data Insights", "it": "#### 📈 Data Insights"},
+    "data_insights_desc": {
+        "en": "In-depth dataset analysis with detailed statistics, sensitive data (PII) detection, relational profiling, primary key identification, and interactive visualizations.",
+        "it": "Analisi approfondita dei dataset con statistiche dettagliate, rilevamento di dati sensibili (PII), profilazione relazionale, identificazione di chiavi primarie e visualizzazioni interattive."
+    },
+    
+    "green_query_title": {"en": "#### 🧪 Green Query Builder", "it": "#### 🧪 Green Query Builder"},
+    "green_query_desc": {
+        "en": "Generate SQL queries from natural language using LLMs. Includes real-time CO₂ monitoring, alternative query execution, and the **Greenify** function to optimize queries by reducing carbon emissions.",
+        "it": "Genera query SQL da linguaggio naturale utilizzando LLM. Include monitoraggio CO₂ in tempo reale, esecuzione di query alternative e la funzione **Greenify** per ottimizzare le query riducendo le emissioni di carbonio."
+    },
+    
+    "eco_benchmark_title": {"en": "#### 🎯 Eco Benchmark", "it": "#### 🎯 Eco Benchmark"},
+    "eco_benchmark_desc": {
+        "en": "Compare different LLMs based on energy efficiency, accuracy, and carbon footprint. Includes NL→SQL benchmarks, DBMS execution, quality evaluation, and Green AI Race.",
+        "it": "Confronta diversi LLM in base a efficienza energetica, accuratezza e impronta di carbonio. Include benchmark NL→SQL, esecuzione DBMS, valutazione qualità e Green AI Race."
+    },
+    
+    "synthetic_lab_title": {"en": "#### 🧬 Synthetic Lab", "it": "#### 🧬 Synthetic Lab"},
+    "synthetic_lab_desc": {
+        "en": "Generate synthetic datasets with various strategies (Faker, GaussianCopula, CTGAN, TVAE) while monitoring the environmental impact of each approach.",
+        "it": "Genera dataset sintetici con diverse strategie (Faker, GaussianCopula, CTGAN, TVAE) monitorando l'impatto ambientale di ogni approccio."
+    },
+    
+    "settings_title": {"en": "#### ⚙️ Settings", "it": "#### ⚙️ Settings"},
+    "settings_desc": {
+        "en": "Customize key parameters such as CO₂ emission factor and CPU TDP for more accurate estimates based on your hardware and geographic location.",
+        "it": "Personalizza i parametri chiave come il fattore di emissione CO₂ e il TDP della CPU per stime più accurate basate sul tuo hardware e posizione geografica."
+    },
+    
+    "key_features_header": {"en": "### 🌱 Key Features", "it": "### 🌱 Caratteristiche Principali"},
+    "feature_monitoring": {
+        "en": "**Real-time CO₂ Monitoring**: Complete tracking of energy consumption and emissions",
+        "it": "**Monitoraggio CO₂ in tempo reale**: Tracciamento completo del consumo energetico e delle emissioni"
+    },
+    "feature_greenify": {
+        "en": "**Green Optimization (Greenify)**: Automatic query rewriting to reduce environmental impact",
+        "it": "**Ottimizzazione Green (Greenify)**: Riscrittura automatica delle query per ridurre l'impatto ambientale"
+    },
+    "feature_multi_llm": {
+        "en": "**Multi-LLM Support**: Integration with Hugging Face, Ollama, LM Studio, and custom models",
+        "it": "**Multi-LLM Support**: Integrazione con Hugging Face, Ollama, LM Studio e modelli personalizzati"
+    },
+    "feature_benchmarking": {
+        "en": "**Comprehensive Benchmarking**: Systematic comparison of LLMs and DBMS based on sustainability metrics",
+        "it": "**Benchmarking Completo**: Confronto sistematico di LLM e DBMS basato su metriche di sostenibilità"
+    },
+    "feature_synthetic": {
+        "en": "**Synthetic Data Generation**: Dataset creation with energy impact tracking",
+        "it": "**Generazione Dati Sintetici**: Creazione di dataset con tracciamento dell'impatto energetico"
+    },
+    "feature_analytics": {
+        "en": "**Advanced Analytics**: Relational profiling, PII detection, and integrity analysis",
+        "it": "**Analisi Avanzata**: Profilazione relazionale, rilevamento PII e analisi di integrità"
+    },
+    
+    "getting_started_header": {"en": "### 🚀 Getting Started", "it": "### 🚀 Per Iniziare"},
+    "step1": {"en": "**Load your data** in the *Data Hub* tab", "it": "**Carica i tuoi dati** nel tab *Data Hub*"},
+    "step2": {"en": "**Configure an LLM model** (local or online)", "it": "**Configura un modello LLM** (locale o online)"},
+    "step3": {"en": "**Generate queries** from natural language in the *Green Query Builder* tab", "it": "**Genera query** dal linguaggio naturale nel tab *Green Query Builder*"},
+    "step4": {"en": "**Optimize** your queries with the Greenify function", "it": "**Ottimizza** le tue query con la funzione Greenify"},
+    "step5": {"en": "**Compare** different LLMs in the *Eco Benchmark* tab", "it": "**Confronta** diversi LLM nel tab *Eco Benchmark*"},
+    
+    "dont_show_again": {"en": "✅ Don't show this message again", "it": "✅ Non mostrare più questo messaggio"},
+    "dont_show_help": {
+        "en": "Check to hide this message on future launches",
+        "it": "Seleziona per non visualizzare più questo messaggio all'avvio"
+    },
+    "start_button": {"en": "🚀 Get Started", "it": "🚀 Inizia"}
 },
 }
 

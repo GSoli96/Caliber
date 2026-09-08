@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from typing import Dict, List
 import json
 import db_adapters
+from db_adapters.DBManager import DBManager
 import llm_adapters
 from charts.plotly_charts import (
     generate_usage_chart, generate_power_chart, generate_cumulative_co2_chart,
@@ -188,28 +189,6 @@ def _display_results_eval():
     with st.container(border=False):
         loaded_databases = st.session_state["dataframes"]["DBMS"]
 
-        if not loaded_databases:
-            st.info("Nessun database (da DBMS) è stato ancora caricato.")
-        else:
-            for db_name, tables_data in loaded_databases.items():
-                with st.expander(f"📁 Database: {db_name}", expanded=False):
-                    tab_names = []
-                    tab_dfs = []
-                    if not tables_data:
-                        st.warning(get_text("gen_eval", "no_table_found", db_name=db_name))
-                        continue
-                    for db_dict in tables_data:
-                        tab_names.append(db_dict["table_name"])
-                        tab_dfs.append(db_dict["table"])
-                    tabs = st.tabs(tab_names)
-                    for name, tab, df in zip(tab_names, tabs, tab_dfs):
-                        with tab:
-                            if df is not None and df.shape[0] > 0:
-                                st.write(get_text("gen_eval", "preview_dataset"))
-                                st.write(df.head(5))
-                            else:
-                                st.error(get_text("gen_eval", "table_not_found", name=name, db_name=db_name))
-        
     # Alla fine di _display_results_eval, aggiungere:
     st.markdown("### 📊 Sustainability Metrics")
     # Mostra metriche comprensibili
@@ -227,12 +206,19 @@ def _display_results_eval():
         relatable = format_relatable_metrics(total_co2)
         
         col1, col2, col3 = st.columns(3)
+
         with col1:
-            st.metric("📱 Smartphones", relatable['smartphones'])
+            st.metric("📱 Smartphones", f"{relatable['smartphones']['value']}")
+            st.caption(f"**{relatable['smartphones']['text']}**")
+
         with col2:
-            st.metric("🚗 Car Distance", relatable['car_distance'])
+            st.metric("🚗 Car Distance", f"{relatable['car_distance']['value']}")
+            st.caption(f"**{relatable['car_distance']['text']}**")
+
         with col3:
-            st.metric("💡 LED Hours", relatable['lightbulb_hours'])
+            st.metric("💡 LED Hours", f"{relatable['lightbulb_hours']['value']}")
+            st.caption(f"**{relatable['lightbulb_hours']['text']}**")
+
     # Bottone per scaricare certificato
     if st.button("📊 Download Green Certificate", type="primary"):
         session_data = calculate_session_metrics([monitoring_data])
@@ -244,38 +230,99 @@ def _display_results_eval():
             mime="application/pdf"
         )
 
+@st.cache_data(show_spinner=False, ttl=60)
+def _get_active_db_size(db_choice: str, db_name: str) -> str:
+    """Dimensione del db attivo, calcolata sul DBMS (cache per evitare query ad ogni rerun)."""
+    try:
+        temp_state = {
+            'config_dict': {'choice_DBMS': db_choice, 'db_name': db_name},
+            'dfs_dict': {'dummy': pd.DataFrame()},
+        }
+        mgr = DBManager(temp_state, 'status')
+        mgr.choice_DBMS = db_choice
+        return mgr.get_db_size(db_name)
+    except Exception:
+        return "N/A"
+
+
+@st.cache_data(show_spinner=False, ttl=60)
+def _get_active_model_size(backend: str, model_name: str, kwargs_fp: tuple) -> str:
+    """Dimensione su disco del modello attivo (cache per evitare chiamate ripetute)."""
+    try:
+        details = llm_adapters.get_model_details(backend, model_name, **dict(kwargs_fp))
+        return details.get("Size on Disk") or details.get("Disk size") or "N/A"
+    except Exception:
+        return "N/A"
+
+
+def _dataset_model_recap():
+    """Piccolo recap del dataset e del modello attualmente selezionati."""
+    db_choice = st.session_state.get('db_choice')
+    db_name = st.session_state.get('db_name')
+    dbms_tables = st.session_state.get("dataframes", {}).get("DBMS", {}).get(db_name, []) if db_name else []
+
+    llm_state = st.session_state.get('llm', {})
+
+    with st.container(border=True):
+        col_ds, col_model = st.columns(2)
+
+        with col_ds:
+            st.markdown("**📁 Active dataset**")
+            if db_name and dbms_tables:
+                n_rows = sum(len(t["table"]) for t in dbms_tables)
+                n_cols = sum(t["table"].shape[1] for t in dbms_tables)
+                size_str = _get_active_db_size(db_choice, db_name)
+                st.caption(
+                    f"**Name:** {db_name}  \n"
+                    f"**Size:** {size_str}  \n"
+                    f"**Tables:** {len(dbms_tables)}  \n"
+                    f"**Columns:** {n_cols}  \n"
+                    f"**Rows:** {n_rows:,}"
+                )
+            else:
+                st.caption(get_text("gen_eval", "please_load_dataset"))
+
+        with col_model:
+            st.markdown("**🤖 Active model**")
+            if llm_state.get('status') == 'loaded':
+                model_name = llm_state.get('model', 'N/A')
+                backend = llm_state.get('backend', 'N/A')
+                raw_kwargs = llm_state.get('kwargs', {}) or {}
+                safe_kwargs = {k: v for k, v in raw_kwargs.items() if isinstance(v, (str, int, float, bool, type(None)))}
+                kwargs_fp = tuple(sorted(safe_kwargs.items()))
+                size_str = _get_active_model_size(backend, model_name, kwargs_fp)
+                st.caption(
+                    f"**Model:** {model_name}  \n"
+                    f"**Backend:** {backend}  \n"
+                    f"**Size on disk:** {size_str}"
+                )
+            else:
+                st.caption(get_text("gen_eval", "please_load_llm"))
+
+
 def query_gen_eval_tab():
     llm_state = st.session_state.get('llm', {})
 
-    if st.session_state['create_db_done'] == True:
-        if len(list(st.session_state["dataframes"]["DBMS"].keys())) > 0:
-            dataset_tab_geneval("geneval")
-    else:
-        st.info(get_text("gen_eval", "please_load_dataset"))
+    # if st.session_state['create_db_done'] == True:
+    #     if len(list(st.session_state["dataframes"]["DBMS"].keys())) > 0:
+    #         dataset_tab_geneval("geneval")
+    # else:
+    #     st.info(get_text("gen_eval", "please_load_dataset"))
 
     if llm_state['status'] == 'notLoad':
         st.info(get_text("gen_eval", "please_load_llm"))
     elif llm_state['status'] == 'loaded':
         backend_icon = LLM_ADAPTER_ICONS.get(llm_state["backend"], "🤖")
         status_icon = "✅" if llm_state["status"] == "loaded" else "⚠️"
-        
-        with st.expander(f"### {UI_ICONS['Details']} {get_text('gen_eval', 'selected_model')}", expanded=False):
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                with st.container(border=True):
-                    st.markdown(f"<div style='text-align:center;'><strong>{backend_icon} {get_text('gen_eval', 'backend')}</strong><br>{llm_state['backend']}</div>", unsafe_allow_html=True)
-            with col2:
-                with st.container(border=True):
-                    st.markdown(f"<div style='text-align:center;'><strong>🎯 {get_text('gen_eval', 'model')}</strong><br>{llm_state['model']}</div>", unsafe_allow_html=True)
-            with col3:
-                with st.container(border=True):
-                    st.markdown(f"<div style='text-align:center;'><strong>{status_icon} {get_text('gen_eval', 'status')}</strong><br>{llm_state['status'].capitalize()}</div>", unsafe_allow_html=True)
+
+    _dataset_model_recap()
 
     user_prompt = st.text_area(
         get_text("gen_eval", "describe_request"), 
         key="gen_prompt", 
         height=120,
-        placeholder="e.g., Show me the occupation and education distribution for people over 30 years old, including average age and hours worked per week"
+        placeholder="e.g., Show me the occupation and education distribution for people over 30 years old, including average age and hours worked per week",
+        value="Show me the occupation and education distribution for people over 30 years old, including average age and hours worked per week"
     )
     submit = (user_prompt != '' and st.session_state['create_db_done'] and llm_state['status'] != 'notLoad')
 

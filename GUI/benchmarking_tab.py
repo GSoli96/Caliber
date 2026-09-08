@@ -3,7 +3,6 @@ import time
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-from utils.translations import get_text
 from utils.system_monitor_utilities import SystemMonitor, watt_to_co2_gs, co2_gs_to_co2_kgh
 import threading
 import llm_adapters
@@ -12,6 +11,10 @@ from utils.query_cleaner import extract_sql_query
 from utils.utils_gen_eval_query import get_all_loaded_dfs
 import db_adapters
 from GUI.green_ai_race_tab import green_ai_race_tab
+from utils.translations import get_text
+from db_adapters.DBManager import DBManager
+
+DB_DIR = st.session_state.get('db_dir', "database")
 
 # --- CO2 Monitoring Helper ---
 class CO2Monitor:
@@ -97,34 +100,30 @@ def benchmark_tab():
             'active_csv_df': None
         }
 
-    st.markdown("## 🎯 Benchmarking & Green AI Evaluation")
+    st.markdown("## 🎯 Eco Benchmarking")
     
     render_global_kpi()
 
     tab_names = [
-        "🏁 Green AI Race"
-        "LLM NL→SQL Benchmark",
-        "DBMS Execution Benchmark",
-        "LLM Quality Evaluation"
+        "🏁 Green AI Race",
+        "🧠 NL→SQL Benchmark",
+        "🗄️ LLM & DBMS Execution Benchmark",
     ]
-    
+        
     tabs = st.tabs(tab_names)
     
     # --- GREEN AI RACE ---
     with tabs[0]:
-        st.header("🏁 Green AI Race")
+        st.subheader("🏁 Green AI Race")
         green_ai_race_tab()
         
     with tabs[1]:
+        st.subheader("🧠 NL→SQL Benchmark")
         render_llm_nl_sql_tab()
 
     with tabs[2]:
+        st.subheader("🗄️ DBMS Execution Benchmark")
         render_dbms_execution_tab()
-
-    with tabs[2]:
-        render_llm_quality_eval_tab()
-
-
 
 def render_global_kpi():
     if 'benchmarking_kpi' in st.session_state:
@@ -145,7 +144,7 @@ def render_shared_setup(key_suffix=""):
     
     with st.expander("⚙️ Setup: LLM, Database & Data", expanded=True):
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.markdown("#### 🤖 LLM Configuration")
             llm_backend = st.selectbox(
@@ -169,113 +168,134 @@ def render_shared_setup(key_suffix=""):
             state['llm_model'] = llm_model
 
         with col2:
-            st.markdown("#### 📂 Data Source (CSV)")
-            uploaded_file = st.file_uploader("Upload Benchmark CSV", type=["csv"], key=f"bench_csv_{key_suffix}")
+            st.markdown("#### 📁 Active Dataset")
+            active_db_name = st.session_state.get('db_name')
+            active_tables = st.session_state.get("dataframes", {}).get("DBMS", {}).get(active_db_name, []) if active_db_name else []
+
+            if active_db_name and active_tables:
+                st.success(
+                    f"Using dataset **{active_db_name}** "
+                    f"({st.session_state.get('db_choice', 'N/A')}) — "
+                    f"{len(active_tables)} table(s) loaded from Data Hub."
+                )
+            else:
+                st.warning("⚠️ No dataset loaded. Please load one from **Data Hub** first.")
+
+    # if len(list(st.session_state["dataframes"]["DBMS"].keys())) > 0:
+    #     dataset_tab_dbms(key)
+
+    with st.expander("📂 Data Source (CSV)", expanded=True):
+        uploaded_file = st.file_uploader("Upload Benchmark CSV", type=["csv"], key=f"bench_csv_{key_suffix}")
+        
+        if uploaded_file:
+            if state['csv_file'] != uploaded_file:
+                state['csv_file'] = uploaded_file
+                state['active_csv_df'] = pd.read_csv(uploaded_file)
+                st.toast("CSV Loaded!")
             
-            if uploaded_file:
-                if state['csv_file'] != uploaded_file:
-                    state['csv_file'] = uploaded_file
-                    state['active_csv_df'] = pd.read_csv(uploaded_file)
-                    st.toast("CSV Loaded!")
+            if state['active_csv_df'] is not None:
+                st.dataframe(state['active_csv_df'].head(3), height=100)
                 
-                if state['active_csv_df'] is not None:
-                    st.dataframe(state['active_csv_df'].head(3), height=100)
-                    
-                    cols = state['active_csv_df'].columns.tolist()
-                    nl_col = st.selectbox("Natural Language Query Column", [None] + cols, key=f"bench_nl_col_{key_suffix}")
-                    
-                    state['csv_mapping']['nl_query'] = nl_col
-                    
-                    dbms_cols = {}
-                    for db in ["MySQL", "SQLite", "PostgreSQL", "DuckDB", "SQL Server"]:
-                        if db in cols:
-                            dbms_cols[db] = db
-                    state['csv_mapping']['dbms_cols'] = dbms_cols
-                    
-                    if dbms_cols:
-                        st.caption(f"Detected DBMS Ground Truth Columns: {', '.join(dbms_cols.keys())}")
+                cols = state['active_csv_df'].columns.tolist()
+                nl_col = st.selectbox("Natural Language Query Column", [None] + cols, 
+                key=f"bench_nl_col_{key_suffix}")
+                
+                state['csv_mapping']['nl_query'] = nl_col
+                
+                dbms_cols = {}
+                for db in ["MySQL", "SQLite", "PostgreSQL", "DuckDB", "SQL Server"]:
+                    if db in cols:
+                        dbms_cols[db] = db
+                state['csv_mapping']['dbms_cols'] = dbms_cols
+                
+                if dbms_cols:
+                    st.caption(f"Detected DBMS Ground Truth Columns: {', '.join(dbms_cols.keys())}")
 
-# def render_feature_benchmarking_tab():
-    
-#     st.markdown("#### Configuration")
-    
-#     # Descriptions for tooltips/captions
-#     scenario_desc = {
-#         "Baseline": "Standard performance test without specific load bias.",
-#         "Read-heavy": r"Simulates a workload with 90% SELECT operations.",
-#         "Write-heavy": r"Simulates a workload with 90% INSERT/UPDATE operations.",
-#         "Mixed": r"Balanced workload with 50% reads and 50% writes.",
-#         "CPU-bound": "Workload involving complex calculations and aggregations.",
-#         "IO-bound": "Workload involving large data retrieval and disk I/O."
-#     }
-    
-#     dataset_desc = {
-#         "10k": "Small dataset (~10MB), suitable for quick tests.",
-#         "100k": "Medium dataset (~100MB), good for general benchmarking.",
-#         "1M": "Large dataset (~1GB), tests system scalability.",
-#         "10M": "Very large dataset (~10GB), stress tests memory and I/O."
-#     }
-    
-#     feature_desc = {
-#         "HE Enabled": "Homomorphic Encryption: Secure computation on encrypted data.",
-#         "Compression": "Data Compression: Reduces storage but increases CPU usage.",
-#         "GPU Acceleration": "Uses GPU for query processing to speed up execution.",
-#         "Index Optimization": "Uses advanced indexing strategies for faster lookups."
-#     }
+# def dataset_tab_dbms(key_alter="Eco"):
+#     """Visualizza i dettagli per TUTTI i database DBMS caricati in session_state."""
+#     loaded_databases = st.session_state["dataframes"]["DBMS"]
 
-#     col1, col2 = st.columns([3,3])
-#     with col1:
-#         scenario = st.selectbox("Scenario", ["Baseline", "Read-heavy", "Write-heavy", "Mixed", "CPU-bound", "IO-bound"])
-#         st.caption(scenario_desc.get(scenario, ""))
+#     if not loaded_databases:
+#         st.info(get_text("load_dataset", "no_db_loaded"))
+#         return
 
-#     with col2:
-#         features = st.multiselect("Features to Compare", ["HE Enabled", "Compression", "GPU Acceleration", "Index Optimization"])
-#         if features:
-#             for f in features:
-#                 st.caption(f"**{f}**: {feature_desc.get(f, '')}")
-#         else:
-#             st.caption("Select features to enable specific optimizations or overheads.")
+#     with st.expander('📁 Dataset Overview', expanded=False):
+#         for db_name, tables_data in loaded_databases.items():
 
-#     col1, col2, col3 = st.columns([2, 2, 2])
-#     with col1:
-#         dataset_size = st.select_slider("Dataset Size", options=["10k", "100k", "1M", "10M"])
-#         st.caption(dataset_desc.get(dataset_size, ""))
-        
-#     with col2:
-#         runs = st.slider("Runs", 1, 10, 3)
-#         st.caption(f"Execute {runs} iterations for statistical significance.")
+#             st.header(f"📁 Database: {db_name}")
 
-#     with col3:
-#         duration = st.slider("Duration per Run (s)", 5, 60, 10)
-#         st.caption(f"Each run will last {duration} seconds.")
+#             # 3. Recupera la configurazione specifica per *questo* database
+#             #    Questo funziona grazie alle modifiche al prerequisito
+#             config_dict = st.session_state.get('uploaded_dbms', {}).get(db_name)
 
-#     if st.button("🚀 Run Benchmark", type="primary"):
-#         st.session_state['feature_benchmark_results'] = pd.DataFrame({
-#             'run': [1, 2, 3],
-#             'scenario': ['Baseline'] * 3,
-#             'dataset_size': ['100k'] * 3,
-#             'features': ['None'] * 3,
-#             'latency_ms': [25.5, 24.8, 26.1],
-#             'throughput_ops': [2500, 2600, 2450],
-#             'co2_g': [0.0012, 0.0011, 0.0013],
-#             'energy_wh': [0.005, 0.0048, 0.0052]
-#         })
-#         st.toast("Example configuration loaded!")
-#         run_feature_benchmark(scenario, dataset_size, features, runs, duration)
+#             with st.container(border=True):
+#                 st.subheader(get_text("load_dataset", "db_info"))
 
-#     st.markdown("### Results")
-#     if 'feature_benchmark_results' in st.session_state:
-#         results = st.session_state['feature_benchmark_results']
-#         st.dataframe(results)
-        
-#         if not results.empty:
-#             fig = px.bar(results, x='run', y='latency_ms', title="Latency per Run")
-#             st.plotly_chart(fig, use_container_width=True)
-            
-#             fig2 = px.scatter(results, x='throughput_ops', y='co2_g', size='co2_g', title="Throughput vs CO₂")
-#             st.plotly_chart(fig2, use_container_width=True)
-#     else:
-#         st.info("Configure and run a benchmark to see results.")
+#                 # 4. Funzione modulare per mostrare le info
+#                 _display_db_info(config_dict, db_name, tables_data, key_alter)
+
+#                 # st.divider()
+#                 st.subheader(get_text("load_dataset", "explore_tables"))
+
+#                 # 5. Logica esistente per creare i tab delle tabelle
+#                 tab_names = []
+#                 tab_dfs = []
+
+#                 if not tables_data:
+#                     st.warning(get_text("gen_eval", "no_table_found", db_name=db_name))
+#                     continue
+
+#                 for db_dict in tables_data:
+#                     tab_names.append(db_dict["table_name"])
+#                     tab_dfs.append(db_dict["table"])
+
+#                 tabs = st.tabs(tab_names)
+
+#                 for name, tab, df in zip(tab_names, tabs, tab_dfs):
+#                     with tab:
+#                         if df is not None and df.shape[0] > 0:
+#                             with st.container(border=False):
+#                                 st.subheader(get_text("load_dataset", "dataset_details"))
+#                                 rows_to_show = st.number_input(
+#                                     get_text("load_dataset", "rows_to_show"),
+#                                     min_value=1,
+#                                     max_value=len(df),
+#                                     value=min(5, len(df)),
+#                                     step=1,
+#                                     help=get_text("load_dataset", "rows_to_show_help"),
+#                                     key=f'numberInput_preview_{db_name}_{name}_{tab}'
+#                                 )
+#                                 st.write(df.head(rows_to_show))
+#                         else:
+#                             st.error(f'Table {name} in dataset {db_name} non trovato!')
+
+
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+def reset_all_dbms(key_prefix):
+    """Resets all DBMS-related state and removes the database."""
+    config_dict = st.session_state['uploaded_dbms']
+    db_manager = DBManager({'config_dict': config_dict}, 'remove')
+    db_manager._reset_all_db()
+
+    idx = st.session_state['widget_idx_counter'] 
+    st.session_state.pop(f'conn_str_{key_prefix}_{idx}', None)
+    st.session_state.pop(f'db_first_{key_prefix}_{idx}', None)
+    st.session_state.pop(f'table_area_{key_prefix}_{idx}', None)
+    st.session_state.pop(f'load_all_table_{key_prefix}_{idx}', None)
+    st.session_state.pop(f'button_DBMS_{key_prefix}_{idx}', None)
+    st.session_state.pop(f'button_reset_DBMS_{key_prefix}_{idx}', None)
+
+    st.session_state['dataframes'].pop(['DBMS'], {})
+    st.session_state['dataframes']['DBMS'] = {}
+    st.session_state.pop('uploaded_dbms', {})
+    st.session_state.setdefault('uploaded_dbms', {})
+
+    st.cache_data.clear()
+
+    st.session_state['widget_idx_counter'] += 1
+    st.rerun()
 
 def run_feature_benchmark(scenario, dataset_size, features, runs, duration):
     results = []
@@ -309,7 +329,7 @@ def run_feature_benchmark(scenario, dataset_size, features, runs, duration):
     st.rerun()
 
 def render_llm_nl_sql_tab():
-    st.subheader("LLM NL→SQL Benchmark")
+    
     
     render_shared_setup(key_suffix="nl_sql")
     
@@ -427,7 +447,6 @@ def run_nl_sql_benchmark():
     st.rerun()
 
 def render_dbms_execution_tab():
-    st.subheader("DBMS Execution Benchmark")
     
     render_shared_setup(key_suffix="exec")
     state = st.session_state['benchmarking_state']
@@ -486,6 +505,8 @@ def run_dbms_execution(queries):
     
     db_choice = st.session_state.get('db_choice', 'Unknown')
     db_connection_args = st.session_state.get('db_connection_args', {})
+    print('db_choice', db_choice)
+    print('db_connection_args', db_connection_args)
     
     engine = None
     try:
@@ -550,7 +571,8 @@ def render_llm_quality_eval_tab():
             if not dbms_cols:
                 st.warning("No Ground Truth columns detected in CSV.")
             else:
-                gt_dbms = st.selectbox("Select Ground Truth DBMS", list(dbms_cols.keys()))
+                gt_dbms = st.selectbox("Select Ground Truth DBMS", list(dbms_cols.keys()), 
+                key=f"bench_gt_dbms_{key_suffix}")
                 gt_col = dbms_cols[gt_dbms]
                 
                 if st.button("📊 Calculate Metrics (Accuracy, Precision, Recall)", type="primary"):

@@ -13,7 +13,7 @@ NEON_COLORS = {
     'co2': '#00FFFF',      # Neon Cyan
     'grid': '#2b2b2b',     # Dark Gray
     'bg': '#0e1117',       # Streamlit Dark BG approx
-    'text': '#FAFAFA'      # White
+    'text': '#2b2b2b'      # White
 }
 
 def _get_neon_layout(title: str, xaxis_title: str, yaxis_title: str) -> dict:
@@ -41,13 +41,6 @@ def _get_neon_layout(title: str, xaxis_title: str, yaxis_title: str) -> dict:
         ),
         margin=dict(l=40, r=40, t=60, b=40)
     )
-
-# --- FUNZIONE REINSERITA PER COMPATIBILITÀ ---
-# Questa funzione è richiesta da app.py. La ripristino come placeholder.
-def generate_charts():
-    """Placeholder per una futura tab di grafici."""
-    st.info('TO DO: Questa sezione potrà contenere grafici di riepilogo.')
-
 def _add_annotations(fig, annotations):
     """
     Aggiunge linee verticali e annotazioni al grafico.
@@ -68,11 +61,11 @@ def _add_annotations(fig, annotations):
             y=1,
             yref="paper",
             text=ann['text'],
-            showarrow=False,
+            showarrow=True,
             textangle=-90,
             xanchor="right",
             yanchor="top",
-            font=dict(size=10, color="gray")
+            font=dict(size=15, color="gray")
         )
     return fig
 

@@ -26,13 +26,13 @@ def get_color_from_dtype(dtype):
 
 
 def get_connectionMySQL():
-    MYSQL = config.get("dtype_colors", {})
+    MYSQL = config.get("MYSQL", {})
     return MYSQL
 
 
 def get_HF_Token():
     token = config.get("HF_Token", {})
-    return token['token']
+    return token.get('token', '')
 
 
 def get_num_alternative_queries():

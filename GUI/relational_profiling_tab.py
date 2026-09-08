@@ -33,7 +33,6 @@ import streamlit as st
 from utils.translations import get_text
 # --- IMPORTS FOR IMPUTATION ---
 from sklearn.impute import SimpleImputer, KNNImputer
-# Enable IterativeImputer (experimental)
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 import llm_adapters
@@ -625,85 +624,21 @@ def ui_profiling_relazionale(
         st.markdown(get_text("profiling", "rel_profiling_header", rows=n_rows, cols=n_cols))
         st.caption(get_text("profiling", "lazy_analysis_info"))
 
-    # ordina come richiesto + icone
-    t4, t5 = st.tabs([
-        # "🧩 Chiavi & PK",
-        # "🔗 Cardinalità & FK",
-        # "⚖️ Dipendenze Funzionali",
-        get_text("profiling", "semantic_profiling"),
-        get_text("profiling", "heatmap_types"),
-    ])
+    c1, c2 = st.columns(2)
+    with c1:
+        sem_sample = st.slider(get_text("profiling", "sample_rows"), 20, 2000, 200, 20, key=f'slider4_{ss_key}')
+    with c2:
+        enable_spacy = st.checkbox(get_text("profiling", "use_spacy"), False, key=f'check4_{ss_key}')
+    tag = "sem"
+    if st.button(get_text("profiling", "run"), key=f"{ss_key}-{tag}-run"):
+        start_threaded_job(ss_key, tag, task_semantic, df, int(sem_sample), bool(enable_spacy), ss_key, tag)
 
-    with t4:
-        c1, c2 = st.columns(2)
-        with c1:
-            sem_sample = st.slider(get_text("profiling", "sample_rows"), 20, 2000, 200, 20, key=f'slider4_{ss_key}')
-        with c2:
-            enable_spacy = st.checkbox(get_text("profiling", "use_spacy"), False, key=f'check4_{ss_key}')
-        tag = "sem"
-        if st.button(get_text("profiling", "run"), key=f"{ss_key}-{tag}-run"):
-            start_threaded_job(ss_key, tag, task_semantic, df, int(sem_sample), bool(enable_spacy), ss_key, tag)
+    if job_running(ss_key, tag):
+        st.progress(st.session_state[ss_key]["progress"].get(tag, 0.0), text=get_text("profiling", "semantic_profiling_progress"))
+        time.sleep(0.1)
+        st.rerun()
 
-        if job_running(ss_key, tag):
-            st.progress(st.session_state[ss_key]["progress"].get(tag, 0.0), text=get_text("profiling", "semantic_profiling_progress"))
-            time.sleep(0.1)
-            st.rerun()
-
-        res = job_result(ss_key, tag)
-        if isinstance(res, dict) and "semantic" in res:
-            results["semantic"] = res["semantic"]
-            st.dataframe(res["semantic"], hide_index=True, width='stretch')
-
-    # --- 🌡️ Heatmap & Tipi
-    with t5:
-        c1, c2 = st.columns(2)
-        with c1:
-            hm_max_rows = st.number_input(get_text("profiling", "max_rows_sample"), 500, 100_000, 2_000, step=500,
-                                          key=f'ninput5_{ss_key}')
-        with c2:
-            show_types = st.checkbox(get_text("profiling", "merge_dtypes"), True, key=f'check5_{ss_key}')
-
-        def _task_heat(df: pd.DataFrame, hm_max_rows: int, show_types: bool, ss_key: str, tag: str):
-            reporter = make_progress_reporter(ss_key, tag, total=3)
-            miss_matrix = df.isna().astype(int);
-            reporter(1)
-            miss_by_col = miss_matrix.mean().to_frame("Missing %").assign(
-                **{"Missing %": lambda x: (x["Missing %"] * 100).round(2)});
-            reporter(2)
-            reporter(3)
-            return {"miss_by_col": miss_by_col, "miss_matrix": miss_matrix, "hm_max_rows": hm_max_rows,
-                    "show_types": show_types}
-
-        tag = "heat"
-        if st.button(get_text("profiling", "run"), key=f"{ss_key}-{tag}-run"):
-            start_threaded_job(ss_key, tag, _task_heat, df, int(hm_max_rows), bool(show_types), ss_key, tag)
-
-        # --- BLOCCO CORRETTO ---
-        if job_running(ss_key, tag):
-            st.progress(st.session_state[ss_key]["progress"].get(tag, 0.0), text=get_text("profiling", "preparing_heatmap"))
-            time.sleep(0.1)  # Aggiunto: Polling
-            st.rerun()  # Aggiunto: Forza rerun
-        # --- FINE BLOCCO ---
-
-        res = job_result(ss_key, tag)
-        if isinstance(res, dict):
-            miss_by_col = res["miss_by_col"].reset_index().rename(columns={"index": "Colonna"})
-            miss_matrix = res["miss_matrix"]
-            if res.get("show_types"):
-                type_map = df.dtypes.astype(str).rename("dtype").reset_index().rename(columns={"index": "Colonna"})
-                out_df = miss_by_col.merge(type_map, on="Colonna", how="left").sort_values("Missing %", ascending=False)
-                st.dataframe(out_df, hide_index=True, width='stretch')
-            else:
-                st.dataframe(miss_by_col.sort_values("Missing %", ascending=False), hide_index=True, width='stretch')
-
-            try:
-                import matplotlib.pyplot as plt, seaborn as sns
-                mm = miss_matrix if len(miss_matrix) <= res["hm_max_rows"] else miss_matrix.sample(res["hm_max_rows"],
-                                                                                                   random_state=42)
-                fig, ax = plt.subplots(figsize=(min(12, 2 + df.shape[1] * 0.5), 6))
-                sns.heatmap(mm.T, cbar=True, ax=ax);
-                ax.set_xlabel("righe");
-                ax.set_ylabel("colonne")
-                st.pyplot(fig, width='stretch')
-            except Exception:
-                st.info(get_text("profiling", "heatmap_unavailable"))
+    res = job_result(ss_key, tag)
+    if isinstance(res, dict) and "semantic" in res:
+        results["semantic"] = res["semantic"]
+        st.dataframe(res["semantic"], hide_index=True, width='stretch')

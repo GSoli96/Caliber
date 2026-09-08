@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import time
 from db_adapters.DBManager import DBManager
+from GUI.message_gui import st_toast_temp
 import sys
 
 def db_management_tab():
@@ -140,6 +141,41 @@ def _render_dbms_tab(dbms_type):
                 st.write("")
                 st.write("")
                 rename = st.button("✏️ Rename DB", key=f"p_btn_ren_db_{dbms_type}")
+
+            use_col1, use_col2 = st.columns([2, 5])
+            with use_col1:
+                use_dataset = st.button(
+                    "✅ Use this dataset",
+                    key=f"btn_use_db_{dbms_type}_{selected_db}",
+                    type="primary",
+                    use_container_width=True,
+                )
+            if use_dataset:
+                use_config = {
+                    'db_choice': dbms_type,
+                    'choice_DBMS': dbms_type,
+                    'db_name': selected_db,
+                }
+                if dbms_type in ["SQLite", "DuckDB"]:
+                    use_config['path_to_file'] = selected_db
+
+                st.session_state['uploaded_dbms'][selected_db] = use_config
+                # Solo un dataset attivo alla volta
+                st.session_state["dataframes"]["DBMS"] = {}
+
+                with st.spinner(f"Loading {selected_db}...", show_time=True):
+                    mgr_use = DBManager({'config_dict': use_config}, 'download')
+                    dumped, ok_use = mgr_use.download_db()
+
+                if ok_use:
+                    st.session_state['create_db_done'] = True
+                    st.session_state['db_choice'] = dbms_type
+                    st.session_state['db_name'] = selected_db
+                    st.session_state["dataframes"]["DBMS"][selected_db] = dumped
+                    st_toast_temp(f"✅ Dataset {selected_db} in use.", 'success')
+                    st.rerun()
+                else:
+                    st.error(f"❌ Failed to load dataset {selected_db}.")
 
             with st.container(border=True if rename else False):
                 c_ren, c_del = st.columns(2)

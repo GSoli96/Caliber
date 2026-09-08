@@ -380,7 +380,6 @@ def _generate_gaussian_copula_dataset(dataset_name: str, real_data: pd.DataFrame
             'strategy': 'GaussianCopula',
             'params': {
                 'num_rows': num_rows,
-                'original_rows': len(real_data)
             }
         }
         st.session_state['synthetic_gen'] = True
@@ -687,7 +686,6 @@ def _generate_tvae_dataset(dataset_name: str, real_data: pd.DataFrame, num_rows:
                 'num_rows': num_rows,
                 'epochs': epochs,
                 'batch_size': batch_size,
-                'original_rows': len(real_data)
             }
         }
         st.session_state['synthetic_gen'] = True    
@@ -745,7 +743,7 @@ def _render_generated_datasets():
                     st.metric("Rows to generate", params["num_rows"])
 
                 with col2:
-                    st.metric("Original rows", params["original_rows"])
+                    st.metric("Original rows", df.shape[0])
 
             
             # Analytics (reuse existing component)
