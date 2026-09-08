@@ -160,3 +160,17 @@ The application will automatically open in your web browser.
 
 5.  **Tab ⚙️ `Settings`**:
     - Customize the CO₂ emission factor and your CPU's TDP to refine the sustainability estimates.
+
+## 📖 Citation
+
+If you use CALIBER in your research, please cite:
+
+```bibtex
+@inproceedings{cirillo2026caliber,
+  title={CALIBER: Benchmarking Environmental Impact of Generated Queries in NL2SQL Pipelines},
+  author={Cirillo, Stefano and Polese, Giuseppe and Solimando, Giandomenico and Zannone, Nicola},
+  booktitle={Machine Learning and Knowledge Discovery in Databases: European Conference, ECML PKDD 2026},
+  year={2026},
+  publisher={Springer}
+}
+```
