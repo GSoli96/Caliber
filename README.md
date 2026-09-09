@@ -166,11 +166,31 @@ The application will automatically open in your web browser.
 If you use CALIBER in your research, please cite:
 
 ```bibtex
-@inproceedings{cirillo2026caliber,
-  title={CALIBER: Benchmarking Environmental Impact of Generated Queries in NL2SQL Pipelines},
-  author={Cirillo, Stefano and Polese, Giuseppe and Solimando, Giandomenico and Zannone, Nicola},
-  booktitle={Machine Learning and Knowledge Discovery in Databases: European Conference, ECML PKDD 2026},
-  year={2026},
-  publisher={Springer}
+@InProceedings{10.1007/978-3-032-37685-5_19,
+author="Cirillo, Stefano
+and Polese, Giuseppe
+and Solimando, Giandomenico
+and Zannone, Nicola",
+editor="Baratchi, Mitra
+and Bonchi, Francesco
+and Guidotti, Riccardo
+and Gullo, Francesco
+and Mignone, Paolo
+and Ge, Mouzhi
+and Moscato, Vincenzo
+and Celsi, Chiara
+and Pensa, Ruggero G.
+and Silvestri, Fabrizio
+and Flach, Peter
+and Manco, Giuseppe
+and Spiliopoulou, Myra
+and Masciari, Elio",
+title="caliber: Benchmarking Environmental Impact of Generated Queries in NL2SQL Pipelines",
+booktitle="Machine Learning and Knowledge Discovery in Databases. Applied Data Science Track, Demo Track and Industrial Track",
+year="2027",
+publisher="Springer Nature Switzerland",
+address="Cham",
+pages="288--292",
+isbn="978-3-032-37685-5"
 }
 ```
